@@ -7,6 +7,7 @@ module sd_media_pipeline #(
     parameter [2:0] SCAN_TARGET_COUNT = 3'd4
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
+    input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     output wire [3:0] state_code, input wire [15:0] bmp_width, input wire [15:0] bmp_height,
     output wire display_valid, input wire write_finish_toggle,
     output wire auto_play_enabled,
@@ -68,6 +69,7 @@ end
 
 media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_session (
     .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(scan_done),
+    .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
     .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_start(load_start),
     .load_media_index(load_media_index),.write_slot(write_buf_idx),.display_slot(disp_buf_idx),
     .display_valid(display_valid),.auto_play_enabled(auto_play_enabled),.load_inflight(load_inflight)

@@ -323,10 +323,18 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="46"/>
+                    <Attr Name="CompileOrder" Val="45"/>
                 </FileInfo>
             </File>
             <File Path="../src/sd_media_pipeline.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="46"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/uart_command_control.v">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
@@ -339,7 +347,7 @@
                     <Attr Name="UsedInSyn" Val="true"/>
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="45"/>
+                    <Attr Name="CompileOrder" Val="48"/>
                 </FileInfo>
             </File>
         </Verilog>

@@ -8,6 +8,10 @@ module top(
     output [5:0]                seg_sel,
     output [7:0]                seg_data,
 
+    // Board USB-UART bridge: FPGA RX=F12, FPGA TX=D12.
+    input                       uart_rxd,
+    output                      uart_txd,
+
     // HDMI TMDS
     output                      HDMI_CLK_P,
     output                      HDMI_D2_P,
@@ -110,8 +114,26 @@ wire [9:0]  tmds_clk_data;
 // Declare reset before any instance uses it; otherwise Verilog creates an
 // implicit net and TD reports HDL-7225 as a critical warning.
 wire        rst_all;
+wire [2:0]  uart_brightness_level;
+wire [2:0]  uart_volume_level;
+wire [2:0]  uart_playback_command;
+wire        uart_playback_command_toggle;
+wire        uart_echo_valid;
+wire [7:0]  uart_echo_data;
 // 统一复位：TF 图像链路 + HDMI 音频链路
 assign rst_all = ~rst_n;
+
+uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_control (
+    .clk(clk), .rst(rst_all), .uart_rxd(uart_rxd),
+    .brightness_level(uart_brightness_level), .volume_level(uart_volume_level),
+    .playback_command(uart_playback_command),
+    .playback_command_toggle(uart_playback_command_toggle),
+    .echo_valid(uart_echo_valid), .echo_data(uart_echo_data)
+);
+
+uart_echo_tx #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_echo_tx (
+    .clk(clk), .rst(rst_all), .data_valid(uart_echo_valid), .data(uart_echo_data), .uart_txd(uart_txd)
+);
 
 // KEY1/KEY2 are asynchronous mechanical inputs.  They are synchronized and
 // debounced in sd_card_clk, the domain that consumes the playback commands.
@@ -162,6 +184,8 @@ sd_media_pipeline #(
     .rst               (rst_all),
     .key_next          (key1),
     .key_auto          (key2),
+    .uart_command_async(uart_playback_command),
+    .uart_command_toggle_async(uart_playback_command_toggle),
     .state_code        (state_code),
     .bmp_width         (16'd640),
     .bmp_height        (16'd480),
@@ -299,7 +323,7 @@ pcm_playlist_engine #(
     .clk              (video_clk),
     .rst              (rst_all),
     .image_slot_async (disp_buf_idx),
-    .volume_async     (8'd96),
+    .volume_level_async(uart_volume_level),
     .audio_valid      (audio_valid),
     .left_pcm         (audio_left_data),
     .right_pcm        (audio_right_data)
@@ -325,7 +349,8 @@ video_presentation #(
     .rst                (rst_all),
     .display_valid      (display_valid),
     .display_slot_async (disp_buf_idx),
-    .brightness_async   (7'd64),
+    .brightness_level_async(uart_brightness_level),
+    .volume_level_async (uart_volume_level),
     .de                 (de),
     .vs                 (vs),
     .rgb_in             (vout_data_raw),

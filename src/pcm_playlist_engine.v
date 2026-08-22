@@ -7,7 +7,7 @@ module pcm_playlist_engine #(
     input  wire        clk,
     input  wire        rst,
     input  wire [1:0]  image_slot_async,
-    input  wire [7:0]  volume_async,
+    input  wire [2:0]  volume_level_async,
     output reg         audio_valid,
     output reg [23:0]  left_pcm,
     output reg [23:0]  right_pcm
@@ -20,8 +20,10 @@ reg [25:0] sample_phase;
 reg [31:0] tone_phase;
 reg [15:0] accent_samples;
 reg signed [23:0] sample_value;
-reg [7:0] volume_meta;
-reg [7:0] volume_sync;
+// volume_level_async is held stable in the UART clock domain between commands.
+// These two stages isolate it from the video/audio clock domain.
+reg [2:0] volume_meta;
+reg [2:0] volume_sync;
 
 wire [26:0] phase_sum = sample_phase + SAMPLE_RATE_HZ;
 wire sample_tick = (phase_sum >= PIXEL_CLOCK_HZ);
@@ -38,6 +40,27 @@ function [31:0] note_step;
     end
 endfunction
 
+// This shift/add mapping is intentionally monotonic.  It avoids the mixed
+// signed/unsigned multiplication that previously made adjacent UART levels
+// sound inconsistent.  The maximum source amplitude is 3,000,000, so level 7
+// (2.5x) remains within signed 24-bit PCM range during the transition cue.
+function signed [23:0] apply_volume;
+    input signed [23:0] sample;
+    input [2:0] level;
+    begin
+        case (level)
+            3'd0:   apply_volume = 24'sd0;
+            3'd1:   apply_volume = sample >>> 3;
+            3'd2:   apply_volume = sample >>> 2;
+            3'd3:   apply_volume = sample >>> 1;
+            3'd4:   apply_volume = sample;
+            3'd5:   apply_volume = sample + (sample >>> 1);
+            3'd6:   apply_volume = sample <<< 1;
+            default:apply_volume = (sample <<< 1) + (sample >>> 1);
+        endcase
+    end
+endfunction
+
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         slot_sync0     <= 2'd0;
@@ -47,8 +70,8 @@ always @(posedge clk or posedge rst) begin
         tone_phase     <= 32'd0;
         accent_samples <= 16'd0;
         sample_value   <= 24'sd0;
-        volume_meta    <= 8'd96;
-        volume_sync    <= 8'd96;
+        volume_meta    <= 3'd4;
+        volume_sync    <= 3'd4;
         audio_valid    <= 1'b0;
         left_pcm       <= 24'd0;
         right_pcm      <= 24'd0;
@@ -74,12 +97,12 @@ always @(posedge clk or posedge rst) begin
             else
                 sample_value <= tone_phase[31] ? -24'sd900000 : 24'sd900000;
 
-            left_pcm  <= (sample_value * volume_sync) >>> 8;
-            right_pcm <= (sample_value * volume_sync) >>> 8;
+            left_pcm  <= apply_volume(sample_value, volume_sync);
+            right_pcm <= apply_volume(sample_value, volume_sync);
         end else begin
             sample_phase <= phase_sum;
         end
-        volume_meta <= volume_async;
+        volume_meta <= volume_level_async;
         volume_sync <= volume_meta;
     end
 end

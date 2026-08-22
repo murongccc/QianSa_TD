@@ -3,6 +3,7 @@ prj/SD_to_Video_Runs/
 prj/log/
 prj/*.dmp
 prj/.lock.f
+prj/.read_design.*.f
 td_*.log
 td_*.logw
 *.log

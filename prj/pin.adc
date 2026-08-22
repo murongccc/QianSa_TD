@@ -18,9 +18,15 @@ set_pin_assignment	{ HDMI_D0_P }	{ LOCATION = G5; IOSTANDARD = LVDS33; PULLTYPE 
 set_pin_assignment	{ HDMI_D1_P }	{ LOCATION = F1; IOSTANDARD = LVDS33; PULLTYPE = NONE; }
 set_pin_assignment	{ HDMI_D2_P }	{ LOCATION = E1; IOSTANDARD = LVDS33; PULLTYPE = NONE; }
 set_pin_assignment	{ clk }	{ LOCATION = R7; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
-set_pin_assignment	{ key1 }	{ LOCATION = B2; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
-set_pin_assignment	{ key2 }	{ LOCATION = C1; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+# KEY1/KEY2 are active-low mechanical buttons.  Keep their idle level defined
+# even when the external button network is high impedance.
+set_pin_assignment	{ key1 }	{ LOCATION = B2; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment	{ key2 }	{ LOCATION = C1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
 set_pin_assignment	{ rst_n }	{ LOCATION = A2; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
+
+# Board USB-UART bridge: FPGA RXD=F12, TXD=D12.
+set_pin_assignment	{ uart_rxd }	{ LOCATION = F12; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment	{ uart_txd }	{ LOCATION = D12; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
 
 set_pin_assignment	{ sd_dclk }	{ LOCATION = A14; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
 set_pin_assignment	{ sd_miso }	{ LOCATION = B14; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
