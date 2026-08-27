@@ -1,4 +1,3 @@
-
 module sd_card_sec_read_write
 #(
 	parameter  SPI_LOW_SPEED_DIV = 248,         // spi clk speed = clk speed /((SPI_LOW_SPEED_DIV + 2) * 2 )

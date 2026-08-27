@@ -1,5 +1,3 @@
-
-
 module I2S_receiver (
     input wire       I_clk,
     input wire       I_rst,

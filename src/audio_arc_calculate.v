@@ -1,6 +1,3 @@
-
-
-
 module audio_arc_calculate #(
     parameter ACR_N = 6144
     )(

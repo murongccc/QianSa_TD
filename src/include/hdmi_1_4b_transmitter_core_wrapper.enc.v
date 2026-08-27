@@ -1,4 +1,3 @@
-
 module hdmi_1_4b_transmitter_core_wrapper#(
     parameter DEVICE            = "EG", //"EF2","EF3","EF4","SF1","SF2","EG","PH1A","PH1P","DR1","PH2A"
 

@@ -1,4 +1,3 @@
-
 module video_rgb_to_axis_640x480(
     input  wire        I_clk,
     input  wire        I_rst,

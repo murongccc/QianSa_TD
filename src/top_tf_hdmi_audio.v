@@ -1,4 +1,3 @@
-
 module top(
     input                       clk,
     input                       rst_n,
@@ -56,6 +55,7 @@ wire [23:0] vout_data;
 wire        display_valid;
 
 wire [3:0]  state_code;
+reg  [3:0]  state_code_display;
 wire [6:0]  seg_data_0;
 
 wire        video_read_req;
@@ -93,6 +93,7 @@ wire de_0;
 wire        audio_valid;
 wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
+wire [63:0] audio_spectrum_bands;
 wire        acr_valid;
 wire [19:0] acr_cts;
 wire [19:0] acr_n;
@@ -207,9 +208,19 @@ sd_media_pipeline #(
 );
 
 seg_decoder seg_decoder_m0(
-    .bin_data          (state_code),
+    .bin_data          (state_code_display),
     .seg_data          (seg_data_0)
 );
+
+// bmp_read drives 0 only during reset/SD re-initialisation.  Do not expose
+// that transient code on the user display; retaining the last meaningful
+// state also makes a brief SD init-done transition non-disruptive to the UI.
+always @(posedge clk or posedge rst_all) begin
+    if (rst_all)
+        state_code_display <= 4'd1;
+    else if (state_code != 4'd0)
+        state_code_display <= state_code;
+end
 
 seg_scan seg_scan_m0(
     .clk               (clk),
@@ -329,6 +340,14 @@ pcm_playlist_engine #(
     .right_pcm        (audio_right_data)
 );
 
+audio_spectrum_analyzer u_audio_spectrum_analyzer (
+    .clk         (video_clk),
+    .rst         (rst_all),
+    .sample_valid(audio_valid),
+    .sample_pcm  (audio_left_data),
+    .bands       (audio_spectrum_bands)
+);
+
 audio_arc_calculate #(
     .ACR_N         (6144)
 ) u_audio_arc_calculate (
@@ -351,6 +370,7 @@ video_presentation #(
     .display_slot_async (disp_buf_idx),
     .brightness_level_async(uart_brightness_level),
     .volume_level_async (uart_volume_level),
+    .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
     .vs                 (vs),
     .rgb_in             (vout_data_raw),

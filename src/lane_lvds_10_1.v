@@ -1,6 +1,3 @@
-
-
-
 module lane_lvds_10_1 #(
     parameter DEVICE = "EG"
     )(

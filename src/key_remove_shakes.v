@@ -1,13 +1,4 @@
-/*
-creat time: 2020/12/3 15:50
-
-engineer:   xiong guo qiang
-
-description:
-对按键操作进行消抖操作，每次按下产生一个时钟周期的高脉冲
-
-*/
-
+//对按键操作进行消抖操作，每次按下产生一个时钟周期的高脉冲
 
 module key_remove_shakes( 
 	input wire      I_clk,    

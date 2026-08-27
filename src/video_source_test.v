@@ -1,5 +1,3 @@
-
-
 module video_source_test #(
     parameter HTOTAL  = 2200,
     parameter HACTIVE = 1920,

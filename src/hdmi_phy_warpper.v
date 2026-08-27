@@ -1,5 +1,3 @@
-
-
 module hdmi_phy_wrapper#(
     parameter DEVICE = "EG"
     )(

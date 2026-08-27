@@ -1,4 +1,3 @@
-
 module startup_pulse #(
     parameter [19:0] CNT_MAX = 20'd100000
 )(

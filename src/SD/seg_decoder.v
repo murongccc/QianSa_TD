@@ -1,4 +1,3 @@
-
 module seg_decoder
 (
 	input[3:0]      bin_data,     // bin data input

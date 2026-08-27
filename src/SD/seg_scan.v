@@ -1,4 +1,3 @@
-
 module seg_scan(
 	input           clk,
 	input           rst_n,
