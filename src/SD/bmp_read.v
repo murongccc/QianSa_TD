@@ -3,7 +3,8 @@ module bmp_read(
     input                       rst,
     output                      ready,
 
-    // 上电扫描：从 scan_start_sector 开始，顺序寻找前 scan_target_count 张 BMP
+    // 上电扫描：从 scan_start_sector 开始，顺序寻找前 scan_target_count 张 BMP。
+    // The top-level supplies three because the SDRAM path has three frame slots.
     input                       scan_start,
     input  [31:0]               scan_start_sector,
     input  [31:0]               scan_max_sector,
@@ -67,8 +68,8 @@ wire [31:0] next_scan_sector_if_miss;
 assign ready = (state == ST_IDLE);
 assign header_match = (header_0 == "B") &&
                       (header_1 == "M") &&
-                      (width[15:0]  == bmp_width) &&
-                      (height[15:0] == bmp_height) &&
+                      (width  == {16'd0,bmp_width}) &&
+                      (height == {16'd0,bmp_height}) &&
                       (bit_count    == 16'd24) &&
                       (compression  == 32'd0);
 assign bmp_data_valid = (sd_sec_read_data_valid == 1'b1) &&
@@ -250,7 +251,10 @@ always @(posedge clk or posedge rst) begin
                         scan_found_sector <= scan_sector;
                         scan_found_total  <= scan_found_total + 3'd1;
 
-                        if ((scan_found_total + 3'd1 >= scan_target_count) || (next_scan_sector_if_match > scan_max_sector)) begin
+                        // Honour the caller's target. The top-level startup
+                        // profile currently requests one image.
+                        if ((scan_found_total + 3'd1 >= scan_target_count) ||
+                            (next_scan_sector_if_match > scan_max_sector)) begin
                             scan_done        <= 1'b1;
                             state            <= ST_IDLE;
                             sd_sec_read_addr <= next_scan_sector_if_match;

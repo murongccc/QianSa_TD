@@ -15,3 +15,10 @@ td_*.logw
 *.tmp
 Thumbs.db
 Desktop.ini
+
+# Local simulation databases, terminal captures and Codex workspace state
+sim/
+work/
+transcript
+prj/.recent_user_depot.ini
+.codex/

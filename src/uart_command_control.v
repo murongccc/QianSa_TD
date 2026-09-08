@@ -42,7 +42,7 @@ reg [7:0] byte_data;
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         rx_meta<=1'b1; rx_sync<=1'b1; rx_prev<=1'b1; rx_state<=RX_IDLE;
-        tick_count<=9'd0; bit_count<=4'd0; shift_data<=8'd0;
+        tick_count<=9'd0; bit_count<=3'd0; shift_data<=8'd0;
         byte_valid<=1'b0; byte_data<=8'd0;
     end else begin
         rx_meta<=uart_rxd; rx_sync<=rx_meta; rx_prev<=rx_sync;

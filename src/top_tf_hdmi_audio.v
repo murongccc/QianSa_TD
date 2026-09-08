@@ -31,10 +31,10 @@ module top(
 parameter MEM_DATA_BITS = 32;
 parameter ADDR_BITS     = 21;
 parameter BUSRT_BITS    = 10;
-parameter FRAME_PIXELS  = 24'd307200;   // 640*480
-parameter BUF0_ADDR     = 24'd0;
-parameter BUF1_ADDR     = FRAME_PIXELS;
-parameter BUF2_ADDR     = FRAME_PIXELS * 2;
+parameter [ADDR_BITS-1:0] FRAME_PIXELS = 307200;   // 640*480 words
+parameter [ADDR_BITS-1:0] BUF0_ADDR = 0;
+parameter [ADDR_BITS-1:0] BUF1_ADDR = FRAME_PIXELS;
+parameter [ADDR_BITS-1:0] BUF2_ADDR = FRAME_PIXELS * 2;
 
 wire Sdr_init_done;
 wire Sdr_init_ref_vld;
@@ -52,10 +52,12 @@ wire de;
 
 wire [23:0] vout_data_raw;
 wire [23:0] vout_data;
+reg presentation_de, presentation_vs;
 wire        display_valid;
 
 wire [3:0]  state_code;
 reg  [3:0]  state_code_display;
+reg  [3:0]  state_code_meta, state_code_sync, state_code_previous;
 wire [6:0]  seg_data_0;
 
 wire        video_read_req;
@@ -94,6 +96,10 @@ wire        audio_valid;
 wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
 wire [63:0] audio_spectrum_bands;
+wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
+wire [31:0] audio_fifo_din, audio_fifo_dout;
+wire audio_reader_busy, audio_reader_done, audio_underrun;
+reg  audio_read_toggle;
 wire        acr_valid;
 wire [19:0] acr_cts;
 wire [19:0] acr_n;
@@ -178,8 +184,11 @@ end
 sd_media_pipeline #(
     .CLK_FREQ_HZ       (100_000_000),
     .SCAN_START_SECTOR (32'd0),
+    // Keep three discovered images in the three independent SDRAM frame
+    // slots.  A target of one made the startup scan stop after the first BMP,
+    // so the manual/automatic image switcher had nothing else to select.
     .SCAN_MAX_SECTOR   (32'd131071),
-    .SCAN_TARGET_COUNT (3'd4)
+    .SCAN_TARGET_COUNT (3'd3)
 ) sd_media_pipeline_m0(
     .clk               (sd_card_clk),
     .rst               (rst_all),
@@ -204,7 +213,11 @@ sd_media_pipeline #(
     .SD_nCS            (sd_ncs),
     .SD_DCLK           (sd_dclk),
     .SD_MOSI           (sd_mosi),
-    .SD_MISO           (sd_miso)
+    .SD_MISO           (sd_miso),
+    .audio_fifo_we     (audio_fifo_we), .audio_fifo_din(audio_fifo_din),
+    .audio_fifo_full   (audio_fifo_full), .audio_read_toggle(audio_read_toggle),
+    .audio_reader_busy(audio_reader_busy),
+    .audio_reader_done (audio_reader_done)
 );
 
 seg_decoder seg_decoder_m0(
@@ -212,14 +225,22 @@ seg_decoder seg_decoder_m0(
     .seg_data          (seg_data_0)
 );
 
-// bmp_read drives 0 only during reset/SD re-initialisation.  Do not expose
-// that transient code on the user display; retaining the last meaningful
-// state also makes a brief SD init-done transition non-disruptive to the UI.
+// Show 0 while SD initialization is pending; hiding it as 1 made a dead SD
+// transport indistinguishable from idle. Synchronize and accept only stable
+// status samples; intermediate multi-bit transitions are diagnostic only.
 always @(posedge clk or posedge rst_all) begin
-    if (rst_all)
-        state_code_display <= 4'd1;
-    else if (state_code != 4'd0)
-        state_code_display <= state_code;
+    if (rst_all) begin
+        state_code_meta <= 4'd0;
+        state_code_sync <= 4'd0;
+        state_code_previous <= 4'd0;
+        state_code_display <= 4'd0;
+    end else begin
+        state_code_meta <= state_code;
+        state_code_sync <= state_code_meta;
+        state_code_previous <= state_code_sync;
+        if (state_code_sync == state_code_previous)
+            state_code_display <= state_code_sync;
+    end
 end
 
 seg_scan seg_scan_m0(
@@ -262,6 +283,8 @@ video_delay video_delay_m0(
 );
 
 frame_read_write #(
+    .MEM_DATA_BITS    (MEM_DATA_BITS),
+    .ADDR_BITS        (ADDR_BITS),
     .WRITE_V_FLIP     (1),
     .FRAME_WIDTH      (640),
     .FRAME_HEIGHT     (480)
@@ -284,7 +307,7 @@ frame_read_write #(
     .read_addr_0       (BUF0_ADDR),
     .read_addr_1       (BUF1_ADDR),
     .read_addr_2       (BUF2_ADDR),
-    .read_addr_3       (24'd0),
+    .read_addr_3       ({ADDR_BITS{1'b0}}),
     .read_addr_index   (disp_buf_idx),
     .read_len          (FRAME_PIXELS),
     .read_en           (video_read_en),
@@ -302,7 +325,7 @@ frame_read_write #(
     .write_addr_0      (BUF0_ADDR),
     .write_addr_1      (BUF1_ADDR),
     .write_addr_2      (BUF2_ADDR),
-    .write_addr_3      (24'd0),
+    .write_addr_3      ({ADDR_BITS{1'b0}}),
     .write_addr_index  (write_buf_idx),
     .write_len         (FRAME_PIXELS),
     .write_en          (sd_card_write_en),
@@ -326,19 +349,29 @@ sdram U3(
     .Sdr_rd_dout       (Sdr_rd_dout)
 );
 
-// ===================== Audio playlist: direct PCM, no I2S loopback =====================
-pcm_playlist_engine #(
-    .PIXEL_CLOCK_HZ (25_000_000),
-    .SAMPLE_RATE_HZ (48_000)
-) u_pcm_playlist_engine (
-    .clk              (video_clk),
-    .rst              (rst_all),
-    .image_slot_async (disp_buf_idx),
-    .volume_level_async(uart_volume_level),
-    .audio_valid      (audio_valid),
-    .left_pcm         (audio_left_data),
-    .right_pcm        (audio_right_data)
+// ===================== WAV PCM audio =====================
+
+audio_fifo_32x4096 u_audio_fifo (
+    .rst(rst_all), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
+    .do(audio_fifo_dout), .clkr(video_clk), .re(audio_fifo_re),
+    .empty_flag(audio_fifo_empty), .full_flag(audio_fifo_full)
 );
+
+pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_audio_player (
+    .clk(video_clk), .rst(rst_all), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
+    .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
+    .volume_level_async(uart_volume_level),
+    .right_pcm(audio_right_data), .underrun(audio_underrun)
+);
+
+// Export reads from the video-clock FIFO port as a safe event into the
+// SD-clock WAV reader.  This protects against a full FIFO mid-sector.
+always @(posedge video_clk or posedge rst_all) begin
+    if (rst_all)
+        audio_read_toggle <= 1'b0;
+    else if (audio_fifo_re && !audio_fifo_empty)
+        audio_read_toggle <= ~audio_read_toggle;
+end
 
 audio_spectrum_analyzer u_audio_spectrum_analyzer (
     .clk         (video_clk),
@@ -377,11 +410,18 @@ video_presentation #(
     .rgb_out            (vout_data)
 );
 
+// Presentation registers RGB once. Delay its control signals by the same
+// cycle, otherwise each line starts with the preceding blank pixel.
+always @(posedge video_clk or posedge rst_all) begin
+    if (rst_all) begin presentation_de <= 1'b0; presentation_vs <= 1'b0; end
+    else begin presentation_de <= de; presentation_vs <= vs; end
+end
+
 video_rgb_to_axis_640x480 u_video_rgb_to_axis_640x480(
     .I_clk         (video_clk),
     .I_rst         (rst_all),
-    .I_vs          (vs),
-    .I_de          (de),
+    .I_vs          (presentation_vs),
+    .I_de          (presentation_de),
     .I_rgb         (vout_data),
     .O_video_user  (axis_s_user),
     .O_video_valid (axis_s_valid),

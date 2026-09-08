@@ -16,6 +16,7 @@ module video_presentation #(
 );
 reg [1:0] slot_sync0, slot_sync1, active_slot;
 reg vs_d, de_d;
+reg display_valid_meta, display_valid_sync;
 reg [9:0] pixel_x, pixel_y, reveal_x;
 reg [6:0] fade_level;
 reg [2:0] brightness_meta, brightness_sync, volume_meta, volume_sync;
@@ -212,6 +213,7 @@ wire [23:0] subtitle_banner_rgb = {
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         slot_sync0 <= 2'd0; slot_sync1 <= 2'd0; active_slot <= 2'd0;
+        display_valid_meta <= 1'b0; display_valid_sync <= 1'b0;
         vs_d <= 1'b0; de_d <= 1'b0; pixel_x <= 10'd0; pixel_y <= 10'd0;
         reveal_x <= ACTIVE_WIDTH; fade_level <= 7'd64;
         brightness_meta <= 3'd4; brightness_sync <= 3'd4; brightness_seen <= 3'd4;
@@ -223,6 +225,7 @@ always @(posedge clk or posedge rst) begin
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
+        display_valid_meta <= display_valid; display_valid_sync <= display_valid_meta;
         brightness_meta <= brightness_level_async; brightness_sync <= brightness_meta;
         volume_meta <= volume_level_async; volume_sync <= volume_meta;
         spectrum_meta <= spectrum_bands; spectrum_sync <= spectrum_meta;
@@ -258,7 +261,7 @@ always @(posedge clk or posedge rst) begin
             pixel_x <= 10'd1;
             if (pixel_y < ACTIVE_HEIGHT - 1) pixel_y <= pixel_y + 10'd1;
         end else if (de) pixel_x <= pixel_x + 10'd1;
-        if (!display_valid || !de || (render_x >= reveal_x)) rgb_out <= 24'd0;
+        if (!display_valid_sync || !de || (render_x >= reveal_x)) rgb_out <= 24'd0;
         else if (show_osd && meter_area) rgb_out <= meter_rgb;
         else if (spectrum_on) rgb_out <= spectrum_rgb;
         else if (subtitle_text_pixel) rgb_out <= 24'hFFE040;

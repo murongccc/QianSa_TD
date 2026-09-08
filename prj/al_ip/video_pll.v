@@ -33,6 +33,7 @@ module video_pll (
   output clk1_out;
 
   wire clk0_buf;
+  wire [2:0] unused_clocks;
 
   EG_LOGIC_BUFG bufg_feedback (
     .i(clk0_buf),
@@ -67,21 +68,21 @@ module video_pll (
     .refclk(refclk),
     .reset(reset),
     .stdby(1'b0),
-    .extlock(open),
+    .extlock(),
     .load_reg(1'b0),
     .psclk(1'b0),
     .psdown(1'b0),
     .psstep(1'b0),
     .psclksel(3'b000),
-    .psdone(open),
+    .psdone(),
     .dclk(1'b0),
     .dcs(1'b0),
     .dwe(1'b0),
     .di(8'b00000000),
     .daddr(6'b000000),
-    .do({open, open, open, open, open, open, open, open}),
+    .do(),
     .fbclk(clk0_out),
-    .clkc({open, open, open, clk1_out, clk0_buf}) 
+    .clkc({unused_clocks, clk1_out, clk0_buf})
   );
 
 endmodule

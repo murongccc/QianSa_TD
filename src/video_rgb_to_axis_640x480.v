@@ -43,7 +43,8 @@ always @(posedge I_clk or posedge I_rst) begin
         if (I_de) begin
             if (!S_de_1d) begin
                 // 一行首像素
-                S_x_cnt <= 11'd0;
+                // x=0 is emitted now; next cycle must compare against x=1.
+                S_x_cnt <= 11'd1;
                 if (S_frame_arm) begin
                     O_video_user <= 1'b1;
                     S_frame_arm  <= 1'b0;
@@ -54,7 +55,7 @@ always @(posedge I_clk or posedge I_rst) begin
             end
 
             // 640x480 最后一个有效像素
-            if (S_x_cnt == 11'd639)
+            if (S_de_1d && S_x_cnt == 11'd639)
                 O_video_last <= 1'b1;
         end
         else begin

@@ -238,7 +238,8 @@ module wfifo_32_32_512 #(parameter DATA_WIDTH_W = 32,
                 .clkb(clkr), 
                 .rstb(rd_rst), 
                 .ceb((SHOW_AHEAD_EN | rd_en_s)), 
-                .web(1'b0), 
+                .web(1'b0),
+                .dib({DATA_WIDTH_R{1'b0}}),
                 .oceb(1'b1), 
                 .addrb((rd_addr + (SHOW_AHEAD_EN & rd_en_s))), 
                 .dob(dout)) ; 
@@ -848,5 +849,4 @@ module ram_infer_wfifo_32_32_512 (clka,
             end
     endtask
 endmodule
-
 

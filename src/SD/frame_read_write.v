@@ -137,7 +137,7 @@ frame_fifo_write_m0
 	.write_addr_index           (write_addr_index         ),    
 	.write_len                  (write_len                ),
 	.fifo_aclr                  (write_fifo_aclr          ),
-	.rdusedw                 	(rdusedw                  )
+	.rdusedw                 	({1'b0, rdusedw}          )
 );
 
 //instantiate an asynchronous FIFO 
@@ -187,7 +187,7 @@ frame_fifo_read_m0
 	.read_addr_index            (read_addr_index          ),    
 	.read_len                   (read_len                 ),
 	.fifo_aclr                  (read_fifo_aclr           ),
-	.wrusedw                	(wrusedw                  )
+	.wrusedw                	({1'b0, wrusedw}          )
 );
 
 endmodule

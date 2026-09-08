@@ -79,7 +79,7 @@ reg App_wr_en_r;
 reg App_wr_en_d0;
 
 wire into_burst;
-assign into_burst = (((write_len_latch <= (rdusedw + write_cnt))||rdusedw > BURST_SIZE) && ~App_rd_busy);//当rd在突发时不会进入burst
+assign into_burst = (((write_len_latch <= (rdusedw + write_cnt)) || (rdusedw >= BURST_SIZE)) && ~App_rd_busy);//当rd在突发时不会进入burst
 
 assign App_wr_addr = {App_wr_addr_r[ADDR_BITS - 1:0]};
 //assign O_wr_busy = (state != S_IDLE || (S_IDLE && write_req_d2));

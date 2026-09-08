@@ -44,6 +44,7 @@ module sdram(
 );
 `ifndef SIMULATION
 wire  			SDRAM_CLK;
+wire                SDR_CKE;
 wire 			SDR_RAS;
 wire  			SDR_CAS;
 wire  			SDR_WE;
@@ -106,4 +107,4 @@ assign SDR_CKE=1'b1;
 		);
 //`endif
 
-endmodule 
+endmodule

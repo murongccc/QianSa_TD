@@ -38,6 +38,9 @@ begin
 		video_hs_d0 <= 1'b0;
 		video_vs_d0 <= 1'b0;
 		video_de_d0 <= 1'b0;
+		video_hs_d1 <= 1'b0;
+		video_vs_d1 <= 1'b0;
+		video_de_d1 <= 1'b0;
 	end
 	else
 	begin
@@ -81,4 +84,4 @@ color_bar color_bar_m0(
 	.rgb_g(),
 	.rgb_b()
 );
-endmodule 
+endmodule

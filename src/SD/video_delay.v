@@ -38,9 +38,9 @@ begin
 end
 always @(posedge video_clk or posedge rst)begin
 	if(rst)begin
-    	hs_d <= 20'b0;
-        vs_d <= 20'b0;
-        de_d <= 20'b0;
+		hs_d <= 21'b0;
+        vs_d <= 21'b0;
+        de_d <= 21'b0;
     end
 	else begin
     	
