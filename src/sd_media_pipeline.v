@@ -17,6 +17,7 @@ module sd_media_pipeline #(
     output wire SD_MOSI, input wire SD_MISO,
     output wire audio_fifo_we, output wire [31:0] audio_fifo_din,
     input wire audio_fifo_full, input wire audio_read_toggle,
+    input wire audio_reader_enable, input wire audio_reader_reset,
     output wire audio_reader_busy, output wire audio_reader_done
 );
 wire sd_sec_read; wire [31:0] sd_sec_read_addr; wire [7:0] sd_sec_read_data;
@@ -122,14 +123,14 @@ always @(posedge clk or posedge rst) begin
             if (!scan_kicked && bmp_ready) begin
                 scan_start<=1'b1; scan_kicked<=1'b1; media_count<=3'd0;
             end
-            if (scan_found_valid && media_count<SCAN_TARGET_COUNT) begin
+            if (scan_found_valid && media_count<SCAN_TARGET_COUNT && media_count<3'd3) begin
                 case(media_count)
                     3'd0: media_sector0<=scan_found_sector;
                     3'd1: media_sector1<=scan_found_sector;
                     3'd2: media_sector2<=scan_found_sector;
                     default: media_sector3<=scan_found_sector;
                 endcase
-                media_count<=media_count+3'd1;
+                media_count <= (media_count >= 3'd2) ? 3'd3 : (media_count + 3'd1);
             end
             if (!load_inflight) begin
                 // Start every request with fresh completion state.  This also
@@ -181,7 +182,8 @@ bmp_read u_bmp_read(
 );
 
 fat32_wav_reader u_sd_audio_reader(
-    .clk(clk), .rst(rst), .sd_init_done(sd_init_qualified), .enable(display_valid),
+    .clk(clk), .rst(rst | audio_reader_reset), .sd_init_done(sd_init_qualified),
+    .enable(display_valid && audio_reader_enable),
     .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),
     .sd_data(sd_data_audio), .sd_data_valid(sd_valid_audio),
     .sd_sec_read_end(sd_end_audio), .fifo_we(audio_fifo_we), .fifo_din(audio_fifo_din_int),

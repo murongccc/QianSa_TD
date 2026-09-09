@@ -70,6 +70,11 @@ initial begin
     if (load_media_index != 2'd1) $fatal(1, "N did not select the next picture");
     complete_load;
 
+    // Exercise wrap-around and protect against stale catalogue counts.
+    uart_command(3'd1); complete_load; if (load_media_index !== 2'd2 || display_slot !== 2'd2) $fatal(1, "second switch failed");
+    uart_command(3'd1); complete_load; if (load_media_index !== 2'd0 || display_slot !== 2'd0) $fatal(1, "third switch wrap failed");
+    uart_command(3'd1); complete_load; if (load_media_index !== 2'd1 || display_slot !== 2'd1) $fatal(1, "fourth switch failed");
+
     // 1 configures one second (100 cycles in this reduced-rate test).
     uart_command(3'd3);
     if (dut.auto_period_cycles != 32'd100) $fatal(1, "1 did not select one second");

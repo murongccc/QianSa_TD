@@ -39,9 +39,12 @@ wire start_manual_next = !load_inflight && loader_ready && display_valid &&
 
 function [1:0] next_media;
     input [1:0] current; input [2:0] count;
+    reg [2:0] bounded_count;
     begin
-        if (count < 3'd2) next_media = 2'd0;
-        else if (current + 2'd1 >= count) next_media = 2'd0;
+        // Three SDRAM slots are available; never select catalogue index 3.
+        bounded_count = (count > 3'd3) ? 3'd3 : count;
+        if (bounded_count < 3'd2) next_media = 2'd0;
+        else if (current >= bounded_count - 1'b1) next_media = 2'd0;
         else next_media = current + 2'd1;
     end
 endfunction

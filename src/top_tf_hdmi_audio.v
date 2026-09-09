@@ -3,6 +3,8 @@ module top(
     input                       rst_n,
     input                       key1,           // 手动下一张
     input                       key2,           // 自动播放 开/关
+    input                       music_key,      // KEY3: music play/pause
+    input                       music_switch,   // SW1: 1=run, 0=stop
 
     output [5:0]                seg_sel,
     output [7:0]                seg_data,
@@ -100,6 +102,9 @@ wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
 wire [31:0] audio_fifo_din, audio_fifo_dout;
 wire audio_reader_busy, audio_reader_done, audio_underrun;
 reg  audio_read_toggle;
+wire [1:0] audio_player_mode_sd;
+wire       audio_reader_enable_sd;
+wire       audio_reader_reset_sd;
 wire        acr_valid;
 wire [19:0] acr_cts;
 wire [19:0] acr_n;
@@ -216,6 +221,8 @@ sd_media_pipeline #(
     .SD_MISO           (sd_miso),
     .audio_fifo_we     (audio_fifo_we), .audio_fifo_din(audio_fifo_din),
     .audio_fifo_full   (audio_fifo_full), .audio_read_toggle(audio_read_toggle),
+    .audio_reader_enable(audio_reader_enable_sd),
+    .audio_reader_reset(audio_reader_reset_sd),
     .audio_reader_busy(audio_reader_busy),
     .audio_reader_done (audio_reader_done)
 );
@@ -351,6 +358,12 @@ sdram U3(
 
 // ===================== WAV PCM audio =====================
 
+audio_playback_control #(.CLK_FREQ_HZ(100_000_000), .DEBOUNCE_MS(20)) u_audio_playback_control (
+    .clk(sd_card_clk), .rst(rst_all), .play_pause_key_n(music_key), .run_switch(music_switch),
+    .fifo_empty_async(audio_fifo_empty), .player_mode(audio_player_mode_sd),
+    .reader_enable(audio_reader_enable_sd), .reader_reset(audio_reader_reset_sd)
+);
+
 audio_fifo_32x4096 u_audio_fifo (
     .rst(rst_all), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
     .do(audio_fifo_dout), .clkr(video_clk), .re(audio_fifo_re),
@@ -361,6 +374,7 @@ pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_a
     .clk(video_clk), .rst(rst_all), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
     .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
     .volume_level_async(uart_volume_level),
+    .playback_mode_async(audio_player_mode_sd),
     .right_pcm(audio_right_data), .underrun(audio_underrun)
 );
 
