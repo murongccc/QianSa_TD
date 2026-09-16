@@ -1,0 +1,55 @@
+ERAM : 1 : U : En :  :  : 
+DRAM : 0 : U : En :  :  : 
+URAM : 0 : U : Dis :  :  : 
+EMB9K_Area_Opt : 0 : U : En :  :  : 
+EMB9K_Timing_Opt : 0 : U : En :  :  : 
+EMB32K : 1 : U : En :  :  : 
+Auto : 0 : U : En :  :  : 
+EMB20K_Area_Opt : 0 : U : Dis :  :  : 
+EMB20K_Timing_Opt : 0 : U : Dis :  :  : 
+ASYNC : 0 : U : En :  :  : 
+SYNC : 1 : U : En :  :  : 
+Write_Width : 32 : U : En :  : 1 : 1024
+Write_Depth : 512 : U : En : 16;;32;;64;;128;;256;;512;;1024;;2048;;4096;;8192;;16384 :  : 
+Read_Width : 32 : U : En : 2;;4;;8;;16;;32;;64;;128;;256;;512 :  : 
+Read_Depth : 512 : U : En :  :  : 
+Show_Ahead_Enable : 1 : U : En :  :  : 
+Show_Ahead_Disable : 0 : U : En :  :  : 
+Out_Reg_Enable : 0 : U : En :  :  : 
+Out_Reg_Disable : 1 : U : En :  :  : 
+Almost_Full_Num : 448 : U : En :  : 3 : 509
+Almost_Empty_Num : 2 : U : En :  : 2 : 508
+Sync_Stages : 2 : U : Dis : 2;;3;;4;;5;;6;;7;;8 :  : 
+Reset_Type : SYNC Reset : U : En : SYNC Reset;;ASYNC Reset SYNC Release;;No Reset :  : 
+Dout_Reset_Value : 0 : U : Dis :  :  : 
+Write_Width_Range : 1~1024 : G : En :  :  : 
+Read_Width_Range : 1~1024 : G : En :  :  : 
+Almost_Full_Num_Range : 3-509 : G : En :  :  : 
+Almost_Empty_Num_Range : 2-508 : G : En :  :  : 
+COMMON_CLK_EN : 1 : G : En :  :  : 
+MEMORY_TYPE : 3 : G : En :  :  : 
+RST_TYPE : 2 : G : En :  :  : 
+DATA_WIDTH_W : 32 : G : En :  :  : 
+ADDR_WIDTH_W : 9 : G : En :  :  : 
+DATA_WIDTH_R : 32 : G : En :  :  : 
+ADDR_WIDTH_R : 9 : G : En :  :  : 
+DOUT_INITVAL : 32'h0 : G : En :  :  : 
+OUTREG_EN : NOREG : G : En :  :  : 
+SHOW_AHEAD_EN : 1 : G : En :  :  : 
+AL_FULL_NUM : 448 : G : En :  :  : 
+AL_EMPTY_NUM : 2 : G : En :  :  : 
+RDUSEDW_WIDTH : 10 : G : En :  :  : 
+WRUSEDW_WIDTH : 10 : G : En :  :  : 
+ASYNC_RST_SYNC_RELS : 0 : G : En :  :  : 
+SYNC_STAGE : 2 : G : En :  :  : 
+EG4 : 1 : G : En :  :  : 
+EF2 : 0 : G : En :  :  : 
+EF3 : 0 : G : En :  :  : 
+EF4 : 0 : G : En :  :  : 
+EF5 : 0 : G : En :  :  : 
+SF1 : 0 : G : En :  :  : 
+SF2 : 0 : G : En :  :  : 
+PH1 : 0 : G : En :  :  : 
+PH2 : 0 : G : En :  :  : 
+DR1 : 0 : G : En :  :  : 
+EF3L15_25_45 : 0 : G : En :  :  : 
