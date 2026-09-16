@@ -1,10 +1,13 @@
 module top(
     input                       clk,
     input                       rst_n,
-    input                       key1,           // 手动下一张
-    input                       key2,           // 自动播放 开/关
-    input                       music_key,      // KEY3: music play/pause
-    input                       music_switch,   // SW1: 1=run, 0=stop
+    input                       key2,           // KEY2: 手动下一张
+    input                       key3,           // KEY3: 当前参数增加
+    input                       key4,           // KEY4: 当前参数减少
+    input                       swkey1,         // SW1: 音乐运行总使能
+    input                       swkey2,         // SW2: 自动播放
+    input                       swkey3,         // SW3: 参数选择 MSB
+    input                       swkey4,         // SW4: 参数选择 LSB
 
     output [5:0]                seg_sel,
     output [7:0]                seg_data,
@@ -54,10 +57,14 @@ wire de;
 
 wire [23:0] vout_data_raw;
 wire [23:0] vout_data;
+wire [23:0] vout_data_processed;
 reg presentation_de, presentation_vs;
+wire axis_input_de, axis_input_vs;
 wire        display_valid;
 
 wire [3:0]  state_code;
+wire [15:0] bmp_source_width, bmp_source_height;
+wire        bmp_source_top_down;
 reg  [3:0]  state_code_display;
 reg  [3:0]  state_code_meta, state_code_sync, state_code_previous;
 wire [6:0]  seg_data_0;
@@ -71,6 +78,7 @@ wire        sd_card_write_en;
 wire [31:0] sd_card_write_data;
 wire        sd_card_write_req;
 wire        sd_card_write_req_ack;
+wire        sd_card_write_ready;
 wire        frame_write_finish;
 reg         frame_write_toggle_mem;
 
@@ -126,17 +134,26 @@ wire [9:0]  tmds_clk_data;
 // Declare reset before any instance uses it; otherwise Verilog creates an
 // implicit net and TD reports HDL-7225 as a critical warning.
 wire        rst_all;
+wire        rst_clk;
+wire        rst_sd;
+wire        rst_mem;
+wire        rst_video;
+wire        rst_audio_fifo;
 wire [2:0]  uart_brightness_level;
 wire [2:0]  uart_volume_level;
+wire [6:0]  image_brightness, image_contrast, image_sharpness;
+wire [1:0]  image_selected;
+wire        image_select_toggle, image_adjust_toggle, image_adjust_inc;
 wire [2:0]  uart_playback_command;
 wire        uart_playback_command_toggle;
 wire        uart_echo_valid;
 wire [7:0]  uart_echo_data;
-// 统一复位：TF 图像链路 + HDMI 音频链路
+// 统一复位：TF 图像链路 + SDRAM + HDMI 音视频链路。
 assign rst_all = ~rst_n;
+assign rst_audio_fifo = rst_sd | rst_video;
 
 uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_control (
-    .clk(clk), .rst(rst_all), .uart_rxd(uart_rxd),
+    .clk(clk), .rst(rst_clk), .uart_rxd(uart_rxd),
     .brightness_level(uart_brightness_level), .volume_level(uart_volume_level),
     .playback_command(uart_playback_command),
     .playback_command_toggle(uart_playback_command_toggle),
@@ -144,11 +161,11 @@ uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_contr
 );
 
 uart_echo_tx #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_echo_tx (
-    .clk(clk), .rst(rst_all), .data_valid(uart_echo_valid), .data(uart_echo_data), .uart_txd(uart_txd)
+    .clk(clk), .rst(rst_clk), .data_valid(uart_echo_valid), .data(uart_echo_data), .uart_txd(uart_txd)
 );
 
-// KEY1/KEY2 are asynchronous mechanical inputs.  They are synchronized and
-// debounced in sd_card_clk, the domain that consumes the playback commands.
+// KEY2 is the manual-next input.  It is synchronized and debounced in
+// sd_card_clk, the domain that consumes the playback commands.
 
 // 保持你原来的 TF / SDRAM / video 时钟
 sys_pll sys_pll_m0(
@@ -156,27 +173,40 @@ sys_pll sys_pll_m0(
     .clk0_out   (sd_card_clk),
     .clk1_out   (ext_mem_clk),
     .clk2_out   (ext_mem_clk_sft),
-    .reset      (1'b0)
+    .reset      (rst_all)
 );
 
 video_pll video_pll_m0(
     .refclk     (clk),
     .clk0_out   (video_clk),
     .clk1_out   (hdmi_5x_clk),
-    .reset      (1'b0)
+    .reset      (rst_all)
+);
+
+domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_clk(
+    .clk(clk),.async_reset(rst_all),.reset(rst_clk)
+);
+domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_sd(
+    .clk(sd_card_clk),.async_reset(rst_all),.reset(rst_sd)
+);
+domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_mem(
+    .clk(ext_mem_clk),.async_reset(rst_all),.reset(rst_mem)
+);
+domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_video(
+    .clk(video_clk),.async_reset(rst_all),.reset(rst_video)
 );
 
 // mem_clk 域把 write_finish 单拍转成 toggle，供 sd_card_clk 域可靠同步
-always @(posedge ext_mem_clk or posedge rst_all) begin
-    if (rst_all)
+always @(posedge ext_mem_clk or posedge rst_mem) begin
+    if (rst_mem)
         frame_write_toggle_mem <= 1'b0;
     else if (frame_write_finish)
         frame_write_toggle_mem <= ~frame_write_toggle_mem;
 end
 
 // Bring the playback-mode indicator safely into the 50 MHz display domain.
-always @(posedge clk or posedge rst_all) begin
-    if (rst_all) begin
+always @(posedge clk or posedge rst_clk) begin
+    if (rst_clk) begin
         auto_play_meta    <= 1'b0;
         auto_play_display <= 1'b0;
     end else begin
@@ -196,14 +226,17 @@ sd_media_pipeline #(
     .SCAN_TARGET_COUNT (3'd3)
 ) sd_media_pipeline_m0(
     .clk               (sd_card_clk),
-    .rst               (rst_all),
-    .key_next          (key1),
-    .key_auto          (key2),
+    .rst               (rst_sd),
+    .key_next          (key2),
+    .key_auto          (swkey2),
     .uart_command_async(uart_playback_command),
     .uart_command_toggle_async(uart_playback_command_toggle),
     .state_code        (state_code),
-    .bmp_width         (16'd640),
-    .bmp_height        (16'd480),
+    .bmp_width         (16'd0),
+    .bmp_height        (16'd0),
+    .parsed_width      (bmp_source_width),
+    .parsed_height     (bmp_source_height),
+    .parsed_top_down   (bmp_source_top_down),
     .display_valid     (display_valid),
     .auto_play_enabled (auto_play_enabled_sd),
 
@@ -213,6 +246,7 @@ sd_media_pipeline #(
 
     .write_req         (sd_card_write_req),
     .write_req_ack     (sd_card_write_req_ack),
+    .write_ready       (sd_card_write_ready),
     .write_en          (sd_card_write_en),
     .write_data        (sd_card_write_data),
     .SD_nCS            (sd_ncs),
@@ -235,8 +269,8 @@ seg_decoder seg_decoder_m0(
 // Show 0 while SD initialization is pending; hiding it as 1 made a dead SD
 // transport indistinguishable from idle. Synchronize and accept only stable
 // status samples; intermediate multi-bit transitions are diagnostic only.
-always @(posedge clk or posedge rst_all) begin
-    if (rst_all) begin
+always @(posedge clk or posedge rst_clk) begin
+    if (rst_clk) begin
         state_code_meta <= 4'd0;
         state_code_sync <= 4'd0;
         state_code_previous <= 4'd0;
@@ -252,7 +286,7 @@ end
 
 seg_scan seg_scan_m0(
     .clk               (clk),
-    .rst_n             (rst_n),
+    .rst_n             (~rst_clk),
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
     .seg_data_0        ({1'b1,7'b1111_111}),
@@ -267,7 +301,7 @@ seg_scan seg_scan_m0(
 // ===================== 原图像时序与帧缓存 =====================
 video_timing_data video_timing_data_m0(
     .video_clk         (video_clk),
-    .rst               (rst_all),
+    .rst               (rst_video),
     .read_req          (video_read_req),
     .read_req_ack      (video_read_req_ack),
     .hs                (hs_0),
@@ -277,7 +311,7 @@ video_timing_data video_timing_data_m0(
 
 video_delay video_delay_m0(
     .video_clk         (video_clk),
-    .rst               (rst_all),
+    .rst               (rst_video),
     .read_en           (video_read_en),
     .read_data         (video_read_data[31:8]),
     .hs                (hs_0),
@@ -297,7 +331,7 @@ frame_read_write #(
     .FRAME_HEIGHT     (480)
 ) frame_read_write_m0(
     .mem_clk           (ext_mem_clk),
-    .rst               (rst_all),
+    .rst               (rst_mem),
     .Sdr_init_done     (Sdr_init_done),
     .Sdr_init_ref_vld  (Sdr_init_ref_vld),
     .Sdr_busy          (Sdr_busy),
@@ -328,6 +362,7 @@ frame_read_write #(
     .write_clk         (sd_card_clk),
     .write_req         (sd_card_write_req),
     .write_req_ack     (sd_card_write_req_ack),
+    .write_ready       (sd_card_write_ready),
     .write_finish      (frame_write_finish),
     .write_addr_0      (BUF0_ADDR),
     .write_addr_1      (BUF1_ADDR),
@@ -336,13 +371,14 @@ frame_read_write #(
     .write_addr_index  (write_buf_idx),
     .write_len         (FRAME_PIXELS),
     .write_en          (sd_card_write_en),
-    .write_data        (sd_card_write_data)
+    .write_data        (sd_card_write_data),
+    .write_v_flip      (!bmp_source_top_down)
 );
 
 sdram U3(
     .Clk               (ext_mem_clk),
     .Clk_sft           (ext_mem_clk_sft),
-    .Rst               (rst_all),
+    .Rst               (rst_mem),
     .Sdr_init_done     (Sdr_init_done),
     .Sdr_init_ref_vld  (Sdr_init_ref_vld),
     .Sdr_busy          (Sdr_busy),
@@ -359,19 +395,21 @@ sdram U3(
 // ===================== WAV PCM audio =====================
 
 audio_playback_control #(.CLK_FREQ_HZ(100_000_000), .DEBOUNCE_MS(20)) u_audio_playback_control (
-    .clk(sd_card_clk), .rst(rst_all), .play_pause_key_n(music_key), .run_switch(music_switch),
+    // Button pause/resume control is intentionally disabled; SW1 is the
+    // only board control for the music run/stop function.
+    .clk(sd_card_clk), .rst(rst_sd), .play_pause_key_n(1'b1), .run_switch(swkey1),
     .fifo_empty_async(audio_fifo_empty), .player_mode(audio_player_mode_sd),
     .reader_enable(audio_reader_enable_sd), .reader_reset(audio_reader_reset_sd)
 );
 
 audio_fifo_32x4096 u_audio_fifo (
-    .rst(rst_all), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
+    .rst(rst_audio_fifo), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
     .do(audio_fifo_dout), .clkr(video_clk), .re(audio_fifo_re),
     .empty_flag(audio_fifo_empty), .full_flag(audio_fifo_full)
 );
 
 pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_audio_player (
-    .clk(video_clk), .rst(rst_all), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
+    .clk(video_clk), .rst(rst_video), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
     .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
     .volume_level_async(uart_volume_level),
     .playback_mode_async(audio_player_mode_sd),
@@ -380,8 +418,8 @@ pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_a
 
 // Export reads from the video-clock FIFO port as a safe event into the
 // SD-clock WAV reader.  This protects against a full FIFO mid-sector.
-always @(posedge video_clk or posedge rst_all) begin
-    if (rst_all)
+always @(posedge video_clk or posedge rst_video) begin
+    if (rst_video)
         audio_read_toggle <= 1'b0;
     else if (audio_fifo_re && !audio_fifo_empty)
         audio_read_toggle <= ~audio_read_toggle;
@@ -389,7 +427,7 @@ end
 
 audio_spectrum_analyzer u_audio_spectrum_analyzer (
     .clk         (video_clk),
-    .rst         (rst_all),
+    .rst         (rst_video),
     .sample_valid(audio_valid),
     .sample_pcm  (audio_left_data),
     .bands       (audio_spectrum_bands)
@@ -399,7 +437,7 @@ audio_arc_calculate #(
     .ACR_N         (6144)
 ) u_audio_arc_calculate (
     .I_clk         (video_clk),
-    .I_rst         (rst_all),
+    .I_rst         (rst_video),
     .I_audio_valid (audio_valid),
     .O_acr_valid   (acr_valid),
     .O_acr_cts     (acr_cts),
@@ -412,30 +450,55 @@ video_presentation #(
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
     .clk                (video_clk),
-    .rst                (rst_all),
+    .rst                (rst_video),
     .display_valid      (display_valid),
     .display_slot_async (disp_buf_idx),
     .brightness_level_async(uart_brightness_level),
+    .image_brightness_async(image_brightness),
+    .image_contrast_async(image_contrast),
+    .image_sharpness_async(image_sharpness),
+    .image_selected_async(image_selected),
+    .image_select_toggle_async(image_select_toggle),
+    .image_adjust_toggle_async(image_adjust_toggle),
+    .image_adjust_inc_async(image_adjust_inc),
     .volume_level_async (uart_volume_level),
     .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
     .vs                 (vs),
     .rgb_in             (vout_data_raw),
-    .rgb_out            (vout_data)
+    .rgb_out            (vout_data_processed)
+);
+
+`ifdef IMAGE_RAW_BYPASS
+assign vout_data = vout_data_raw;
+assign axis_input_de = de;
+assign axis_input_vs = vs;
+`else
+assign vout_data = vout_data_processed;
+assign axis_input_de = presentation_de;
+assign axis_input_vs = presentation_vs;
+`endif
+
+image_controls u_image_controls (
+    .clk(clk), .rst(rst_clk), .key_inc_n(key3), .key_dec_n(key4),
+    .sw_sel_b(swkey3), .sw_sel_a(swkey4),
+    .brightness(image_brightness), .contrast(image_contrast), .sharpness(image_sharpness),
+    .selected(image_selected), .select_toggle(image_select_toggle),
+    .adjust_toggle(image_adjust_toggle), .adjust_inc(image_adjust_inc)
 );
 
 // Presentation registers RGB once. Delay its control signals by the same
 // cycle, otherwise each line starts with the preceding blank pixel.
-always @(posedge video_clk or posedge rst_all) begin
-    if (rst_all) begin presentation_de <= 1'b0; presentation_vs <= 1'b0; end
+always @(posedge video_clk or posedge rst_video) begin
+    if (rst_video) begin presentation_de <= 1'b0; presentation_vs <= 1'b0; end
     else begin presentation_de <= de; presentation_vs <= vs; end
 end
 
 video_rgb_to_axis_640x480 u_video_rgb_to_axis_640x480(
     .I_clk         (video_clk),
-    .I_rst         (rst_all),
-    .I_vs          (presentation_vs),
-    .I_de          (presentation_de),
+    .I_rst         (rst_video),
+    .I_vs          (axis_input_vs),
+    .I_de          (axis_input_de),
     .I_rgb         (vout_data),
     .O_video_user  (axis_s_user),
     .O_video_valid (axis_s_valid),
@@ -448,7 +511,7 @@ startup_pulse #(
     .CNT_MAX(20'd100000)
 ) u_startup_pulse (
     .I_clk   (video_clk),
-    .I_rst   (rst_all),
+    .I_rst   (rst_video),
     .O_pulse (edid_trig)
 );
 
@@ -472,7 +535,7 @@ hdmi_1_4b_transmitter_core_wrapper #(
     .IIC_SCL_DIV            ( 250        )
 ) u_hdmi_1_4b_transmitter_core_wrapper(
     .I_pixel_clk        (video_clk),
-    .I_rst              (rst_all),
+    .I_rst              (rst_video),
     .I_edid_read_trig   (edid_trig),
     .O_edid_read_valid  (edid_valid),
     .O_edid_read_data   (edid_data),
@@ -505,7 +568,7 @@ hdmi_phy_wrapper #(
 ) u_hdmi2phy_wrapper(
     .I_pixel_clk        (video_clk),
     .I_serial_clk       (hdmi_5x_clk),
-    .I_rst              (rst_all),
+    .I_rst              (rst_video),
     .I_tmds_channel_0   (tmds_ch0_data),
     .I_tmds_channel_1   (tmds_ch1_data),
     .I_tmds_channel_2   (tmds_ch2_data),

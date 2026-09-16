@@ -37,6 +37,7 @@ reg [31:0] output_pixel_count;
 reg [7:0] b_byte, g_byte;
 reg [15:0] src_col, src_row;
 reg frame_seen;
+reg header_valid;
 
 wire [31:0] abs_height = height[31] ? (~height + 32'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
@@ -68,10 +69,10 @@ end
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         header_0<=0; header_1<=0; file_len<=0; pixel_offset<=54; width<=0;
-        height<=0; compression<=0; bit_count<=0; top_down<=0;
+        height<=0; compression<=0; bit_count<=0; top_down<=0; header_valid<=0;
     end else if (((state == ST_SCAN) || (state == ST_LOAD_HDR)) && sd_sec_read_data_valid) begin
         case (rd_cnt)
-            0: header_0 <= sd_sec_read_data;
+            0: begin header_0 <= sd_sec_read_data; header_valid <= 1'b0; end
             1: header_1 <= sd_sec_read_data;
             2: file_len[7:0] <= sd_sec_read_data;
             3: file_len[15:8] <= sd_sec_read_data;
@@ -95,6 +96,10 @@ always @(posedge clk or posedge rst) begin
             31: compression[15:8] <= sd_sec_read_data;
             32: compression[23:16] <= sd_sec_read_data;
             33: compression[31:24] <= sd_sec_read_data;
+            // All fields used by header_match have settled one byte earlier.
+            // Register the result so the large validation expression is not
+            // part of the sector-address and state clock-enable paths.
+            34: header_valid <= header_match;
             default: ;
         endcase
     end
@@ -138,7 +143,7 @@ always @(posedge clk or posedge rst) begin
                 state_code<=2; sd_sec_read<=1;
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0;
-                    if (header_match) begin
+                    if (header_valid) begin
                         scan_found_valid<=1; scan_found_sector<=scan_sector;
                         scan_found_total<=scan_found_total+1'b1;
                         if ((scan_found_total+1'b1 >= scan_target_count) ||
@@ -160,7 +165,7 @@ always @(posedge clk or posedge rst) begin
                 state_code<=2; sd_sec_read<=1;
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0;
-                    if (header_match) begin
+                    if (header_valid) begin
                         parsed_width<=width[15:0];
                         parsed_height<=abs_height[15:0];
                         parsed_top_down<=top_down;

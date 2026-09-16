@@ -18,10 +18,12 @@ localparam ST_IDLE=4'd0, ST_DIV_X_INIT=4'd1, ST_DIV_X_RUN=4'd2,
            ST_DIV_Y_INIT=4'd3, ST_DIV_Y_RUN=4'd4, ST_FILL=4'd5,
            ST_READ0=4'd6, ST_READ1=4'd7, ST_READ2=4'd8,
            ST_HORIZ=4'd9, ST_VERT=4'd10, ST_PACK=4'd11,
-           ST_EMIT=4'd12, ST_DONE=4'd13;
+           ST_EMIT=4'd12, ST_DONE=4'd13, ST_CHECK=4'd14,
+           ST_CHECK_ROWS=4'd15;
 
 reg [3:0] state;
 reg [15:0] sw,sh,fill_col,next_row;
+reg [15:0] required_row;
 reg [9:0] out_x,out_y;
 reg [31:0] x_fp,y_fp,x_step,y_step;
 reg [15:0] x_rem_step,y_rem_step,x_phase,y_phase;
@@ -84,11 +86,11 @@ endfunction
 // rows needed for the active output line are complete.  The same RAM is
 // reused for rows two apart, so accepting that pixel would overwrite a corner
 // before it has been interpolated.
-assign src_ready=(state==ST_FILL)&&(fill_col<sw)&&(next_row<=sy1);
+assign src_ready=(state==ST_FILL)&&(fill_col<sw);
 
 always @(posedge clk or posedge rst) begin
  if(rst) begin
-  state<=ST_IDLE;sw<=1;sh<=1;fill_col<=0;next_row<=0;out_x<=0;out_y<=0;
+  state<=ST_IDLE;sw<=1;sh<=1;fill_col<=0;next_row<=0;required_row<=0;out_x<=0;out_y<=0;
   x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
   fx_q<=0;fy_q<=0;p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
   h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;v_r<=0;v_g<=0;v_b<=0;
@@ -117,22 +119,33 @@ always @(posedge clk or posedge rst) begin
     end else div_bit<=div_bit-1'b1;
    end
    ST_DIV_Y_INIT: begin
-    if(sh<=1) begin y_step<=0;y_rem_step<=0;state<=ST_FILL;end
+    if(sh<=1) begin y_step<=0;y_rem_step<=0;state<=ST_CHECK;end
     else begin div_dividend<={sh-1'b1,16'h0000};div_divisor<=OUT_HEIGHT-1;div_remainder<=0;div_quotient<=0;div_bit<=31;state<=ST_DIV_Y_RUN;end
    end
    ST_DIV_Y_RUN: begin
     div_remainder<=div_next_remainder;div_quotient[div_bit]<=div_subtract;
     if(div_bit==0) begin
-     y_step<={div_quotient[31:1],div_subtract};y_rem_step<=div_next_remainder[15:0];state<=ST_FILL;
+     y_step<={div_quotient[31:1],div_subtract};y_rem_step<=div_next_remainder[15:0];state<=ST_CHECK;
     end else div_bit<=div_bit-1'b1;
    end
    ST_FILL: begin
     busy<=1;
     if(linebuf_write) begin
-     if(src_last||fill_col+1'b1>=sw) begin fill_col<=0;next_row<=next_row+1'b1;end else fill_col<=fill_col+1'b1;
+     if(src_last||fill_col+1'b1>=sw) begin
+      fill_col<=0;next_row<=next_row+1'b1;
+      if(next_row>=sy1) state<=ST_READ0;
+     end else fill_col<=fill_col+1'b1;
     end
-    // Only read after the required source rows have committed to ERAM.
-    if(next_row>sy1) state<=ST_READ0;
+   end
+   // Check row availability in a state where the source cannot handshake.
+   // This removes the output-coordinate comparison from the line-buffer write
+   // enable path and prevents accepting a pixel from the row after sy1.
+   ST_CHECK:begin
+    busy<=1;required_row<=sy1;state<=ST_CHECK_ROWS;
+   end
+   ST_CHECK_ROWS:begin
+    busy<=1;
+    if(next_row>required_row)state<=ST_READ0;else state<=ST_FILL;
    end
    // B-port OUTREG: read x0, capture/request x1, then capture x1.
    ST_READ0: begin
@@ -178,7 +191,7 @@ always @(posedge clk or posedge rst) begin
      else y_phase<=y_phase_sum[15:0];
      // Re-evaluate sy1 after out_y/y_fp advance.  ST_FILL immediately moves
      // to ST_READ0 when both required rows are already resident.
-     state<=ST_FILL;
+     state<=ST_CHECK;
     end else begin
      out_x<=out_x+1'b1;
      if(out_x==OUT_WIDTH-2) begin x_fp<={sw-1'b1,16'h0000};x_phase<=0;end

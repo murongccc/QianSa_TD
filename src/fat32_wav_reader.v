@@ -13,10 +13,14 @@ module fat32_wav_reader #(
  output reg busy,output reg done,output reg file_found,output reg format_ok,
  output reg format_error
 );
- localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11;
+ localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14;
+ localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] ent[0:31]; integer i;
- reg [31:0] part,fat_start,data_start,root,first_cluster,cluster,sector,file_size,file_pos,fat_next;
+ reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
  reg [31:0] spf;
+ reg [31:0] fat_sectors,cluster_offset;
+ reg [1:0] calc_action;
  reg [15:0] reserved; reg [7:0] spc,fats,sector_in_cluster;
  reg [31:0] fifo_level; reg read_meta,read_sync,read_seen;
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2; reg [31:0] wav_data_remaining;
@@ -34,7 +38,6 @@ module fat32_wav_reader #(
                     h[34]==8'd16&&h[35]==0);
  wire read_event=read_sync!=read_seen;
  wire fifo_room=(fifo_level<=FIFO_SAFE_LEVEL)&&!fifo_full;
- wire [31:0] cluster_lba=data_start+((cluster-2)*spc);
  wire [31:0] entry_cluster={ent[21],ent[20],ent[27],ent[26]};
  wire [31:0] entry_size={sd_data,ent[30],ent[29],ent[28]};
 
@@ -57,8 +60,8 @@ module fat32_wav_reader #(
   if(rst) begin
    state<=IDLE;pos<=0;fat_offset<=0;sd_sec_read<=0;sd_sec_read_addr<=0;
    fifo_we<=0;fifo_din<=0;busy<=0;done<=0;file_found<=0;format_ok<=0;format_error<=0;
-   part<=0;fat_start<=0;data_start<=0;root<=0;spf<=0;reserved<=0;spc<=0;fats<=0;
-   first_cluster<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
+   part<=0;fat_start<=0;data_start<=0;root<=0;spf<=0;fat_sectors<=0;cluster_offset<=0;calc_action<=0;reserved<=0;spc<=0;fats<=0;
+   first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
    pcm_index<=0;p0<=0;p1<=0;p2<=0;wav_data_remaining<=0;
    header_pos<=0;
    chunk_id0<=0;chunk_id1<=0;chunk_id2<=0;chunk_id3<=0;
@@ -86,15 +89,12 @@ module fat32_wav_reader #(
       if(pos>=36&&pos<=39)spf[(pos-36)*8 +:8]<=sd_data;if(pos>=44&&pos<=47)root[(pos-44)*8 +:8]<=sd_data;pos<=pos+1;
      end
      if(sd_sec_read_end)begin
-      pos<=0;fat_start<=part+reserved;data_start<=part+reserved+(fats*spf);
+      pos<=0;sd_sec_read<=0;fat_start<=part+reserved;fat_sectors<=fats*spf;
       // Root is a cluster number, so retain it for directory-chain walking.
       // The previous implementation only computed the first LBA and left
       // cluster at zero, which made the first ST_FAT lookup underflow and ended
       // the search with state 9 after one directory cluster.
-      cluster<=root;
-      sector_in_cluster<=0;
-      sector<=part+reserved+(fats*spf)+((root-2)*spc);
-      sd_sec_read_addr<=part+reserved+(fats*spf)+((root-2)*spc);sd_sec_read<=1;state<=DIR;
+      cluster<=root;sector_in_cluster<=0;calc_action<=CALC_ROOT_DIR;state<=BPB_CALC;
      end
     end
     DIR:begin
@@ -106,7 +106,7 @@ module fat32_wav_reader #(
       if(pos[4:0]==31 && ent[8]=="W"&&ent[9]=="A"&&ent[10]=="V"&&
          ent[11]!=8'h0f&&ent[11]!=8'h10&&ent[11]!=8'h08&&ent[0]!=8'hE5)begin
        file_found<=1;first_cluster<=entry_cluster;cluster<=entry_cluster;
-       sector<=data_start+((entry_cluster-2)*spc);file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;
+       file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;state<=DIR_FOUND;
       end
      end
@@ -133,7 +133,7 @@ module fat32_wav_reader #(
     end
     // The SD sector that contained the directory entry must finish before
     // the shared port can be reused for WAV data.
-    DIR_FOUND:if(sd_sec_read_end)begin sd_sec_read<=0;state<=WAIT;end
+    DIR_FOUND:if(sd_sec_read_end)begin sd_sec_read<=0;calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;end
     WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
     DATA:begin
       if(sd_data_valid && file_pos<file_size)begin
@@ -200,7 +200,7 @@ module fat32_wav_reader #(
        busy<=0; done<=1; format_error_pending<=0; state<=HOLD;
        end else if(file_pos+1>=file_size)begin
        // Repeat playback from the beginning after the file's declared size.
-       cluster<=first_cluster;sector<=data_start+((first_cluster-2)*spc);file_pos<=0;sector_in_cluster<=0;
+       cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_ok<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;state<=WAIT;
       end else if(sector_in_cluster+1<spc)begin sector_in_cluster<=sector_in_cluster+1;sector<=sector+1;state<=WAIT;end
       else begin state<=ST_FAT;end
@@ -215,9 +215,9 @@ module fat32_wav_reader #(
      if(sd_sec_read_end)begin
       sd_sec_read<=0;
       if(fat_next>=32'h0ffffff8||fat_next<2)begin
-       cluster<=first_cluster;sector<=data_start+((first_cluster-2)*spc);file_pos<=0;sector_in_cluster<=0;
+       cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_ok<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;state<=WAIT;
-      end else begin cluster<=fat_next&32'h0fffffff;sector<=data_start+(((fat_next&32'h0fffffff)-2)*spc);sector_in_cluster<=0;state<=WAIT;end
+      end else begin cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;calc_action<=CALC_NEXT_FILE;state<=CALC_OFFSET;end
      end
     end
     ST_DIR_FATDATA:begin
@@ -233,14 +233,28 @@ module fat32_wav_reader #(
       if(fat_next>=32'h0ffffff8 || fat_next<2)begin
        busy<=0; done<=1; state<=HOLD;
       end else begin
-       cluster<=fat_next&32'h0fffffff;
-       sector<=data_start+(((fat_next&32'h0fffffff)-2)*spc);
-       sector_in_cluster<=0;
-       sd_sec_read_addr<=data_start+(((fat_next&32'h0fffffff)-2)*spc);
-       sd_sec_read<=1;
-       state<=DIR;
+       cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;
+       calc_action<=CALC_NEXT_DIR;state<=CALC_OFFSET;
       end
      end
+    end
+    BPB_CALC:begin
+     data_start<=fat_start+fat_sectors;
+     state<=CALC_OFFSET;
+    end
+    CALC_OFFSET:begin
+     cluster_offset<=(cluster-2)*spc;
+     state<=CALC_SECTOR;
+    end
+    CALC_SECTOR:begin
+     sector<=data_start+cluster_offset;
+     case(calc_action)
+      CALC_ROOT_DIR,CALC_NEXT_DIR:begin
+       sd_sec_read_addr<=data_start+cluster_offset;sd_sec_read<=1;state<=DIR;
+      end
+      CALC_FIRST_FILE:begin first_sector<=data_start+cluster_offset;state<=WAIT;end
+      default:state<=WAIT;
+     endcase
     end
     HOLD:begin end
     default:state<=IDLE;
