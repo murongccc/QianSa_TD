@@ -4,16 +4,22 @@ module sd_media_pipeline #(
     parameter integer CLK_FREQ_HZ = 100_000_000,
     parameter [31:0] SCAN_START_SECTOR = 32'd0,
     parameter [31:0] SCAN_MAX_SECTOR = 32'd131071,
-    parameter [2:0] SCAN_TARGET_COUNT = 3'd3
+    parameter [2:0] SCAN_TARGET_COUNT = 3'd3,
+    // Board builds use 640x480.  Parameters make the complete BMP/FIFO/
+    // scaler/session path practical to exercise in a small RTL regression.
+    parameter integer SCALER_OUT_WIDTH = 640,
+    parameter integer SCALER_OUT_HEIGHT = 480
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
     input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     output wire [3:0] state_code, input wire [15:0] bmp_width, input wire [15:0] bmp_height,
+    output wire [15:0] parsed_width, output wire [15:0] parsed_height,
+    output wire parsed_top_down,
     output wire display_valid, input wire write_finish_toggle,
     output wire auto_play_enabled,
     output wire [1:0] write_buf_idx, output wire [1:0] disp_buf_idx,
     output wire write_req, input wire write_req_ack, output wire write_en,
-    output wire [31:0] write_data, output wire SD_nCS, output wire SD_DCLK,
+    output wire [31:0] write_data, input wire write_ready, output wire SD_nCS, output wire SD_DCLK,
     output wire SD_MOSI, input wire SD_MISO,
     output wire audio_fifo_we, output wire [31:0] audio_fifo_din,
     input wire audio_fifo_full, input wire audio_read_toggle,
@@ -34,6 +40,7 @@ wire scan_done, scan_found_valid; wire [31:0] scan_found_sector; wire [2:0] scan
 reg scan_start, scan_kicked, source_complete, load_started;
 reg [2:0] media_count; reg [31:0] media_sector0, media_sector1, media_sector2, media_sector3;
 reg [2:0] write_finish_sync;
+reg write_req_ack_meta, write_req_ack_sync;
 reg write_toggle_baseline;
 reg write_complete_pending;
 reg sd_init_seen;
@@ -47,6 +54,26 @@ wire write_complete = load_inflight && (write_finish_sync[2] != write_toggle_bas
 // completion pending until the current BMP source has also returned to ready.
 wire frame_commit = load_inflight && source_complete && write_complete_pending;
 wire [23:0] bmp_data;
+wire bmp_pixel_valid, bmp_pixel_ready, bmp_pixel_last, bmp_frame_last;
+wire [23:0] bmp_pixel_data;
+wire bmp_load_failed;
+wire source_fifo_full, source_fifo_empty, source_fifo_afull;
+wire [9:0] source_fifo_wrusedw, source_fifo_rdusedw;
+wire [31:0] source_fifo_dout;
+wire source_fifo_valid;
+wire scaler_src_ready, scaler_dst_valid, scaler_dst_last, scaler_dst_frame_last;
+wire [23:0] scaler_dst_pixel;
+wire [9:0] scaler_dst_x, scaler_dst_y;
+wire scaler_busy, scaler_done;
+reg scaler_started;
+wire scaler_start = write_req_ack_sync && !scaler_started;
+wire source_fifo_re = scaler_src_ready && source_fifo_valid;
+wire scaler_dst_ready = write_ready;
+// A 512-byte sector can contribute at most 171 RGB pixels.  Reserve that
+// space before launching a sector so pixel_ready remains asserted throughout
+// the transaction and no byte is dropped mid-sector.
+wire source_fifo_write_ok = (source_fifo_wrusedw <= 10'd320);
+wire load_abort = load_inflight && load_started && bmp_ready && (bmp_load_failed || !scaler_started);
 
 function [31:0] selected_sector;
     input [1:0] index;
@@ -60,8 +87,8 @@ function [31:0] selected_sector;
     end
 endfunction
 
-assign write_en= bmp_data_wr_en;
-assign write_data = {bmp_data,8'd0};
+assign write_en = scaler_dst_valid && scaler_dst_ready;
+assign write_data = {scaler_dst_pixel,8'd0};
 assign audio_fifo_din = audio_fifo_din_int;
 assign audio_reader_busy = audio_busy;
 assign audio_reader_done = audio_done;
@@ -86,7 +113,9 @@ always @(posedge clk or posedge rst) begin
 end
 assign state_code = !sd_init_qualified ? 4'd0 :
                     (scan_done && media_count==0) ? 4'd8 :
-                    (load_inflight && source_complete && !write_complete_pending) ? 4'd3 :
+                    bmp_load_failed ? 4'hd :
+                    (load_inflight && bmp_ready && scaler_busy && !source_complete) ? 4'hb :
+                    (load_inflight && source_complete && !write_complete_pending) ? 4'hc :
                     audio_not_found ? 4'd9 :
                     audio_bad_format ? 4'd7 :
                     audio_ok_seen ? 4'd6 :
@@ -106,10 +135,13 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         scan_start<=1'b0; scan_kicked<=1'b0; source_complete<=1'b0; load_started<=1'b0;
         write_finish_sync<=3'd0; write_toggle_baseline<=1'b0; write_complete_pending<=1'b0;
+        write_req_ack_meta<=1'b0; write_req_ack_sync<=1'b0;
         sd_init_seen<=1'b0;
         media_count<=3'd0; media_sector0<=32'd0; media_sector1<=32'd0; media_sector2<=32'd0; media_sector3<=32'd0;
     end else begin
         scan_start<=1'b0;
+        write_req_ack_meta<=write_req_ack;
+        write_req_ack_sync<=write_req_ack_meta;
         if (sd_init_done)
             sd_init_seen<=1'b1;
         write_finish_sync<={write_finish_sync[1:0],write_finish_toggle};
@@ -142,10 +174,10 @@ always @(posedge clk or posedge rst) begin
                 // A new request is considered active only after bmp_read has
                 // left ST_IDLE.  Without this guard, its pre-request ready=1
                 // level can be mistaken for source completion.
+                if (scaler_done)
+                    source_complete <= 1'b1;
                 if (!bmp_ready)
                     load_started <= 1'b1;
-                if (load_started && bmp_ready)
-                    source_complete <= 1'b1;
 
                 // Consume the completion event exactly once when the session
                 // controller accepts frame_commit; otherwise retain it until
@@ -165,7 +197,7 @@ end
 media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_session (
     .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(scan_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
-    .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_start(load_start),
+    .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_abort(load_abort),.load_start(load_start),
     .load_media_index(load_media_index),.write_slot(write_buf_idx),.display_slot(disp_buf_idx),
     .display_valid(display_valid),.auto_play_enabled(auto_play_enabled),.load_inflight(load_inflight)
 );
@@ -176,10 +208,49 @@ bmp_read u_bmp_read(
     .scan_found_valid(scan_found_valid),.scan_found_sector(scan_found_sector),.scan_found_total(scan_found_total),
     .load_start(load_start),.load_sector(selected_sector(load_media_index)),.sd_init_done(sd_init_qualified),
     .state_code(bmp_state_code),.bmp_width(bmp_width),.bmp_height(bmp_height),.write_req(write_req),
-    .write_req_ack(write_req_ack),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
+    .parsed_width(parsed_width),.parsed_height(parsed_height),.parsed_top_down(parsed_top_down),
+    .write_req_ack(write_req_ack_sync),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
     .sd_sec_read_data(sd_data_bmp),.sd_sec_read_data_valid(sd_valid_bmp),
-    .sd_sec_read_end(sd_end_bmp),.bmp_data_wr_en(bmp_data_wr_en),.bmp_data(bmp_data)
+    .sd_sec_read_end(sd_end_bmp),.bmp_data_wr_en(bmp_data_wr_en),.bmp_data(bmp_data),
+    .pixel_valid(bmp_pixel_valid), .pixel_ready(bmp_pixel_ready), .pixel_data(bmp_pixel_data),
+    .pixel_last(bmp_pixel_last), .frame_last(bmp_frame_last), .load_failed(bmp_load_failed)
+    , .sector_ready(source_fifo_write_ok)
 );
+
+// This is a single-clock FIFO: both BMP decoding and scaling execute in
+// sd_card_clk (clk).  Its Show-Ahead mode makes dout valid before the first
+// read request, which is required by the src_valid/src_ready handshake below.
+// scaler_start clears stale pixels from a previous/aborted load before the
+// first sector of the new BMP is admitted.
+source_pixel_fifo_ip source_pixel_fifo (
+    .srst(rst | scaler_start), .clk(clk),
+    .we(bmp_pixel_valid && bmp_pixel_ready),
+    .di({bmp_frame_last,bmp_pixel_last,bmp_pixel_data,6'b0}),
+    .re(source_fifo_re), .dout(source_fifo_dout), .valid(source_fifo_valid),
+    .full_flag(source_fifo_full), .empty_flag(source_fifo_empty),
+    .afull(source_fifo_afull), .aempty(), .wrusedw(source_fifo_wrusedw), .rdusedw(source_fifo_rdusedw)
+);
+assign bmp_pixel_ready = !source_fifo_full;
+
+bmp_bilinear_scaler #(
+    .OUT_WIDTH(SCALER_OUT_WIDTH), .OUT_HEIGHT(SCALER_OUT_HEIGHT),
+    .MAX_WIDTH(1920)
+) u_scaler (
+    .clk(clk), .rst(rst), .start(scaler_start), .abort(load_abort),
+    .src_width(parsed_width), .src_height(parsed_height),
+    .src_valid(source_fifo_valid), .src_pixel(source_fifo_dout[29:6]),
+    .src_last(source_fifo_dout[30]), .src_frame_last(source_fifo_dout[31]),
+    .src_ready(scaler_src_ready), .dst_ready(scaler_dst_ready),
+    .dst_valid(scaler_dst_valid), .dst_pixel(scaler_dst_pixel),
+    .dst_last(scaler_dst_last), .dst_frame_last(scaler_dst_frame_last),
+    .dst_x(scaler_dst_x), .dst_y(scaler_dst_y), .busy(scaler_busy), .done(scaler_done)
+);
+
+always @(posedge clk or posedge rst) begin
+    if (rst) scaler_started <= 1'b0;
+    else if (!load_inflight) scaler_started <= 1'b0;
+    else if (scaler_start) scaler_started <= 1'b1;
+end
 
 fat32_wav_reader u_sd_audio_reader(
     .clk(clk), .rst(rst | audio_reader_reset), .sd_init_done(sd_init_qualified),
