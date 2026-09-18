@@ -27,7 +27,10 @@ reg [15:0] required_row;
 reg [9:0] out_x,out_y;
 reg [31:0] x_fp,y_fp,x_step,y_step;
 reg [15:0] x_rem_step,y_rem_step,x_phase,y_phase;
-reg [7:0] fx_q,fy_q;
+// Register both interpolation weights before the multiplier stages.  Without
+// this boundary, a coordinate phase accumulator, subtractor and multiplier
+// are packed into the same 100 MHz path.
+reg [8:0] fx_inv_q,fx_weight_q,fy_inv_q,fy_weight_q;
 reg [23:0] p00_q,p01_q,p10_q,p11_q;
 reg [17:0] h0_r,h0_g,h0_b,h1_r,h1_g,h1_b;
 reg [27:0] v_r,v_g,v_b;
@@ -92,7 +95,8 @@ always @(posedge clk or posedge rst) begin
  if(rst) begin
   state<=ST_IDLE;sw<=1;sh<=1;fill_col<=0;next_row<=0;required_row<=0;out_x<=0;out_y<=0;
   x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
-  fx_q<=0;fy_q<=0;p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
+  fx_inv_q<=0;fx_weight_q<=0;fy_inv_q<=0;fy_weight_q<=0;
+  p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
   h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;v_r<=0;v_g<=0;v_b<=0;
   last_q<=0;frame_last_q<=0;
   dst_valid<=0;dst_pixel<=0;dst_last<=0;dst_frame_last<=0;dst_x<=0;dst_y<=0;
@@ -149,7 +153,10 @@ always @(posedge clk or posedge rst) begin
    end
    // B-port OUTREG: read x0, capture/request x1, then capture x1.
    ST_READ0: begin
-    busy<=1;fx_q<=fx;fy_q<=fy;last_q<=(out_x==OUT_WIDTH-1);frame_last_q<=(out_x==OUT_WIDTH-1)&&(out_y==OUT_HEIGHT-1);state<=ST_READ1;
+    busy<=1;
+    fx_inv_q<=9'd256-{1'b0,fx}; fx_weight_q<={1'b0,fx};
+    fy_inv_q<=9'd256-{1'b0,fy}; fy_weight_q<={1'b0,fy};
+    last_q<=(out_x==OUT_WIDTH-1);frame_last_q<=(out_x==OUT_WIDTH-1)&&(out_y==OUT_HEIGHT-1);state<=ST_READ1;
    end
    ST_READ1: begin
     busy<=1;p00_q<=top_dout;p10_q<=bottom_dout;state<=ST_READ2;
@@ -161,19 +168,19 @@ always @(posedge clk or posedge rst) begin
    // the 100 MHz SD/scaler domain from containing two cascaded multiplies.
    ST_HORIZ: begin
     busy<=1;
-    h0_r<=p00_q[23:16]*(9'd256-fx_q)+p01_q[23:16]*fx_q;
-    h0_g<=p00_q[15:8]*(9'd256-fx_q)+p01_q[15:8]*fx_q;
-    h0_b<=p00_q[7:0]*(9'd256-fx_q)+p01_q[7:0]*fx_q;
-    h1_r<=p10_q[23:16]*(9'd256-fx_q)+p11_q[23:16]*fx_q;
-    h1_g<=p10_q[15:8]*(9'd256-fx_q)+p11_q[15:8]*fx_q;
-    h1_b<=p10_q[7:0]*(9'd256-fx_q)+p11_q[7:0]*fx_q;
+    h0_r<=p00_q[23:16]*fx_inv_q+p01_q[23:16]*fx_weight_q;
+    h0_g<=p00_q[15:8]*fx_inv_q+p01_q[15:8]*fx_weight_q;
+    h0_b<=p00_q[7:0]*fx_inv_q+p01_q[7:0]*fx_weight_q;
+    h1_r<=p10_q[23:16]*fx_inv_q+p11_q[23:16]*fx_weight_q;
+    h1_g<=p10_q[15:8]*fx_inv_q+p11_q[15:8]*fx_weight_q;
+    h1_b<=p10_q[7:0]*fx_inv_q+p11_q[7:0]*fx_weight_q;
     state<=ST_VERT;
    end
    ST_VERT: begin
     busy<=1;
-    v_r<=h0_r*(9'd256-fy_q)+h1_r*fy_q;
-    v_g<=h0_g*(9'd256-fy_q)+h1_g*fy_q;
-    v_b<=h0_b*(9'd256-fy_q)+h1_b*fy_q;
+    v_r<=h0_r*fy_inv_q+h1_r*fy_weight_q;
+    v_g<=h0_g*fy_inv_q+h1_g*fy_weight_q;
+    v_b<=h0_b*fy_inv_q+h1_b*fy_weight_q;
     state<=ST_PACK;
    end
    ST_PACK: begin

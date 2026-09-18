@@ -14,6 +14,7 @@ module frame_fifo_read
 	input							 Sdr_init_done,
 	input							 Sdr_init_ref_vld,
     input							 Sdr_busy,
+	input                            refresh_hold,
     input							 Sdr_rd_en,
 	input							 App_wr_busy,
     output							 O_rd_busy,
@@ -220,8 +221,8 @@ begin
 				begin
 					state <= S_ACK;
 				end
-				//if the FIFO space is a burst read request, goto burst read state
-				else if(wrusedw < (FIFO_DEPTH - BURST_SIZE) && ~App_wr_busy)
+				// FIFO 有空间且写侧空闲时才可发起读 burst；刷新或控制器忙时必须让出 SDRAM。
+				else if(wrusedw < (FIFO_DEPTH - BURST_SIZE) && ~App_wr_busy && !Sdr_init_ref_vld && !Sdr_busy && !refresh_hold)
 				begin
 					state <= S_READ_BURST;
 					//rd_burst_len <= BURST_SIZE[BURST_BITS - 1:0];

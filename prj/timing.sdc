@@ -18,3 +18,25 @@ set_clock_groups -asynchronous \
     -group [get_clocks {clk}] \
     -group [get_clocks {sd_card_clk ext_mem_clk ext_mem_clk_sft}] \
     -group [get_clocks {video_clk hdmi_5x_clk}]
+
+# EG4S20 SDRAM SIP DQ hard-macro paths cross two same-frequency clocks with
+# a fixed positive phase offset.  The encrypted SDRAM protocol samples these
+# DQ transfers on the following cycle, not on the adjacent half-cycle that TD
+# selects by default.  Scope the exception to DQ only; do not relax ordinary
+# SDRAM, SD-card, or video-domain paths.
+# TD treats an input DQ pin as the path startpoint rather than a through pin,
+# so the read direction uses the same 32 DQ pins explicitly as -from.
+set_multicycle_path 2 -setup \
+    -from [get_clocks {ext_mem_clk}] \
+    -through [get_pins -hierarchical {U3/sdram.dq[*]}] \
+    -to [get_clocks {ext_mem_clk_sft}]
+set_multicycle_path 1 -hold -end \
+    -from [get_clocks {ext_mem_clk}] \
+    -through [get_pins -hierarchical {U3/sdram.dq[*]}] \
+    -to [get_clocks {ext_mem_clk_sft}]
+set_multicycle_path 2 -setup \
+    -from [get_pins -hierarchical {U3/sdram.dq[*]}] \
+    -to [get_clocks {ext_mem_clk}]
+set_multicycle_path 1 -hold -end \
+    -from [get_pins -hierarchical {U3/sdram.dq[*]}] \
+    -to [get_clocks {ext_mem_clk}]

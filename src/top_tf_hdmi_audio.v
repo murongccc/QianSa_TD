@@ -40,10 +40,18 @@ parameter [ADDR_BITS-1:0] FRAME_PIXELS = 307200;   // 640*480 words
 parameter [ADDR_BITS-1:0] BUF0_ADDR = 0;
 parameter [ADDR_BITS-1:0] BUF1_ADDR = FRAME_PIXELS;
 parameter [ADDR_BITS-1:0] BUF2_ADDR = FRAME_PIXELS * 2;
+// 100 MHz SDRAM 手动刷新：25.0 us，取 2500 周期。
+// 512 周期保护窗让已发起的 256-word burst 排空后再接受刷新。
+localparam [13:0] SDRAM_REFRESH_INTERVAL_CYCLES = 14'd2500;
+localparam [13:0] SDRAM_REFRESH_GUARD_CYCLES    = 14'd512;
 
 wire Sdr_init_done;
 wire Sdr_init_ref_vld;
 wire Sdr_busy;
+wire app_ref_req;
+wire refresh_hold;
+wire refresh_fault;
+wire [13:0] refresh_max_gap_mem;
 
 wire sd_card_clk;
 wire ext_mem_clk;
@@ -58,7 +66,8 @@ wire de;
 wire [23:0] vout_data_raw;
 wire [23:0] vout_data;
 wire [23:0] vout_data_processed;
-reg presentation_de, presentation_vs;
+reg presentation_de_d1, presentation_de_d2;
+reg presentation_vs_d1, presentation_vs_d2;
 wire axis_input_de, axis_input_vs;
 wire        display_valid;
 
@@ -68,11 +77,30 @@ wire        bmp_source_top_down;
 reg  [3:0]  state_code_display;
 reg  [3:0]  state_code_meta, state_code_sync, state_code_previous;
 wire [6:0]  seg_data_0;
+reg  [13:0] refresh_gap_meta, refresh_gap_sync;
+reg         refresh_fault_meta, refresh_fault_sync;
+wire [6:0]  seg_refresh_fault;
+wire [6:0]  seg_diag_0, seg_diag_1, seg_diag_2, seg_diag_3;
+wire [6:0]  seg_diag_underflow, seg_diag_mismatch;
+reg  [1:0]  diag_page;
+reg  [26:0] diag_page_count;
+wire [15:0] diag_display_value;
+reg  [15:0] underflow_count_meta, underflow_count_sync, underflow_count_previous;
+reg  [15:0] underflow_count_display;
+reg  [15:0] mismatch_count_meta, mismatch_count_sync, mismatch_count_previous;
+reg  [15:0] mismatch_count_display;
 
 wire        video_read_req;
 wire        video_read_req_ack;
 wire        video_read_en;
 wire [31:0] video_read_data;
+wire        video_read_fifo_empty;
+wire        video_read_fifo_valid;
+wire [8:0]  video_read_fifo_level;
+wire [15:0] video_underflow_count;
+wire        video_underflow_sticky;
+wire [15:0] video_mismatch_count;
+wire        video_mismatch_sticky;
 
 wire        sd_card_write_en;
 wire [31:0] sd_card_write_data;
@@ -84,6 +112,8 @@ reg         frame_write_toggle_mem;
 
 wire [1:0]  write_buf_idx;
 wire [1:0]  disp_buf_idx;
+wire        display_switch_toggle_sd;
+wire        display_slot_applied_toggle_video;
 wire        auto_play_enabled_sd;
 reg         auto_play_meta;
 reg         auto_play_display;
@@ -143,7 +173,7 @@ wire [2:0]  uart_brightness_level;
 wire [2:0]  uart_volume_level;
 wire [6:0]  image_brightness, image_contrast, image_sharpness;
 wire [1:0]  image_selected;
-wire        image_select_toggle, image_adjust_toggle, image_adjust_inc;
+wire        image_select_toggle, image_adjust_toggle;
 wire [2:0]  uart_playback_command;
 wire        uart_playback_command_toggle;
 wire        uart_echo_valid;
@@ -241,6 +271,8 @@ sd_media_pipeline #(
     .auto_play_enabled (auto_play_enabled_sd),
 
     .write_finish_toggle(frame_write_toggle_mem),
+    .display_switch_applied_toggle_async(display_slot_applied_toggle_video),
+    .display_switch_toggle(display_switch_toggle_sd),
     .write_buf_idx     (write_buf_idx),
     .disp_buf_idx      (disp_buf_idx),
 
@@ -266,6 +298,17 @@ seg_decoder seg_decoder_m0(
     .seg_data          (seg_data_0)
 );
 
+seg_decoder seg_decoder_refresh_fault(.bin_data(4'he), .seg_data(seg_refresh_fault));
+assign diag_display_value = (diag_page == 2'd0) ? {2'b00, refresh_gap_sync} :
+                            (diag_page == 2'd1) ? underflow_count_display :
+                                                  mismatch_count_display;
+seg_decoder seg_decoder_diag_0(.bin_data(diag_display_value[3:0]), .seg_data(seg_diag_0));
+seg_decoder seg_decoder_diag_1(.bin_data(diag_display_value[7:4]), .seg_data(seg_diag_1));
+seg_decoder seg_decoder_diag_2(.bin_data(diag_display_value[11:8]), .seg_data(seg_diag_2));
+seg_decoder seg_decoder_diag_3(.bin_data(diag_display_value[15:12]), .seg_data(seg_diag_3));
+seg_decoder seg_decoder_diag_underflow(.bin_data(4'hb), .seg_data(seg_diag_underflow));
+seg_decoder seg_decoder_diag_mismatch(.bin_data(4'hd), .seg_data(seg_diag_mismatch));
+
 // Show 0 while SD initialization is pending; hiding it as 1 made a dead SD
 // transport indistinguishable from idle. Synchronize and accept only stable
 // status samples; intermediate multi-bit transitions are diagnostic only.
@@ -275,12 +318,52 @@ always @(posedge clk or posedge rst_clk) begin
         state_code_sync <= 4'd0;
         state_code_previous <= 4'd0;
         state_code_display <= 4'd0;
+        refresh_gap_meta <= 14'd0;
+        refresh_gap_sync <= 14'd0;
+        refresh_fault_meta <= 1'b0;
+        refresh_fault_sync <= 1'b0;
+        underflow_count_meta <= 16'd0;
+        underflow_count_sync <= 16'd0;
+        underflow_count_previous <= 16'd0;
+        underflow_count_display <= 16'd0;
+        mismatch_count_meta <= 16'd0;
+        mismatch_count_sync <= 16'd0;
+        mismatch_count_previous <= 16'd0;
+        mismatch_count_display <= 16'd0;
+        diag_page <= 2'd0;
+        diag_page_count <= 27'd0;
     end else begin
         state_code_meta <= state_code;
         state_code_sync <= state_code_meta;
         state_code_previous <= state_code_sync;
         if (state_code_sync == state_code_previous)
             state_code_display <= state_code_sync;
+        // 仅用于数码管诊断；源信号在 ext_mem_clk 域产生。
+        refresh_gap_meta <= refresh_max_gap_mem;
+        refresh_gap_sync <= refresh_gap_meta;
+        refresh_fault_meta <= refresh_fault;
+        refresh_fault_sync <= refresh_fault_meta;
+        // 视频域诊断计数只在连续两次同步采样一致时更新显示值。
+        underflow_count_meta <= video_underflow_count;
+        underflow_count_sync <= underflow_count_meta;
+        underflow_count_previous <= underflow_count_sync;
+        if (underflow_count_sync == underflow_count_previous)
+            underflow_count_display <= underflow_count_sync;
+        mismatch_count_meta <= video_mismatch_count;
+        mismatch_count_sync <= mismatch_count_meta;
+        mismatch_count_previous <= mismatch_count_sync;
+        if (mismatch_count_sync == mismatch_count_previous)
+            mismatch_count_display <= mismatch_count_sync;
+
+        if (diag_page_count == 27'd99_999_999) begin
+            diag_page_count <= 27'd0;
+            if (diag_page == 2'd2)
+                diag_page <= 2'd0;
+            else
+                diag_page <= diag_page + 1'b1;
+        end else begin
+            diag_page_count <= diag_page_count + 1'b1;
+        end
     end
 end
 
@@ -289,11 +372,16 @@ seg_scan seg_scan_m0(
     .rst_n             (~rst_clk),
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
-    .seg_data_0        ({1'b1,7'b1111_111}),
-    .seg_data_1        ({1'b1,7'b1111_111}),
-    .seg_data_2        ({1'b1,7'b1111_111}),
-    .seg_data_3        ({1'b1,7'b1111_111}),
-    .seg_data_4        ({1'b1,7'b1111_111}),
+    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、帧数据变化计数(d)。
+    .seg_data_0        ({1'b1,seg_diag_3}),
+    .seg_data_1        ({1'b1,seg_diag_2}),
+    .seg_data_2        ({1'b1,seg_diag_1}),
+    .seg_data_3        ({1'b1,seg_diag_0}),
+    .seg_data_4        ({(diag_page == 2'd1) ? (underflow_count_display == 16'd0) :
+                         (diag_page == 2'd2) ? (mismatch_count_display == 16'd0) : 1'b1,
+                              (diag_page == 2'd0) ?
+                                   (refresh_fault_sync ? seg_refresh_fault : 7'b1111_111) :
+                               (diag_page == 2'd1) ? seg_diag_underflow : seg_diag_mismatch}),
     // Decimal point lights while automatic playback is enabled (active-low DP).
     .seg_data_5        ({~auto_play_display,seg_data_0})
 );
@@ -323,6 +411,20 @@ video_delay video_delay_m0(
     .vout_data         (vout_data_raw)
 );
 
+sdram_refresh_scheduler #(
+    .REFRESH_INTERVAL_CYCLES(SDRAM_REFRESH_INTERVAL_CYCLES),
+    .EARLY_GUARD_CYCLES     (SDRAM_REFRESH_GUARD_CYCLES)
+) u_sdram_refresh_scheduler(
+    .clk               (ext_mem_clk),
+    .rst               (rst_mem),
+    .sdr_init_done     (Sdr_init_done),
+    .sdr_init_ref_vld  (Sdr_init_ref_vld),
+    .app_ref_req       (app_ref_req),
+    .refresh_hold      (refresh_hold),
+    .refresh_fault     (refresh_fault),
+    .refresh_max_gap   (refresh_max_gap_mem)
+);
+
 frame_read_write #(
     .MEM_DATA_BITS    (MEM_DATA_BITS),
     .ADDR_BITS        (ADDR_BITS),
@@ -335,6 +437,7 @@ frame_read_write #(
     .Sdr_init_done     (Sdr_init_done),
     .Sdr_init_ref_vld  (Sdr_init_ref_vld),
     .Sdr_busy          (Sdr_busy),
+    .refresh_hold      (refresh_hold),
 
     .App_rd_en         (App_rd_en),
     .App_rd_addr       (App_rd_addr),
@@ -353,6 +456,9 @@ frame_read_write #(
     .read_len          (FRAME_PIXELS),
     .read_en           (video_read_en),
     .read_data         (video_read_data),
+    .read_fifo_empty   (video_read_fifo_empty),
+    .read_fifo_valid   (video_read_fifo_valid),
+    .read_fifo_level   (video_read_fifo_level),
 
     .App_wr_en         (App_wr_en),
     .App_wr_addr       (App_wr_addr),
@@ -375,6 +481,22 @@ frame_read_write #(
     .write_v_flip      (!bmp_source_top_down)
 );
 
+frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
+    .clk                (video_clk),
+    .rst                (rst_video),
+    .display_valid_async(display_valid),
+    .display_slot_async (disp_buf_idx),
+    .vs                 (vs),
+    .fifo_read_req      (video_read_en),
+    .fifo_empty         (video_read_fifo_empty),
+    .fifo_valid         (video_read_fifo_valid),
+    .fifo_data          (video_read_data),
+    .underflow_count    (video_underflow_count),
+    .underflow_sticky   (video_underflow_sticky),
+    .mismatch_count     (video_mismatch_count),
+    .mismatch_sticky    (video_mismatch_sticky)
+);
+
 sdram U3(
     .Clk               (ext_mem_clk),
     .Clk_sft           (ext_mem_clk_sft),
@@ -382,6 +504,7 @@ sdram U3(
     .Sdr_init_done     (Sdr_init_done),
     .Sdr_init_ref_vld  (Sdr_init_ref_vld),
     .Sdr_busy          (Sdr_busy),
+    .App_ref_req       (app_ref_req),
     .App_wr_en         (App_wr_en),
     .App_wr_addr       (App_wr_addr),
     .App_wr_dm         (App_wr_dm),
@@ -453,6 +576,8 @@ video_presentation #(
     .rst                (rst_video),
     .display_valid      (display_valid),
     .display_slot_async (disp_buf_idx),
+    .display_switch_toggle_async(display_switch_toggle_sd),
+    .display_slot_applied_toggle(display_slot_applied_toggle_video),
     .brightness_level_async(uart_brightness_level),
     .image_brightness_async(image_brightness),
     .image_contrast_async(image_contrast),
@@ -460,8 +585,6 @@ video_presentation #(
     .image_selected_async(image_selected),
     .image_select_toggle_async(image_select_toggle),
     .image_adjust_toggle_async(image_adjust_toggle),
-    .image_adjust_inc_async(image_adjust_inc),
-    .volume_level_async (uart_volume_level),
     .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
     .vs                 (vs),
@@ -475,8 +598,8 @@ assign axis_input_de = de;
 assign axis_input_vs = vs;
 `else
 assign vout_data = vout_data_processed;
-assign axis_input_de = presentation_de;
-assign axis_input_vs = presentation_vs;
+assign axis_input_de = presentation_de_d2;
+assign axis_input_vs = presentation_vs_d2;
 `endif
 
 image_controls u_image_controls (
@@ -484,14 +607,19 @@ image_controls u_image_controls (
     .sw_sel_b(swkey3), .sw_sel_a(swkey4),
     .brightness(image_brightness), .contrast(image_contrast), .sharpness(image_sharpness),
     .selected(image_selected), .select_toggle(image_select_toggle),
-    .adjust_toggle(image_adjust_toggle), .adjust_inc(image_adjust_inc)
+    .adjust_toggle(image_adjust_toggle)
 );
 
-// Presentation registers RGB once. Delay its control signals by the same
-// cycle, otherwise each line starts with the preceding blank pixel.
+// 显示处理包含两级像素寄存：调节/标记与锐化/叠加。
+// DE/VS 同样延迟两拍，避免行首像素与控制信号错位。
 always @(posedge video_clk or posedge rst_video) begin
-    if (rst_video) begin presentation_de <= 1'b0; presentation_vs <= 1'b0; end
-    else begin presentation_de <= de; presentation_vs <= vs; end
+    if (rst_video) begin
+        presentation_de_d1 <= 1'b0; presentation_de_d2 <= 1'b0;
+        presentation_vs_d1 <= 1'b0; presentation_vs_d2 <= 1'b0;
+    end else begin
+        presentation_de_d1 <= de; presentation_de_d2 <= presentation_de_d1;
+        presentation_vs_d1 <= vs; presentation_vs_d2 <= presentation_vs_d1;
+    end
 end
 
 video_rgb_to_axis_640x480 u_video_rgb_to_axis_640x480(

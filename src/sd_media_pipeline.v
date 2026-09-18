@@ -16,6 +16,8 @@ module sd_media_pipeline #(
     output wire [15:0] parsed_width, output wire [15:0] parsed_height,
     output wire parsed_top_down,
     output wire display_valid, input wire write_finish_toggle,
+    input wire display_switch_applied_toggle_async,
+    output wire display_switch_toggle,
     output wire auto_play_enabled,
     output wire [1:0] write_buf_idx, output wire [1:0] disp_buf_idx,
     output wire write_req, input wire write_req_ack, output wire write_en,
@@ -32,6 +34,11 @@ wire [3:0] bmp_state_code;
 wire audio_sd_read; wire [31:0] audio_sd_addr;
 wire audio_busy, audio_done, audio_file_found, audio_format_ok, audio_format_error;
 wire [31:0] audio_fifo_din_int;
+wire [31:0] audio_fifo_level;
+// 1,024 stereo PCM frames at 48 kHz retain roughly 21.3 ms of playback.
+// Below that point a new BMP sector may not delay the reader.
+wire audio_urgent = audio_reader_enable && display_valid &&
+                    (audio_fifo_level < 32'd1024);
 wire sd_read_mux; wire [31:0] sd_addr_mux;
 wire [7:0] sd_data_bmp = sd_sec_read_data;
 wire [7:0] sd_data_audio = sd_sec_read_data;
@@ -125,6 +132,7 @@ assign state_code = !sd_init_qualified ? 4'd0 :
 sd_sector_arbiter u_sd_arbiter (
     .clk(clk), .rst(rst), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
     .audio_req(audio_sd_read), .audio_addr(audio_sd_addr),
+    .audio_urgent(audio_urgent),
     .sd_req(sd_read_mux), .sd_addr(sd_addr_mux),
     .sd_valid(sd_sec_read_data_valid), .sd_done(sd_sec_read_end),
     .bmp_valid(sd_valid_bmp), .bmp_done(sd_end_bmp),
@@ -198,7 +206,9 @@ media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_
     .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(scan_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
     .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_abort(load_abort),.load_start(load_start),
+    .display_switch_applied_toggle_async(display_switch_applied_toggle_async),
     .load_media_index(load_media_index),.write_slot(write_buf_idx),.display_slot(disp_buf_idx),
+    .display_switch_toggle(display_switch_toggle),
     .display_valid(display_valid),.auto_play_enabled(auto_play_enabled),.load_inflight(load_inflight)
 );
 
@@ -259,6 +269,7 @@ fat32_wav_reader u_sd_audio_reader(
     .sd_data(sd_data_audio), .sd_data_valid(sd_valid_audio),
     .sd_sec_read_end(sd_end_audio), .fifo_we(audio_fifo_we), .fifo_din(audio_fifo_din_int),
     .fifo_full(audio_fifo_full), .audio_read_toggle(audio_read_toggle),
+    .audio_fifo_level(audio_fifo_level),
     .busy(audio_busy), .done(audio_done), .file_found(audio_file_found), .format_ok(audio_format_ok),
     .format_error(audio_format_error)
 );

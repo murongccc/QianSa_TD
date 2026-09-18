@@ -28,6 +28,7 @@ module sdram(
     output 						Sdr_init_done,
     output						Sdr_init_ref_vld,
     output						Sdr_busy,
+    input                           App_ref_req,
     
     input						App_wr_en,
 	input [`ADDR_WIDTH-1:0]		App_wr_addr,  	
@@ -54,7 +55,7 @@ wire  [`DATA_WIDTH-1:0]	SDR_DQ ;
 wire  [`DM_WIDTH-1:0]	SDR_DM; 
 `endif
 
-sdr_as_ram  #( .self_refresh_open(1'b1))
+sdr_as_ram  #( .self_refresh_open(1'b0))
 	u2_ram( 
 		.Sdr_clk(Clk),
 		.Sdr_clk_sft(Clk_sft),
@@ -64,7 +65,7 @@ sdr_as_ram  #( .self_refresh_open(1'b1))
 		.Sdr_init_ref_vld(Sdr_init_ref_vld),
 		.Sdr_busy(Sdr_busy),
 		
-		.App_ref_req(1'b0),
+		.App_ref_req(App_ref_req),
 		
         .App_wr_en(App_wr_en), 
         .App_wr_addr(App_wr_addr),  	

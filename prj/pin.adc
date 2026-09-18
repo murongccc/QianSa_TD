@@ -18,12 +18,15 @@ set_pin_assignment	{ HDMI_D0_P }	{ LOCATION = G5; IOSTANDARD = LVDS33; PULLTYPE 
 set_pin_assignment	{ HDMI_D1_P }	{ LOCATION = F1; IOSTANDARD = LVDS33; PULLTYPE = NONE; }
 set_pin_assignment	{ HDMI_D2_P }	{ LOCATION = E1; IOSTANDARD = LVDS33; PULLTYPE = NONE; }
 set_pin_assignment	{ clk }	{ LOCATION = R7; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
-# KEY1/KEY2 are active-low mechanical buttons.  Keep their idle level defined
-# even when the external button network is high impedance.
-set_pin_assignment	{ key1 }	{ LOCATION = B2; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
-set_pin_assignment	{ key2 }	{ LOCATION = C1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
-set_pin_assignment	{ music_key }	{ LOCATION = B1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
-set_pin_assignment	{ music_switch }	{ LOCATION = C8; IOSTANDARD = LVCMOS33; PULLTYPE = PULLDOWN; }
+# KEY2..KEY4 are active-low mechanical buttons.  Keep their original
+# project mapping and idle pull-ups.
+set_pin_assignment	{ key2 }	{ LOCATION = B2; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment	{ key3 }	{ LOCATION = B1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment	{ key4 }	{ LOCATION = C1; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment	{ swkey1 }	{ LOCATION = C8; IOSTANDARD = LVCMOS33; PULLTYPE = PULLDOWN; }
+set_pin_assignment	{ swkey2 }	{ LOCATION = C7; IOSTANDARD = LVCMOS33; PULLTYPE = PULLDOWN; }
+set_pin_assignment	{ swkey3 }	{ LOCATION = C6; IOSTANDARD = LVCMOS33; PULLTYPE = PULLDOWN; }
+set_pin_assignment	{ swkey4 }	{ LOCATION = C5; IOSTANDARD = LVCMOS33; PULLTYPE = PULLDOWN; }
 set_pin_assignment	{ rst_n }	{ LOCATION = A2; IOSTANDARD = LVCMOS33; PULLTYPE = NONE; }
 
 # Board USB-UART bridge: FPGA RXD=F12, TXD=D12.

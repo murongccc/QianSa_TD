@@ -7,6 +7,9 @@ module tb_sd_media_scaler_commit;
     reg write_finish_toggle = 1'b0;
     wire [3:0] state_code;
     wire display_valid, write_req, write_en;
+    wire display_switch_toggle;
+    reg display_switch_applied_toggle = 1'b0;
+    reg display_switch_seen = 1'b0;
     integer write_pixels = 0;
 
     always #5 clk = ~clk;
@@ -21,6 +24,8 @@ module tb_sd_media_scaler_commit;
         .state_code(state_code), .bmp_width(16'd0), .bmp_height(16'd0),
         .parsed_width(), .parsed_height(), .parsed_top_down(),
         .display_valid(display_valid), .write_finish_toggle(write_finish_toggle),
+        .display_switch_applied_toggle_async(display_switch_applied_toggle),
+        .display_switch_toggle(display_switch_toggle),
         .auto_play_enabled(), .write_buf_idx(), .disp_buf_idx(),
         .write_req(write_req), .write_req_ack(write_req),
         .write_en(write_en), .write_data(), .write_ready(1'b1),
@@ -39,6 +44,11 @@ module tb_sd_media_scaler_commit;
             if (write_pixels == 16)
                 write_finish_toggle = ~write_finish_toggle;
         end
+    end
+
+    always @(posedge clk) if (!rst && display_switch_toggle != display_switch_seen) begin
+        display_switch_seen <= display_switch_toggle;
+        display_switch_applied_toggle <= ~display_switch_applied_toggle;
     end
 
     initial begin

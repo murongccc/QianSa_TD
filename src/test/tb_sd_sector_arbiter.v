@@ -1,12 +1,12 @@
 `timescale 1ns/1ps
 module tb_sd_sector_arbiter;
-    reg clk=0,rst=1,breq=0,areq=0,valid=0,done=0;
+    reg clk=0,rst=1,breq=0,areq=0,urgent=0,valid=0,done=0;
     reg [31:0] ba=10,aa=20;
     wire req,bv,bd,av,ad; wire [31:0] addr;
     integer bbytes=0,abytes=0,bends=0,aends=0,j;
     always #5 clk=~clk;
     sd_sector_arbiter dut(.clk(clk),.rst(rst),.bmp_req(breq),.bmp_addr(ba),
-        .audio_req(areq),.audio_addr(aa),.sd_req(req),.sd_addr(addr),
+        .audio_req(areq),.audio_addr(aa),.audio_urgent(urgent),.sd_req(req),.sd_addr(addr),
         .sd_valid(valid),.sd_done(done),.bmp_valid(bv),.bmp_done(bd),
         .audio_valid(av),.audio_done(ad));
     always @(posedge clk) if(!rst) begin
@@ -41,8 +41,15 @@ module tb_sd_sector_arbiter;
         transfer(10,0); breq=1;
         transfer(20,1); aa=21;
         transfer(11,0);
-        if(bbytes!=1024||abytes!=512||bends!=2||aends!=1)$fatal(1,"lost bytes or completion");
-        $display("PASS arbiter: full sectors, request withdrawal, held requests, fairness, end routing");$finish;
+        // Make audio the previous owner.  With both clients requesting, the
+        // ordinary fairness rule would choose BMP; an urgent PCM reservoir
+        // must override that choice for the next complete sector.
+        breq=0; areq=1; urgent=0;
+        transfer(21,1);
+        breq=1; ba=22; areq=1; aa=23; urgent=1;
+        transfer(23,1);
+        if(bbytes!=1024||abytes!=1536||bends!=2||aends!=3)$fatal(1,"lost bytes, completion, or urgent-audio priority");
+        $display("PASS arbiter: full sectors, fairness, urgent audio priority, and end routing");$finish;
     end
     initial begin #100000; $fatal(1,"arbiter timeout");end
 endmodule

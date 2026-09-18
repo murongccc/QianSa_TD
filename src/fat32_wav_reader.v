@@ -10,6 +10,7 @@ module fat32_wav_reader #(
  input wire [7:0] sd_data,input wire sd_data_valid,input wire sd_sec_read_end,
  output reg fifo_we,output reg [31:0] fifo_din,input wire fifo_full,
  input wire audio_read_toggle,
+ output wire [31:0] audio_fifo_level,
  output reg busy,output reg done,output reg file_found,output reg format_ok,
  output reg format_error
 );
@@ -40,6 +41,7 @@ module fat32_wav_reader #(
  wire fifo_room=(fifo_level<=FIFO_SAFE_LEVEL)&&!fifo_full;
  wire [31:0] entry_cluster={ent[21],ent[20],ent[27],ent[26]};
  wire [31:0] entry_size={sd_data,ent[30],ent[29],ent[28]};
+ assign audio_fifo_level = fifo_level;
 
  // Cross the read event into the SD clock domain and conservatively account
  // for FIFO occupancy.  SD produces at most 128 stereo frames per sector.

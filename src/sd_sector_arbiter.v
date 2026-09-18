@@ -4,6 +4,7 @@ module sd_sector_arbiter (
     input wire clk, input wire rst,
     input wire bmp_req, input wire [31:0] bmp_addr,
     input wire audio_req, input wire [31:0] audio_addr,
+    input wire audio_urgent,
     output wire sd_req, output reg [31:0] sd_addr,
     input wire sd_valid, input wire sd_done,
     output wire bmp_valid, output wire bmp_done,
@@ -12,7 +13,9 @@ module sd_sector_arbiter (
     localparam IDLE=2'd0, ACTIVE=2'd1, GAP=2'd2;
     reg [1:0] state;
     reg owner_audio, last_audio;
-    wire choose_audio = audio_req && (!bmp_req || !last_audio);
+    // A sector already in flight is never interrupted.  Between sectors,
+    // protect the PCM reservoir before applying normal fair arbitration.
+    wire choose_audio = audio_req && (audio_urgent || !bmp_req || !last_audio);
     assign sd_req = (state == ACTIVE);
     assign bmp_valid = sd_valid && state == ACTIVE && !owner_audio;
     assign bmp_done = sd_done && state == ACTIVE && !owner_audio;

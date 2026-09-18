@@ -16,6 +16,7 @@ module frame_fifo_write
 	input							 Sdr_init_done,
 	input							 Sdr_init_ref_vld,
     input							 Sdr_busy,
+	input                            refresh_hold,
 	input							 App_rd_busy,
     output							 O_wr_busy,
 	
@@ -37,6 +38,7 @@ module frame_fifo_write
 	input[ADDR_BITS - 1:0]           write_addr_3,               // data write module write request base address 1, used when write_addr_index = 3
 	input[1:0]                       write_addr_index,           // select valid base address from write_addr_0 write_addr_1 write_addr_2 write_addr_3
 	input[ADDR_BITS - 1:0]           write_len,                  // data write module write request data length
+	input                            write_v_flip,
 	output reg                       fifo_aclr,                  // to fifo asynchronous clear
 	input[9:0]                      rdusedw                     // from fifo read used words
 );
@@ -71,6 +73,7 @@ reg[1:0]                            write_addr_index_d1;
 reg[3:0]                            state;                       //state machine
 reg [ADDR_BITS - 1:0]	 App_wr_addr_r;
 reg [15:0]                            wr_x;                       // current x position in one input row
+reg                                    write_v_flip_latch;
 
 reg [BURST_BITS - 1:0]				burst_cnt;
 wire								wr_burst_finish;
@@ -79,11 +82,22 @@ reg App_wr_en_r;
 reg App_wr_en_d0;
 
 wire into_burst;
+reg  into_burst_d;
 assign into_burst = (((write_len_latch <= (rdusedw + write_cnt)) || (rdusedw >= BURST_SIZE)) && ~App_rd_busy);//当rd在突发时不会进入burst
+
+// rdusedw crosses from the FIFO read side.  Register the completed burst
+// decision before it reaches the write state machine to cut the long
+// pointer/comparator/decode timing path.
+always @(posedge mem_clk or posedge rst) begin
+    if (rst)
+        into_burst_d <= 1'b0;
+    else
+        into_burst_d <= into_burst;
+end
 
 assign App_wr_addr = {App_wr_addr_r[ADDR_BITS - 1:0]};
 //assign O_wr_busy = (state != S_IDLE || (S_IDLE && write_req_d2));
-assign O_wr_busy = (state == S_WRITE_BURST || (state == S_CHECK_FIFO && into_burst));//在突发，或者将要突发，则显示busy
+assign O_wr_busy = (state == S_WRITE_BURST || (state == S_CHECK_FIFO && into_burst_d));//在突发，或者将要突发，则显示busy
 assign wr_burst_finish = (burst_cnt >= BURST_SIZE);
 assign write_finish = (state == S_END) ? 1'b1 : 1'b0;            //write finish at state 'S_END'
 assign App_wr_en = App_wr_en_d0;
@@ -134,17 +148,17 @@ begin
 			begin
 				wr_x <= 16'd0;
 				if(write_addr_index_d1 == 2'd0)
-					App_wr_addr_r <= WRITE_V_FLIP ? (write_addr_0 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_0;
+					App_wr_addr_r <= write_v_flip_latch ? (write_addr_0 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_0;
 				else if(write_addr_index_d1 == 2'd1)
-					App_wr_addr_r <= WRITE_V_FLIP ? (write_addr_1 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_1;
+					App_wr_addr_r <= write_v_flip_latch ? (write_addr_1 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_1;
 				else if(write_addr_index_d1 == 2'd2)
-					App_wr_addr_r <= WRITE_V_FLIP ? (write_addr_2 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_2;
+					App_wr_addr_r <= write_v_flip_latch ? (write_addr_2 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_2;
 				else if(write_addr_index_d1 == 2'd3)
-					App_wr_addr_r <= WRITE_V_FLIP ? (write_addr_3 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_3;
+					App_wr_addr_r <= write_v_flip_latch ? (write_addr_3 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_3;
 			end
 		else if(App_wr_en)
 			begin
-				if(WRITE_V_FLIP)
+				if(write_v_flip_latch)
 				begin
 					if(wr_x == VFLIP_LINE_LAST_X)
 					begin
@@ -177,6 +191,7 @@ begin
 	begin
 		state <= S_IDLE;
 		write_len_latch <= ZERO[ADDR_BITS - 1:0];
+		write_v_flip_latch <= WRITE_V_FLIP;
 		
 		//wr_burst_addr <= ZERO[ADDR_BITS - 1:0];
 		//wr_burst_req <= 1'b0;
@@ -229,6 +244,7 @@ begin
 					*/
 					//latch data length
 					write_len_latch <= write_len_d1;                    
+					write_v_flip_latch <= write_v_flip;
 				end
 				//write data counter reset, write_cnt <= 0;
 				write_cnt <= ZERO[ADDR_BITS - 1:0];
@@ -240,8 +256,8 @@ begin
 				begin
 					state <= S_ACK;
 				end
-				//if the FIFO space is a burst write request, goto burst write state
-				else if(into_burst)
+				// FIFO 数据就绪且读侧空闲时才可发起写 burst；刷新或控制器忙时必须让出 SDRAM。
+			else if(into_burst_d && !Sdr_init_ref_vld && !Sdr_busy && !refresh_hold)
 				begin
 					state <= S_WRITE_BURST;
 					//wr_burst_len <= BURST_SIZE[BURST_BITS - 1:0];

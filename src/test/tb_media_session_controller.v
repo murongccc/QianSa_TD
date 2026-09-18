@@ -13,10 +13,12 @@ reg [2:0] media_count = 3'd4;
 reg loader_ready = 1'b1;
   reg frame_commit = 1'b0;
   reg load_abort = 1'b0;
+reg display_switch_applied_toggle_async = 1'b0;
 wire load_start;
 wire [1:0] load_media_index;
 wire [1:0] write_slot;
 wire [1:0] display_slot;
+wire display_switch_toggle;
 wire display_valid;
 wire auto_play_enabled;
 wire load_inflight;
@@ -31,9 +33,11 @@ media_session_controller #(
     .uart_command_async(uart_command_async),
     .uart_command_toggle_async(uart_command_toggle_async),
     .scan_done(scan_done), .media_count(media_count), .loader_ready(loader_ready),
-      .frame_commit(frame_commit), .load_abort(load_abort), .load_start(load_start),
+      .frame_commit(frame_commit), .load_abort(load_abort),
+    .display_switch_applied_toggle_async(display_switch_applied_toggle_async),
+    .load_start(load_start),
     .load_media_index(load_media_index), .write_slot(write_slot),
-    .display_slot(display_slot), .display_valid(display_valid),
+    .display_slot(display_slot), .display_switch_toggle(display_switch_toggle), .display_valid(display_valid),
     .auto_play_enabled(auto_play_enabled), .load_inflight(load_inflight)
 );
 
@@ -48,8 +52,11 @@ task uart_command;
 endtask
 
 task complete_load;
+    input [1:0] expected_slot;
     begin
         wait (load_inflight);
+        if (write_slot != expected_slot)
+            $fatal(1, "loaded slot %0d, expected %0d", write_slot, expected_slot);
         @(negedge clk);
         frame_commit = 1'b1;
         @(negedge clk);
@@ -58,24 +65,48 @@ task complete_load;
     end
 endtask
 
+task apply_display;
+    begin
+        wait (dut.display_switch_inflight);
+        @(negedge clk);
+        display_switch_applied_toggle_async = ~display_switch_applied_toggle_async;
+        repeat (4) @(posedge clk);
+    end
+endtask
+
 initial begin
     repeat (3) @(posedge clk);
     rst = 1'b0;
 
-    // First picture becomes visible.
-    complete_load;
+    // First picture is loaded, then becomes visible only after the video
+    // domain applies the requested slot on a frame boundary.
+    complete_load(2'd0);
+    apply_display;
     if (!display_valid) $fatal(1, "first picture was not committed");
 
-    // N queues and starts one manual picture change.
-    uart_command(3'd1);
-    wait (load_inflight);
-    if (load_media_index != 2'd1) $fatal(1, "N did not select the next picture");
-    complete_load;
+    // The other catalogue entries are background-preloaded into their fixed
+    // slots.  No further SD load may occur when the user switches images.
+    complete_load(2'd1);
+    complete_load(2'd2);
+    repeat (4) @(posedge clk);
+    if (load_inflight || dut.slot_ready != 3'b111)
+        $fatal(1, "background preload did not finish all three slots");
 
-    // Exercise wrap-around and protect against stale catalogue counts.
-    uart_command(3'd1); complete_load; if (load_media_index !== 2'd2 || display_slot !== 2'd2) $fatal(1, "second switch failed");
-    uart_command(3'd1); complete_load; if (load_media_index !== 2'd0 || display_slot !== 2'd0) $fatal(1, "third switch wrap failed");
-    uart_command(3'd1); complete_load; if (load_media_index !== 2'd1 || display_slot !== 2'd1) $fatal(1, "fourth switch failed");
+    // Queue three manual changes before the first acknowledgement.  They
+    // must be presented in sequence rather than collapsed by the video CDC.
+    uart_command(3'd1);
+    uart_command(3'd1);
+    uart_command(3'd1);
+    wait (dut.display_switch_inflight);
+    if (display_slot != 2'd1) $fatal(1, "first queued switch did not select slot 1");
+    apply_display;
+    wait (dut.display_switch_inflight);
+    if (display_slot != 2'd2) $fatal(1, "second queued switch did not select slot 2");
+    apply_display;
+    wait (dut.display_switch_inflight);
+    if (display_slot != 2'd0) $fatal(1, "third queued switch did not wrap to slot 0");
+    apply_display;
+    if (load_inflight) $fatal(1, "a ready-slot switch unexpectedly reloaded SD data");
 
     // 1 configures one second (100 cycles in this reduced-rate test).
     uart_command(3'd3);
@@ -90,9 +121,9 @@ initial begin
 
     // Let the interval expire; an automatic load must start.
     repeat (105) @(posedge clk);
-    if (!load_inflight) $fatal(1, "auto-play interval did not start a load");
-    complete_load;
-    $display("PASS: UART next, mode, and period commands");
+    if (!dut.display_switch_inflight) $fatal(1, "auto-play interval did not request a displayed switch");
+    apply_display;
+    $display("PASS: preload, frame-boundary display queue, UART mode, and period commands");
     $finish;
 end
 endmodule

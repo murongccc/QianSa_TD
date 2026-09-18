@@ -8,12 +8,16 @@ module tb_media_startup_regression;
     wire [3:0] short_status, restored_status;
     wire short_display, restored_display, write_en, write_req;
     reg write_finish=0;
+    reg short_display_applied=0, restored_display_applied=0;
+    reg short_switch_seen=0, restored_switch_seen=0;
+    wire short_switch_toggle, restored_switch_toggle;
     integer pixels=0;
     sd_media_pipeline #(.SCAN_MAX_SECTOR(2048), .SCAN_TARGET_COUNT(3'd1)) short_window (
         .clk(clk),.rst(rst),.key_next(1'b1),.key_auto(1'b1),
         .uart_command_async(3'd0),.uart_command_toggle_async(1'b0),
         .state_code(short_status),.bmp_width(16'd640),.bmp_height(16'd480),
-        .display_valid(short_display),.write_finish_toggle(1'b0),
+        .display_valid(short_display),.write_finish_toggle(1'b0),.write_ready(1'b1),
+        .display_switch_applied_toggle_async(short_display_applied),.display_switch_toggle(short_switch_toggle),
         .auto_play_enabled(),.write_buf_idx(),.disp_buf_idx(),
         .write_req(),.write_req_ack(1'b0),.write_en(),.write_data(),
         .SD_nCS(),.SD_DCLK(),.SD_MOSI(),.SD_MISO(1'b1),
@@ -23,7 +27,8 @@ module tb_media_startup_regression;
         .clk(clk),.rst(rst),.key_next(1'b1),.key_auto(1'b1),
         .uart_command_async(3'd0),.uart_command_toggle_async(1'b0),
         .state_code(restored_status),.bmp_width(16'd640),.bmp_height(16'd480),
-        .display_valid(restored_display),.write_finish_toggle(write_finish),
+        .display_valid(restored_display),.write_finish_toggle(write_finish),.write_ready(1'b1),
+        .display_switch_applied_toggle_async(restored_display_applied),.display_switch_toggle(restored_switch_toggle),
         .auto_play_enabled(),.write_buf_idx(),.disp_buf_idx(),
         .write_req(write_req),.write_req_ack(write_req),.write_en(write_en),.write_data(),
         .SD_nCS(),.SD_DCLK(),.SD_MOSI(),.SD_MISO(1'b1),
@@ -35,6 +40,17 @@ module tb_media_startup_regression;
     always @(negedge clk) begin
         if(rst) begin pixels<=0; write_finish<=0; end
         else if(write_en) begin pixels<=pixels+1; write_finish<=~write_finish; end
+    end
+    // Model video-frame acknowledgement after each presentation request.
+    always @(posedge clk) if (!rst) begin
+        if (short_switch_toggle != short_switch_seen) begin
+            short_switch_seen <= short_switch_toggle;
+            short_display_applied <= ~short_display_applied;
+        end
+        if (restored_switch_toggle != restored_switch_seen) begin
+            restored_switch_seen <= restored_switch_toggle;
+            restored_display_applied <= ~restored_display_applied;
+        end
     end
     initial begin
         repeat(4) @(negedge clk); rst=0;

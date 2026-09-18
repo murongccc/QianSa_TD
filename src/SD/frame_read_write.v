@@ -18,6 +18,7 @@ module frame_read_write
 	input							 Sdr_init_done,
 	input							 Sdr_init_ref_vld,
     input							 Sdr_busy,
+	input                            refresh_hold,
 	
     /*
     output                           rd_burst_req,               // to external memory controller,send out a burst read request
@@ -44,6 +45,9 @@ module frame_read_write
 	input[ADDR_BITS - 1:0]           read_len,                   // data read module read request data length
 	input                            read_en,                    // data read module read request for one data, read_data valid next clock
 	output[READ_DATA_BITS  - 1:0]    read_data,                  // read data
+	output                           read_fifo_empty,
+	output                           read_fifo_valid,
+	output[8:0]                      read_fifo_level,
 	/*
 	output                           wr_burst_req,               // to external memory controller,send out a burst write request
 	output[BURST_BITS - 1:0]         wr_burst_len,               // to external memory controller,data length of the burst write request, not bytes
@@ -62,6 +66,7 @@ module frame_read_write
 	input                            write_req,                  // data write module write request,keep '1' until read_req_ack = '1'
 	output                           write_req_ack,              // data write module write request response
 	output                           write_finish,               // data write module write request finish
+	output                           write_ready,
 	input[ADDR_BITS - 1:0]           write_addr_0,               // data write module write request base address 0, used when write_addr_index = 0
 	input[ADDR_BITS - 1:0]           write_addr_1,               // data write module write request base address 1, used when write_addr_index = 1
 	input[ADDR_BITS - 1:0]           write_addr_2,               // data write module write request base address 1, used when write_addr_index = 2
@@ -69,11 +74,16 @@ module frame_read_write
 	input[1:0]                       write_addr_index,           // select valid base address from write_addr_0 write_addr_1 write_addr_2 write_addr_3
 	input[ADDR_BITS - 1:0]           write_len,                  // data write module write request data length
 	input                            write_en,                   // data write module write request for one data
-	input[WRITE_DATA_BITS - 1:0]     write_data                 // write data
+	input[WRITE_DATA_BITS - 1:0]     write_data,
+	input                            write_v_flip                 // runtime vertical flip
 
 );
-wire[BURST_BITS - 1:0]                           wrusedw;                    // write used words
-wire[BURST_BITS - 1:0]                           rdusedw;                    // read used words
+wire[BURST_BITS - 1:0]                           wrusedw;
+wire[BURST_BITS - 1:0]                           rdusedw;
+wire[BURST_BITS - 1:0]                           write_wrusedw;
+wire                                             write_fifo_full;
+
+assign write_ready = !write_fifo_full;
 
 wire 								 App_rd_busy;
 wire								 App_wr_busy;
@@ -94,12 +104,12 @@ wfifo_32_32_512 write_buf
 	.clkr                      	(mem_clk                  ),          // Read side clock
 	.clkw                      	(write_clk                ),          // Write side clock
 	.rst                       	(write_fifo_aclr          ),          // Asynchronous clear
-	.we                      	(write_en                 ),          // Write Request
+	.we                      	(write_en && !write_fifo_full),          // Write Request
 	.re                      	(App_wr_en        		  ),          // Read Request
 	.di                       	(write_data               ),          // Input Data
-	.empty_flag                 (                         ),          // Read side Empty flag
-	.full_flag                  (                         ),          // Write side Full flag
-	.wrusedw                	(              	  		  ),          // Read Used Words
+	.empty_flag                 (                         ),
+	.full_flag                  (write_fifo_full),
+	.wrusedw                	(write_wrusedw),
 	.rdusedw                	(rdusedw                  ),          // Write Used Words
 	.dout                       (App_wr_din		          )
 );
@@ -122,6 +132,7 @@ frame_fifo_write_m0
     .Sdr_init_done				(Sdr_init_done),
 	.Sdr_init_ref_vld			(Sdr_init_ref_vld),
     .Sdr_busy					(Sdr_busy),
+	.refresh_hold                (refresh_hold),
 	.App_rd_busy				(App_rd_busy),
     .O_wr_busy					(O_wr_busy),
 	
@@ -136,6 +147,7 @@ frame_fifo_write_m0
 	.write_addr_3               (write_addr_3             ),
 	.write_addr_index           (write_addr_index         ),    
 	.write_len                  (write_len                ),
+	.write_v_flip               (write_v_flip),
 	.fifo_aclr                  (write_fifo_aclr          ),
 	.rdusedw                 	({1'b0, rdusedw}          )
 );
@@ -149,10 +161,11 @@ rfifo_32_32_512 read_buf
 	.we                     	(Sdr_rd_en       			),          // Write Request
 	.re                     	(read_en                    ),          // Read Request
 	.di                      	(Sdr_rd_dout                ),          // Input Data
-	.empty_flag					(                           ),          // Read side Empty flag
+	.valid                    (read_fifo_valid             ),
+	.empty_flag					(read_fifo_empty             ),          // Read side Empty flag
 	.full_flag					(                           ),          // Write side Full flag
 	.wrusedw                	(wrusedw         	  	  		 ),          // Read Used Words
-	.rdusedw                	(                  			 ),          // Write Used Words
+	.rdusedw                	(read_fifo_level            ),          // Read-clock-domain occupancy
 	.dout						(read_data                  )
 );
 
@@ -171,6 +184,7 @@ frame_fifo_read_m0
     .Sdr_init_done				(Sdr_init_done),
 	.Sdr_init_ref_vld			(Sdr_init_ref_vld),
     .Sdr_busy					(Sdr_busy),
+	.refresh_hold                (refresh_hold),
     .Sdr_rd_en					(Sdr_rd_en),
 	.App_wr_busy				(App_wr_busy),
     .O_rd_busy					(O_rd_busy),

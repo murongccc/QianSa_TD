@@ -89,9 +89,25 @@
             <File Path="../src/domain_reset_sync.v">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&amp;R" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="74"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/sdram_refresh_scheduler.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="75"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/frame_read_monitor.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="76"/>
                 </FileInfo>
             </File>
             <File Path="../src/top_tf_hdmi_audio.v">
@@ -584,7 +600,7 @@
             <File Path="timing.sdc">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&amp;R" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="constraint_1"/>
                     <Attr Name="CompileOrder" Val="1"/>
                 </FileInfo>
