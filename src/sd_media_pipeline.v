@@ -128,7 +128,12 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     audio_ok_seen ? 4'd6 :
                     (display_valid && audio_busy) ?
                     (audio_format_ok ? 4'd6 : (audio_file_found ? 4'd7 : 4'd5)) :
-                    (!catalog_done || catalog_candidate_valid) ? 4'd2 : bmp_state_code;
+                    (!catalog_done || catalog_candidate_valid) ? 4'd2 :
+                    // 目录扫描完成后的空闲码直接显示已经提交至 SDRAM 的
+                    // 图片数（1..5）。此前固定显示 bmp_read 的空闲码 1，
+                    // 无法区分“仅一张可切换图片”与“五张均已预装”。
+                    (bmp_state_code == 4'd1 && media_count != 3'd0) ?
+                    {1'b0, media_count} : bmp_state_code;
 
 sd_sector_arbiter u_sd_arbiter (
     .clk(clk), .rst(rst), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
