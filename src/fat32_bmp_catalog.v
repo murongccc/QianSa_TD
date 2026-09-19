@@ -179,8 +179,12 @@ always @(posedge clk or posedge rst) begin
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0;
+                    // 若候选项正好是本扇区最后一个目录项，candidate_pending
+                    // 仍在本拍写入；同时检查本拍命中条件，避免漏掉该文件。
                     if (stop || scan_done) begin scan_done<=1'b1; state<=ST_HOLD; end
-                    else if (candidate_pending) begin
+                    else if (candidate_pending ||
+                        (sd_sec_read_data_valid && (pos[4:0]==5'd31) &&
+                         !candidate_pending && dir_entry_is_bmp)) begin
                         candidate_valid<=1'b1; candidate_pending<=0; state<=ST_WAIT_CANDIDATE;
                     end else begin
                         advance_directory_sector;

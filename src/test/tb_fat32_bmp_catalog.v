@@ -42,19 +42,21 @@ function [7:0] sector_byte;
         end else if (!direct_volume && addr==101) begin
             if(index==8) sector_byte=8'd3;
         end else if ((!direct_volume && addr==102) || (direct_volume && addr==2)) begin
-            // 第一目录项：有效 BMP，首簇 5。
-            if(index==0) sector_byte="I";
-            if(index==8) sector_byte="B";
-            if(index==9) sector_byte="M";
-            if(index==10) sector_byte="P";
-            if(index==26) sector_byte=8'd5;
-            if(index==28) sector_byte=8'd100;
-            // 直接卷仅保留一张图，在下一目录项结束。
-            if(direct_volume && index==32) sector_byte=8'h00;
+            // MBR 卷首项有效；直接卷将有效项放在扇区最后一项，验证
+            // 数据末拍与扇区结束同拍时目录候选不会被遗漏。
+            if((!direct_volume && index==0) || (direct_volume && index==480)) sector_byte="I";
+            if((!direct_volume && index==8) || (direct_volume && index==488)) sector_byte="B";
+            if((!direct_volume && index==9) || (direct_volume && index==489)) sector_byte="M";
+            if((!direct_volume && index==10) || (direct_volume && index==490)) sector_byte="P";
+            if((!direct_volume && index==26) || (direct_volume && index==506)) sector_byte=8'd5;
+            if((!direct_volume && index==28) || (direct_volume && index==508)) sector_byte=8'd100;
             // MBR 卷用已删除目录项填满本簇，强制跟随根目录 FAT 链。
             if(!direct_volume && index>=32) begin
                 if(index[4:0]==0) sector_byte=8'he5;
             end
+            // 直接卷的最后一项才是 BMP；此前目录项不能用 0x00，
+            // 否则 FAT32 会把它解释为目录结束标记。
+            if(direct_volume && index<480 && index[4:0]==0) sector_byte=8'he5;
         end else if (!direct_volume && addr==103) begin
             // 根目录下一簇的第二张有效 BMP，后接目录结束标记。
             if(index==0) sector_byte="J";

@@ -21,7 +21,8 @@ bmp_read dut(
     .sd_sec_read(sd_read),.sd_sec_read_addr(sd_addr),.sd_sec_read_data(sd_data),.sd_sec_read_data_valid(sd_valid),
     .sd_sec_read_end(sd_end),.pixel_valid(pixel_valid),.pixel_ready(1'b1),.pixel_data(),.pixel_last(),
     .frame_last(frame_last),.sector_ready(1'b1),.load_failed(load_failed),.bmp_data_wr_en(),.bmp_data(),
-    .load_file_mode(1'b1),.load_first_cluster(32'd5),.load_file_size(32'd654),
+    // 目录长度可大于 BMP 头 bfSize；测试不应误拒绝尾部附加数据的合法 BMP。
+    .load_file_mode(1'b1),.load_first_cluster(32'd5),.load_file_size(32'd658),
     .fat_start_sector(32'd1000),.first_data_sector(32'd1000),.sectors_per_cluster(8'd1)
 );
 

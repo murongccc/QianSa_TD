@@ -25,10 +25,11 @@ module bmp_read(
     input [31:0] first_data_sector, input [7:0] sectors_per_cluster
 );
 
-localparam ST_IDLE=3'd0, ST_SCAN=3'd1, ST_LOAD_HDR=3'd2, ST_LOAD_WAIT=3'd3,
-           ST_LOAD_DATA=3'd4, ST_LOAD_PAD=3'd5, ST_LOAD_THROT=3'd6,
-           ST_LOAD_FAT=3'd7;
-reg [2:0] state;
+localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
+           ST_LOAD_DATA=4'd4, ST_LOAD_PAD=4'd5, ST_LOAD_THROT=4'd6,
+           ST_LOAD_FAT=4'd7, ST_LOAD_FAT_CLUSTER=4'd8,
+           ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10;
+reg [3:0] state;
 reg [9:0] rd_cnt;
 reg [7:0] header_0, header_1;
 reg [31:0] file_len, pixel_offset, width, height, compression;
@@ -46,8 +47,9 @@ reg file_mode_latched;
 reg [31:0] file_cluster;
 reg [7:0] file_sector_in_cluster;
 reg [8:0] fat_offset;
-reg [7:0] fat_b0, fat_b1, fat_b2;
+reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
 reg [8:0] fat_byte_cnt;
+reg [31:0] fat_next_cluster_reg, fat_cluster_offset, fat_data_sector_offset;
 
 wire [31:0] abs_height = height[31] ? (~height + 32'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
@@ -65,10 +67,6 @@ wire bmp_data_valid = sd_sec_read_data_valid && (bmp_len_cnt >= pixel_offset) &&
 wire bmp_pixel_byte_valid = bmp_data_valid &&
                             (row_byte_cnt < (width + (width << 1))) &&
                             (!pixel_valid || pixel_ready);
-wire [31:0] fat_next_cluster = {sd_sec_read_data,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
-wire [31:0] fat_next_sector = first_data_sector +
-                              ((fat_next_cluster - 32'd2) * sectors_per_cluster);
-
 assign ready = (state == ST_IDLE);
 
 always @(posedge clk or posedge rst) begin
@@ -112,8 +110,10 @@ always @(posedge clk or posedge rst) begin
             // All fields used by header_match have settled one byte earlier.
             // Register the result so the large validation expression is not
             // part of the sector-address and state clock-enable paths.
+            // FAT 目录长度可以大于 BMP 头 bfSize（例如文件尾有附加数据），
+            // 只拒绝目录长度不足、会导致像素数据被截断的候选文件。
             34: header_valid <= header_match &&
-                                (!file_mode_latched || (file_len == load_file_size));
+                                (!file_mode_latched || (file_len <= load_file_size));
             default: ;
         endcase
     end
@@ -131,7 +131,8 @@ always @(posedge clk or posedge rst) begin
         parsed_width<=0; parsed_height<=0; parsed_top_down<=0;
         load_failed<=0; frame_seen<=0;
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
-        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_byte_cnt<=0;
+        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0; fat_byte_cnt<=0;
+        fat_next_cluster_reg<=0; fat_cluster_offset<=0; fat_data_sector_offset<=0;
     end else if (!sd_init_done) begin
         state<=ST_IDLE; state_code<=0; sd_sec_read<=0; write_req<=0;
         scan_done<=0; scan_found_valid<=0; scan_found_total<=0;
@@ -274,18 +275,51 @@ always @(posedge clk or posedge rst) begin
                     if (fat_byte_cnt==fat_offset) fat_b0<=sd_sec_read_data;
                     if (fat_byte_cnt==fat_offset+1'b1) fat_b1<=sd_sec_read_data;
                     if (fat_byte_cnt==fat_offset+2'd2) fat_b2<=sd_sec_read_data;
+                    if (fat_byte_cnt==fat_offset+2'd3) fat_b3<=sd_sec_read_data;
                     fat_byte_cnt<=fat_byte_cnt+1'b1;
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; fat_byte_cnt<=0;
-                    if (fat_next_cluster>=32'h0fff_fff8 || fat_next_cluster<32'd2) begin
-                        load_failed<=1'b1; state<=ST_IDLE;
-                    end else begin
-                        file_cluster<=fat_next_cluster;
-                        file_sector_in_cluster<=0;
-                        sd_sec_read_addr<=fat_next_sector;
-                        state<=ST_LOAD_THROT;
-                    end
+                    // FAT 的四个字节先完整锁存，随后分三拍计算下一簇的
+                    // 数据区地址。避免 FAT 数据寄存器直通可变乘法到 SD 地址。
+                    fat_next_cluster_reg<={fat_b3,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
+                    state<=ST_LOAD_FAT_CLUSTER;
+                end
+            end
+            ST_LOAD_FAT_CLUSTER: begin
+                state_code<=4'ha;
+                if (fat_next_cluster_reg>=32'h0fff_fff8 || fat_next_cluster_reg<32'd2) begin
+                    load_failed<=1'b1; state<=ST_IDLE;
+                end else begin
+                    file_cluster<=fat_next_cluster_reg;
+                    file_sector_in_cluster<=0;
+                    fat_cluster_offset<=fat_next_cluster_reg-32'd2;
+                    state<=ST_LOAD_FAT_OFFSET;
+                end
+            end
+            ST_LOAD_FAT_OFFSET: begin
+                state_code<=4'ha;
+                // FAT32 的每簇扇区数是 1、2、4…128；使用固定移位替代乘法。
+                case (sectors_per_cluster)
+                    8'd1:   fat_data_sector_offset<=fat_cluster_offset;
+                    8'd2:   fat_data_sector_offset<=fat_cluster_offset<<1;
+                    8'd4:   fat_data_sector_offset<=fat_cluster_offset<<2;
+                    8'd8:   fat_data_sector_offset<=fat_cluster_offset<<3;
+                    8'd16:  fat_data_sector_offset<=fat_cluster_offset<<4;
+                    8'd32:  fat_data_sector_offset<=fat_cluster_offset<<5;
+                    8'd64:  fat_data_sector_offset<=fat_cluster_offset<<6;
+                    8'd128: fat_data_sector_offset<=fat_cluster_offset<<7;
+                    default: begin load_failed<=1'b1; fat_data_sector_offset<=0; end
+                endcase
+                state<=ST_LOAD_FAT_ADDR;
+            end
+            ST_LOAD_FAT_ADDR: begin
+                state_code<=4'ha;
+                if (sectors_per_cluster==0 || (sectors_per_cluster & (sectors_per_cluster-1'b1)) != 0) begin
+                    load_failed<=1'b1; state<=ST_IDLE;
+                end else begin
+                    sd_sec_read_addr<=first_data_sector+fat_data_sector_offset;
+                    state<=ST_LOAD_THROT;
                 end
             end
             default: state<=ST_IDLE;
