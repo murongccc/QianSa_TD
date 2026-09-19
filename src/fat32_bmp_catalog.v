@@ -15,7 +15,9 @@ module fat32_bmp_catalog(
 );
 localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            ST_DIR_CALC=4'd4, ST_DIR=4'd5, ST_DIR_FAT=4'd6,
-           ST_WAIT_CANDIDATE=4'd7, ST_HOLD=4'd8;
+           ST_WAIT_CANDIDATE=4'd7, ST_HOLD=4'd8,
+           ST_DIR_OFFSET=4'd9, ST_DIR_ADDR=4'd10,
+           ST_DIR_FAT_CHECK=4'd11, ST_DIR_FAT_ADDR=4'd12;
 reg [3:0] state;
 reg [9:0] pos;
 reg [7:0] ent [0:31];
@@ -26,19 +28,18 @@ reg [31:0] sectors_per_fat, root_cluster, volume_base;
 reg [31:0] mbr_partition_lba;
 reg mbr_entry_is_fat, mbr_found_partition, mbr_writing_lba;
 reg [31:0] dir_cluster, dir_sector;
+reg [31:0] dir_cluster_offset, dir_data_sector_offset, dir_fat_sector_offset;
 reg [7:0] dir_sector_in_cluster;
 reg [9:0] resume_offset;
 reg candidate_pending;
 reg [8:0] fat_offset;
-reg [7:0] fat_b0, fat_b1, fat_b2;
+reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
+reg [31:0] fat_next_cluster_reg;
 
 wire bpb_looks_valid = (bytes_per_sector == 16'd512) &&
                        (sectors_per_cluster != 8'd0) &&
                        (fat_count != 8'd0) && (sectors_per_fat != 32'd0) &&
                        (root_cluster >= 32'd2);
-wire [31:0] directory_cluster_sector = first_data_sector +
-                                       ((dir_cluster - 32'd2) * sectors_per_cluster);
-wire [31:0] fat_next_value = {sd_sec_read_data,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
 wire dir_entry_is_bmp = (ent[0] != 8'h00) && (ent[0] != 8'he5) &&
                         (ent[11] != 8'h0f) && (ent[11] != 8'h10) &&
                         (ent[11] != 8'h08) &&
@@ -58,9 +59,9 @@ task advance_directory_sector;
             state <= ST_DIR;
         end else begin
             fat_offset <= {dir_cluster[6:0],2'b00};
-            sd_sec_read_addr <= fat_start_sector + (dir_cluster >> 7);
-            sd_sec_read <= 1'b1;
-            state <= ST_DIR_FAT;
+            dir_fat_sector_offset <= dir_cluster >> 7;
+            sd_sec_read <= 1'b0;
+            state <= ST_DIR_FAT_ADDR;
         end
     end
 endtask
@@ -73,9 +74,11 @@ always @(posedge clk or posedge rst) begin
         scan_done<=0; volume_valid<=0; bytes_per_sector<=0; reserved_sector_count<=0;
         fat_count<=0; sectors_per_fat<=0; root_cluster<=0; volume_base<=0;
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
-        dir_cluster<=0; dir_sector<=0;
+        dir_cluster<=0; dir_sector<=0; dir_cluster_offset<=0;
+        dir_data_sector_offset<=0; dir_fat_sector_offset<=0;
         dir_sector_in_cluster<=0; resume_offset<=0; candidate_pending<=0;
-        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0;
+        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0;
+        fat_next_cluster_reg<=0;
         for (i=0;i<32;i=i+1) ent[i]<=0;
     end else begin
         case (state)
@@ -154,11 +157,35 @@ always @(posedge clk or posedge rst) begin
                 state <= ST_DIR_CALC;
             end
             ST_DIR_CALC: begin
-                dir_sector <= directory_cluster_sector;
-                sd_sec_read_addr <= directory_cluster_sector;
-                sd_sec_read <= 1'b1;
-                pos <= 0;
-                state <= ST_DIR;
+                // 目录簇号先寄存减法结果，避免 dir_cluster 经过可变乘法
+                // 和数据区加法后在同一拍直接驱动 SD 地址。
+                if (dir_cluster < 32'd2) begin
+                    scan_done<=1'b1; state<=ST_HOLD;
+                end else begin
+                    dir_cluster_offset<=dir_cluster-32'd2;
+                    state<=ST_DIR_OFFSET;
+                end
+            end
+            ST_DIR_OFFSET: begin
+                // FAT32 每簇扇区数只能是 1、2、4…128，用固定移位代替乘法。
+                case (sectors_per_cluster)
+                    8'd1:   begin dir_data_sector_offset<=dir_cluster_offset;    state<=ST_DIR_ADDR; end
+                    8'd2:   begin dir_data_sector_offset<=dir_cluster_offset<<1; state<=ST_DIR_ADDR; end
+                    8'd4:   begin dir_data_sector_offset<=dir_cluster_offset<<2; state<=ST_DIR_ADDR; end
+                    8'd8:   begin dir_data_sector_offset<=dir_cluster_offset<<3; state<=ST_DIR_ADDR; end
+                    8'd16:  begin dir_data_sector_offset<=dir_cluster_offset<<4; state<=ST_DIR_ADDR; end
+                    8'd32:  begin dir_data_sector_offset<=dir_cluster_offset<<5; state<=ST_DIR_ADDR; end
+                    8'd64:  begin dir_data_sector_offset<=dir_cluster_offset<<6; state<=ST_DIR_ADDR; end
+                    8'd128: begin dir_data_sector_offset<=dir_cluster_offset<<7; state<=ST_DIR_ADDR; end
+                    default: begin scan_done<=1'b1; state<=ST_HOLD; end
+                endcase
+            end
+            ST_DIR_ADDR: begin
+                dir_sector<=first_data_sector+dir_data_sector_offset;
+                sd_sec_read_addr<=first_data_sector+dir_data_sector_offset;
+                sd_sec_read<=1'b1;
+                pos<=0;
+                state<=ST_DIR;
             end
             ST_DIR: begin
                 if (sd_sec_read_data_valid) begin
@@ -205,17 +232,28 @@ always @(posedge clk or posedge rst) begin
                     if (pos==fat_offset) fat_b0<=sd_sec_read_data;
                     if (pos==fat_offset+1'b1) fat_b1<=sd_sec_read_data;
                     if (pos==fat_offset+2'd2) fat_b2<=sd_sec_read_data;
+                    if (pos==fat_offset+2'd3) fat_b3<=sd_sec_read_data;
                     pos<=pos+1'b1;
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; pos<=0;
-                    if (fat_next_value>=32'h0fff_fff8 || fat_next_value<32'd2) begin
+                    fat_next_cluster_reg<={fat_b3,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
+                    state<=ST_DIR_FAT_CHECK;
+                end
+            end
+            ST_DIR_FAT_CHECK: begin
+                    if (fat_next_cluster_reg>=32'h0fff_fff8 || fat_next_cluster_reg<32'd2) begin
                         scan_done<=1'b1; state<=ST_HOLD;
                     end else begin
-                        dir_cluster<=fat_next_value; dir_sector_in_cluster<=0;
+                        dir_cluster<=fat_next_cluster_reg; dir_sector_in_cluster<=0;
                         resume_offset<=0; state<=ST_DIR_CALC;
                     end
-                end
+            end
+            ST_DIR_FAT_ADDR: begin
+                sd_sec_read_addr<=fat_start_sector+dir_fat_sector_offset;
+                sd_sec_read<=1'b1;
+                pos<=0;
+                state<=ST_DIR_FAT;
             end
             ST_HOLD: begin end
             default: state<=ST_IDLE;
