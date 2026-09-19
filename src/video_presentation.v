@@ -8,7 +8,7 @@ module video_presentation #(
     parameter integer OSD_DISPLAY_CYCLES = 50_000_000
 )(
     input wire clk, input wire rst, input wire display_valid,
-    input wire [1:0] display_slot_async,
+    input wire [2:0] display_slot_async,
     input wire display_switch_toggle_async,
     output reg display_slot_applied_toggle,
     input wire [2:0] brightness_level_async,
@@ -22,7 +22,7 @@ module video_presentation #(
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
 );
-reg [1:0] slot_sync0, slot_sync1, active_slot;
+reg [2:0] slot_sync0, slot_sync1, active_slot;
 reg display_switch_toggle_meta, display_switch_toggle_sync;
 reg display_switch_toggle_seen;
 reg vs_d, de_d;

@@ -37,8 +37,8 @@ frame_fifo_read #(
     .Sdr_rd_en(1'b0), .App_wr_busy(1'b0), .O_rd_busy(app_rd_busy),
     .App_rd_en(app_rd_en), .App_rd_addr(), .read_req(read_req),
     .read_req_ack(read_req_ack), .read_finish(),
-    .read_addr_0(21'd0), .read_addr_1(21'd0), .read_addr_2(21'd0), .read_addr_3(21'd0),
-    .read_addr_index(2'd0), .read_len(21'd8), .fifo_aclr(read_fifo_aclr), .wrusedw(10'd0)
+    .read_addr_0(21'd0), .read_addr_1(21'd0), .read_addr_2(21'd0), .read_addr_3(21'd0), .read_addr_4(21'd0),
+    .read_addr_index(3'd0), .read_len(21'd8), .fifo_aclr(read_fifo_aclr), .wrusedw(10'd0)
 );
 
 frame_fifo_write #(
@@ -53,8 +53,8 @@ frame_fifo_write #(
     .refresh_hold(refresh_hold),
     .App_rd_busy(1'b0), .O_wr_busy(app_wr_busy), .App_wr_en(app_wr_en), .App_wr_addr(),
     .write_req(write_req), .write_req_ack(write_req_ack), .write_finish(),
-    .write_addr_0(21'd0), .write_addr_1(21'd0), .write_addr_2(21'd0), .write_addr_3(21'd0),
-    .write_addr_index(2'd0), .write_len(21'd8), .write_v_flip(1'b0),
+    .write_addr_0(21'd0), .write_addr_1(21'd0), .write_addr_2(21'd0), .write_addr_3(21'd0), .write_addr_4(21'd0),
+    .write_addr_index(3'd0), .write_len(21'd8), .write_v_flip(1'b0),
     .fifo_aclr(write_fifo_aclr), .rdusedw(WRITE_FIFO_READY_WORDS)
 );
 

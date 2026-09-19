@@ -36,7 +36,8 @@ module frame_fifo_write
 	input[ADDR_BITS - 1:0]           write_addr_1,               // data write module write request base address 1, used when write_addr_index = 1
 	input[ADDR_BITS - 1:0]           write_addr_2,               // data write module write request base address 1, used when write_addr_index = 2
 	input[ADDR_BITS - 1:0]           write_addr_3,               // data write module write request base address 1, used when write_addr_index = 3
-	input[1:0]                       write_addr_index,           // select valid base address from write_addr_0 write_addr_1 write_addr_2 write_addr_3
+	input[ADDR_BITS - 1:0]           write_addr_4,               // data write module write request base address 4, used when write_addr_index = 4
+	input[2:0]                       write_addr_index,           // select valid base address from write_addr_0 through write_addr_4
 	input[ADDR_BITS - 1:0]           write_len,                  // data write module write request data length
 	input                            write_v_flip,
 	output reg                       fifo_aclr,                  // to fifo asynchronous clear
@@ -68,8 +69,8 @@ reg[ADDR_BITS - 1:0]                write_len_d0;                //asynchronous 
 reg[ADDR_BITS - 1:0]                write_len_d1;                //second
 reg[ADDR_BITS - 1:0]                write_len_latch;             //lock write data length
 reg[ADDR_BITS - 1:0]                write_cnt;                   //write data counter
-reg[1:0]                            write_addr_index_d0;
-reg[1:0]                            write_addr_index_d1;
+reg[2:0]                            write_addr_index_d0;
+reg[2:0]                            write_addr_index_d1;
 reg[3:0]                            state;                       //state machine
 reg [ADDR_BITS - 1:0]	 App_wr_addr_r;
 reg [15:0]                            wr_x;                       // current x position in one input row
@@ -112,8 +113,8 @@ begin
 		write_req_d2    <=  1'b0;
 		write_len_d0    <=  ZERO[ADDR_BITS - 1:0];              //equivalent to write_len_d0 <= 0;
 		write_len_d1    <=  ZERO[ADDR_BITS - 1:0];              //equivalent to write_len_d1 <= 0;
-		write_addr_index_d0    <=  2'b00;
-		write_addr_index_d1    <=  2'b00;
+		write_addr_index_d0    <=  3'b000;
+		write_addr_index_d1    <=  3'b000;
 	end
 	else
 	begin
@@ -147,14 +148,16 @@ begin
 		if(state == S_ACK)
 			begin
 				wr_x <= 16'd0;
-				if(write_addr_index_d1 == 2'd0)
+				if(write_addr_index_d1 == 3'd0)
 					App_wr_addr_r <= write_v_flip_latch ? (write_addr_0 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_0;
-				else if(write_addr_index_d1 == 2'd1)
+				else if(write_addr_index_d1 == 3'd1)
 					App_wr_addr_r <= write_v_flip_latch ? (write_addr_1 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_1;
-				else if(write_addr_index_d1 == 2'd2)
+				else if(write_addr_index_d1 == 3'd2)
 					App_wr_addr_r <= write_v_flip_latch ? (write_addr_2 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_2;
-				else if(write_addr_index_d1 == 2'd3)
+				else if(write_addr_index_d1 == 3'd3)
 					App_wr_addr_r <= write_v_flip_latch ? (write_addr_3 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_3;
+				else if(write_addr_index_d1 == 3'd4)
+					App_wr_addr_r <= write_v_flip_latch ? (write_addr_4 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_4;
 			end
 		else if(App_wr_en)
 			begin

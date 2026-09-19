@@ -7,7 +7,7 @@ module tb_video_presentation;
 reg clk = 1'b0;
 reg rst = 1'b1;
 reg display_valid = 1'b1;
-reg [1:0] display_slot_async = 2'd0;
+reg [2:0] display_slot_async = 3'd0;
 reg display_switch_toggle_async = 1'b0;
 wire display_slot_applied_toggle;
 reg [2:0] brightness_level_async = 3'd4;

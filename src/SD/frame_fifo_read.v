@@ -35,7 +35,8 @@ module frame_fifo_read
 	input[ADDR_BITS - 1:0]           read_addr_1,                // data read module read request base address 1, used when read_addr_index = 1
 	input[ADDR_BITS - 1:0]           read_addr_2,                // data read module read request base address 1, used when read_addr_index = 2
 	input[ADDR_BITS - 1:0]           read_addr_3,                // data read module read request base address 1, used when read_addr_index = 3
-	input[1:0]                       read_addr_index,            // select valid base address from read_addr_0 read_addr_1 read_addr_2 read_addr_3
+	input[ADDR_BITS - 1:0]           read_addr_4,                // data read module read request base address 4, used when read_addr_index = 4
+	input[2:0]                       read_addr_index,            // select valid base address from read_addr_0 through read_addr_4
 	input[ADDR_BITS - 1:0]           read_len,                   // data read module read request data length
 	output reg                       fifo_aclr,                  // to fifo asynchronous clear
 	input[9:0]                      wrusedw                     // from fifo write used words
@@ -59,8 +60,8 @@ reg[ADDR_BITS - 1:0]                 read_len_d1;                //second
 reg[ADDR_BITS - 1:0]                 read_len_latch;             //lock read data length
 reg[ADDR_BITS - 1:0]                 read_cnt;                   //read data counter
 reg[3:0]                             state;                      //state machine
-reg[1:0]                             read_addr_index_d0;         //synchronize to 'mem_clk' clock domain first
-reg[1:0]                             read_addr_index_d1;         //synchronize to 'mem_clk' clock domain second
+reg[2:0]                             read_addr_index_d0;         //synchronize to 'mem_clk' clock domain first
+reg[2:0]                             read_addr_index_d1;         //synchronize to 'mem_clk' clock domain second
 reg [ADDR_BITS - 1:0]	 App_rd_addr_r;
 
 reg [BURST_BITS - 1:0]				burst_cnt;
@@ -90,8 +91,8 @@ begin
 		read_req_d2    <=  1'b0;
 		read_len_d0    <=  ZERO[ADDR_BITS - 1:0];               //equivalent to read_len_d0 <= 0;
 		read_len_d1    <=  ZERO[ADDR_BITS - 1:0];               //equivalent to read_len_d1 <= 0;
-		read_addr_index_d0 <= 2'b00;
-		read_addr_index_d1 <= 2'b00;
+		read_addr_index_d0 <= 3'b000;
+		read_addr_index_d1 <= 3'b000;
 	end
 	else
 	begin
@@ -134,14 +135,16 @@ begin
 		//
 		if(state == S_ACK)
 			begin
-				if(read_addr_index_d1 == 2'd0)
+				if(read_addr_index_d1 == 3'd0)
 					App_rd_addr_r <= read_addr_0;
-				else if(read_addr_index_d1 == 2'd1)
+				else if(read_addr_index_d1 == 3'd1)
 					App_rd_addr_r <= read_addr_1;
-				else if(read_addr_index_d1 == 2'd2)
+				else if(read_addr_index_d1 == 3'd2)
 					App_rd_addr_r <= read_addr_2;
-				else if(read_addr_index_d1 == 2'd3)
+				else if(read_addr_index_d1 == 3'd3)
 					App_rd_addr_r <= read_addr_3;
+				else if(read_addr_index_d1 == 3'd4)
+					App_rd_addr_r <= read_addr_4;
 			end
 		else if(App_rd_en)
 			App_rd_addr_r <= App_rd_addr_r + 1'b1;

@@ -41,7 +41,8 @@ module frame_read_write
 	input[ADDR_BITS - 1:0]           read_addr_1,                // data read module read request base address 1, used when read_addr_index = 1
 	input[ADDR_BITS - 1:0]           read_addr_2,                // data read module read request base address 1, used when read_addr_index = 2
 	input[ADDR_BITS - 1:0]           read_addr_3,                // data read module read request base address 1, used when read_addr_index = 3
-	input[1:0]                       read_addr_index,            // select valid base address from read_addr_0 read_addr_1 read_addr_2 read_addr_3
+	input[ADDR_BITS - 1:0]           read_addr_4,                // data read module read request base address 4, used when read_addr_index = 4
+	input[2:0]                       read_addr_index,            // select valid base address from read_addr_0 through read_addr_4
 	input[ADDR_BITS - 1:0]           read_len,                   // data read module read request data length
 	input                            read_en,                    // data read module read request for one data, read_data valid next clock
 	output[READ_DATA_BITS  - 1:0]    read_data,                  // read data
@@ -71,7 +72,8 @@ module frame_read_write
 	input[ADDR_BITS - 1:0]           write_addr_1,               // data write module write request base address 1, used when write_addr_index = 1
 	input[ADDR_BITS - 1:0]           write_addr_2,               // data write module write request base address 1, used when write_addr_index = 2
 	input[ADDR_BITS - 1:0]           write_addr_3,               // data write module write request base address 1, used when write_addr_index = 3
-	input[1:0]                       write_addr_index,           // select valid base address from write_addr_0 write_addr_1 write_addr_2 write_addr_3
+	input[ADDR_BITS - 1:0]           write_addr_4,               // data write module write request base address 4, used when write_addr_index = 4
+	input[2:0]                       write_addr_index,           // select valid base address from write_addr_0 through write_addr_4
 	input[ADDR_BITS - 1:0]           write_len,                  // data write module write request data length
 	input                            write_en,                   // data write module write request for one data
 	input[WRITE_DATA_BITS - 1:0]     write_data,
@@ -145,6 +147,7 @@ frame_fifo_write_m0
 	.write_addr_1               (write_addr_1             ),
 	.write_addr_2               (write_addr_2             ),
 	.write_addr_3               (write_addr_3             ),
+	.write_addr_4               (write_addr_4             ),
 	.write_addr_index           (write_addr_index         ),    
 	.write_len                  (write_len                ),
 	.write_v_flip               (write_v_flip),
@@ -198,6 +201,7 @@ frame_fifo_read_m0
 	.read_addr_1                (read_addr_1              ),
 	.read_addr_2                (read_addr_2              ),
 	.read_addr_3                (read_addr_3              ),
+	.read_addr_4                (read_addr_4              ),
 	.read_addr_index            (read_addr_index          ),    
 	.read_len                   (read_len                 ),
 	.fifo_aclr                  (read_fifo_aclr           ),

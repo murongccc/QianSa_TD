@@ -8,7 +8,7 @@ module frame_read_monitor #(
     input  wire        clk,
     input  wire        rst,
     input  wire        display_valid_async,
-    input  wire [1:0]  display_slot_async,
+    input  wire [2:0]  display_slot_async,
     input  wire        vs,
     input  wire        fifo_read_req,
     input  wire        fifo_empty,
@@ -23,13 +23,13 @@ module frame_read_monitor #(
 localparam [18:0] EXPECTED_PIXEL_COUNT = FRAME_PIXELS;
 
 reg        display_valid_meta, display_valid_sync;
-reg [1:0]  slot_meta, slot_sync, frame_slot;
+reg [2:0]  slot_meta, slot_sync, frame_slot;
 reg        vs_d;
 reg        frame_monitor_active;
 reg [18:0] pixel_count;
 reg [31:0] frame_signature;
-reg [31:0] baseline_signature [0:2];
-reg [2:0]  baseline_valid;
+reg [31:0] baseline_signature [0:4];
+reg [4:0]  baseline_valid;
 
 wire frame_start = vs && !vs_d;
 wire [31:0] signature_next = {frame_signature[30:0], frame_signature[31]} ^
@@ -39,9 +39,9 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         display_valid_meta <= 1'b0;
         display_valid_sync <= 1'b0;
-        slot_meta <= 2'd0;
-        slot_sync <= 2'd0;
-        frame_slot <= 2'd0;
+        slot_meta <= 3'd0;
+        slot_sync <= 3'd0;
+        frame_slot <= 3'd0;
         vs_d <= 1'b0;
         frame_monitor_active <= 1'b0;
         pixel_count <= 19'd0;
@@ -49,7 +49,9 @@ always @(posedge clk or posedge rst) begin
         baseline_signature[0] <= 32'd0;
         baseline_signature[1] <= 32'd0;
         baseline_signature[2] <= 32'd0;
-        baseline_valid <= 3'b000;
+        baseline_signature[3] <= 32'd0;
+        baseline_signature[4] <= 32'd0;
+        baseline_valid <= 5'b00000;
         underflow_count <= 16'd0;
         underflow_sticky <= 1'b0;
         mismatch_count <= 16'd0;
@@ -69,7 +71,7 @@ always @(posedge clk or posedge rst) begin
 
         if (frame_start) begin
             // 先检查刚结束的帧，再为下一帧清零并锁存槽号。
-            if (frame_monitor_active && (frame_slot < 2'd3)) begin
+            if (frame_monitor_active && (frame_slot < 3'd5)) begin
                 if (pixel_count != EXPECTED_PIXEL_COUNT) begin
                     mismatch_sticky <= 1'b1;
                     if (mismatch_count != 16'hffff)

@@ -11,8 +11,8 @@ module media_session_controller #(
     // The video domain toggles this only after it has consumed the requested
     // slot on a frame boundary.  It is synchronized below before use.
     input wire display_switch_applied_toggle_async,
-    output reg load_start, output reg [1:0] load_media_index,
-    output reg [1:0] write_slot, output reg [1:0] display_slot,
+    output reg load_start, output reg [2:0] load_media_index,
+    output reg [2:0] write_slot, output reg [2:0] display_slot,
     output reg display_switch_toggle,
     output reg display_valid, output reg auto_play_enabled, output reg load_inflight
 );
@@ -23,8 +23,8 @@ reg [31:0] auto_period_cycles;
 // started, which made a valid press during a picture switch look lost.
 reg [2:0] manual_next_pending;
 reg auto_next_pending;
-reg [2:0] slot_ready;
-reg [2:0] slot_failed;
+reg [4:0] slot_ready;
+reg [4:0] slot_failed;
 reg display_switch_inflight;
 reg display_switch_applied_meta;
 reg display_switch_applied_sync;
@@ -48,40 +48,43 @@ wire auto_due = (auto_count >= auto_limit - 1);
 wire manual_request = key_next_press ||
                       (uart_command_event && uart_command_sync == UART_CMD_NEXT);
 
-function [1:0] next_media;
-    input [1:0] current; input [2:0] count;
+function [2:0] next_media;
+    input [2:0] current; input [2:0] count;
     reg [2:0] bounded_count;
     begin
-        // Three SDRAM slots are available; never select catalogue index 3.
-        bounded_count = (count > 3'd3) ? 3'd3 : count;
-        if (bounded_count < 3'd2) next_media = 2'd0;
-        else if (current >= bounded_count - 1'b1) next_media = 2'd0;
-        else next_media = current + 2'd1;
+        // Five SDRAM slots are available; never select an unsupported index.
+        bounded_count = (count > 3'd5) ? 3'd5 : count;
+        if (bounded_count < 3'd2) next_media = 3'd0;
+        else if (current >= bounded_count - 1'b1) next_media = 3'd0;
+        else next_media = current + 3'd1;
     end
 endfunction
-function [1:0] first_ready_slot;
-    input [2:0] ready;
+function [2:0] first_ready_slot;
+    input [4:0] ready;
     begin
-        if (ready[0]) first_ready_slot = 2'd0;
-        else if (ready[1]) first_ready_slot = 2'd1;
-        else first_ready_slot = 2'd2;
+        if (ready[0]) first_ready_slot = 3'd0;
+        else if (ready[1]) first_ready_slot = 3'd1;
+        else if (ready[2]) first_ready_slot = 3'd2;
+        else if (ready[3]) first_ready_slot = 3'd3;
+        else first_ready_slot = 3'd4;
     end
 endfunction
 
-function [1:0] next_ready_slot;
-    input [1:0] current;
-    input [2:0] ready;
+function [2:0] next_ready_slot;
+    input [2:0] current;
+    input [4:0] ready;
     begin
-        if (current == 2'd0 && ready[1]) next_ready_slot = 2'd1;
-        else if (current != 2'd2 && ready[2]) next_ready_slot = 2'd2;
-        else if (ready[0]) next_ready_slot = 2'd0;
-        else if (ready[1]) next_ready_slot = 2'd1;
-        else next_ready_slot = 2'd2;
+        if (current < 3'd4 && ready[current + 3'd1]) next_ready_slot = current + 3'd1;
+        else if (ready[0]) next_ready_slot = 3'd0;
+        else if (ready[1]) next_ready_slot = 3'd1;
+        else if (ready[2]) next_ready_slot = 3'd2;
+        else if (ready[3]) next_ready_slot = 3'd3;
+        else next_ready_slot = 3'd4;
     end
 endfunction
 
 wire have_ready_slot = |slot_ready;
-wire [1:0] requested_next_slot = next_ready_slot(display_slot, slot_ready);
+wire [2:0] requested_next_slot = next_ready_slot(display_slot, slot_ready);
 wire manual_switch_start = display_valid && !display_switch_inflight &&
                            (manual_next_pending != 3'd0) &&
                            (requested_next_slot != display_slot);
@@ -94,12 +97,12 @@ media_key_press_debounce #(.CLK_FREQ_HZ(CLK_FREQ_HZ), .DEBOUNCE_MS(20)) u_key_ne
 );
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        load_start<=1'b0; load_media_index<=2'd0; write_slot<=2'd0; display_slot<=2'd0;
+        load_start<=1'b0; load_media_index<=3'd0; write_slot<=3'd0; display_slot<=3'd0;
         display_switch_toggle<=1'b0;
         display_valid<=1'b0; auto_play_enabled<=1'b0; load_inflight<=1'b0;
         auto_count<=32'd0; auto_period_cycles<=CLK_FREQ_HZ * AUTO_PERIOD_SECONDS;
         manual_next_pending<=3'd0; auto_next_pending<=1'b0;
-        slot_ready<=3'b000; slot_failed<=3'b000; display_switch_inflight<=1'b0;
+        slot_ready<=5'b00000; slot_failed<=5'b00000; display_switch_inflight<=1'b0;
         display_switch_applied_meta<=1'b0; display_switch_applied_sync<=1'b0;
         display_switch_applied_seen<=1'b0;
         uart_command_meta<=3'd0; uart_command_sync<=3'd0;
@@ -125,8 +128,8 @@ always @(posedge clk or posedge rst) begin
         if (!scan_done || media_count==3'd0) begin
             display_valid<=1'b0; auto_play_enabled<=1'b0; load_inflight<=1'b0;
             auto_count<=32'd0; manual_next_pending<=3'd0; auto_next_pending<=1'b0;
-            slot_ready<=3'b000; slot_failed<=3'b000; display_switch_inflight<=1'b0;
-            display_slot<=2'd0; display_switch_toggle<=1'b0;
+            slot_ready<=5'b00000; slot_failed<=5'b00000; display_switch_inflight<=1'b0;
+            display_slot<=3'd0; display_switch_toggle<=1'b0;
             display_switch_applied_seen<=display_switch_applied_sync;
             uart_toggle_seen<=uart_toggle_sync;
         end else begin
@@ -198,7 +201,7 @@ always @(posedge clk or posedge rst) begin
                 load_inflight <= 1'b0;
             end
 
-            // First visible frame never waits for the other two BMP files.
+            // First visible frame never waits for the other four BMP files.
             // Thereafter all slot updates are display-only operations.
             if (!display_valid && !display_switch_inflight && have_ready_slot) begin
                 display_slot <= first_ready_slot(slot_ready);
@@ -217,11 +220,15 @@ always @(posedge clk or posedge rst) begin
             // from SD merely because the user changes picture.
             if (!load_inflight && loader_ready) begin
                 if (!slot_ready[0] && !slot_failed[0]) begin
-                    load_media_index<=2'd0; write_slot<=2'd0; load_start<=1'b1; load_inflight<=1'b1;
+                    load_media_index<=3'd0; write_slot<=3'd0; load_start<=1'b1; load_inflight<=1'b1;
                 end else if (media_count > 3'd1 && !slot_ready[1] && !slot_failed[1]) begin
-                    load_media_index<=2'd1; write_slot<=2'd1; load_start<=1'b1; load_inflight<=1'b1;
+                    load_media_index<=3'd1; write_slot<=3'd1; load_start<=1'b1; load_inflight<=1'b1;
                 end else if (media_count > 3'd2 && !slot_ready[2] && !slot_failed[2]) begin
-                    load_media_index<=2'd2; write_slot<=2'd2; load_start<=1'b1; load_inflight<=1'b1;
+                    load_media_index<=3'd2; write_slot<=3'd2; load_start<=1'b1; load_inflight<=1'b1;
+                end else if (media_count > 3'd3 && !slot_ready[3] && !slot_failed[3]) begin
+                    load_media_index<=3'd3; write_slot<=3'd3; load_start<=1'b1; load_inflight<=1'b1;
+                end else if (media_count > 3'd4 && !slot_ready[4] && !slot_failed[4]) begin
+                    load_media_index<=3'd4; write_slot<=3'd4; load_start<=1'b1; load_inflight<=1'b1;
                 end
             end
         end

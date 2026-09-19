@@ -6,7 +6,7 @@ localparam FRAME_PIXELS = 4;
 reg clk = 1'b0;
 reg rst = 1'b1;
 reg display_valid_async = 1'b0;
-reg [1:0] display_slot_async = 2'd0;
+reg [2:0] display_slot_async = 3'd0;
 reg vs = 1'b0;
 reg fifo_read_req = 1'b0;
 reg fifo_empty = 1'b0;
@@ -85,13 +85,13 @@ initial begin
         $fatal(1, "extra pixel was not detected");
 
     // 槽1首帧建立独立基线；切回槽0后继续使用原基线。
-    display_slot_async = 2'd1; repeat (3) @(posedge clk);
+    display_slot_async = 3'd1; repeat (3) @(posedge clk);
     // 当前帧仍属于槽0；边界后下一帧才属于槽1。
     complete_frame(32'd0, 1'b0);
     complete_frame(32'd0, 1'b0);
     if (mismatch_count != 16'd3)
         $fatal(1, "new slot baseline raised a mismatch");
-    display_slot_async = 2'd0; repeat (3) @(posedge clk);
+    display_slot_async = 3'd0; repeat (3) @(posedge clk);
     complete_frame(32'd0, 1'b0);
     complete_frame(32'd0, 1'b0);
     if (mismatch_count != 16'd3)

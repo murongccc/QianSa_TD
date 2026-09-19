@@ -40,6 +40,8 @@ parameter [ADDR_BITS-1:0] FRAME_PIXELS = 307200;   // 640*480 words
 parameter [ADDR_BITS-1:0] BUF0_ADDR = 0;
 parameter [ADDR_BITS-1:0] BUF1_ADDR = FRAME_PIXELS;
 parameter [ADDR_BITS-1:0] BUF2_ADDR = FRAME_PIXELS * 2;
+parameter [ADDR_BITS-1:0] BUF3_ADDR = FRAME_PIXELS * 3;
+parameter [ADDR_BITS-1:0] BUF4_ADDR = FRAME_PIXELS * 4;
 // 100 MHz SDRAM 手动刷新：25.0 us，取 2500 周期。
 // 512 周期保护窗让已发起的 256-word burst 排空后再接受刷新。
 localparam [13:0] SDRAM_REFRESH_INTERVAL_CYCLES = 14'd2500;
@@ -110,8 +112,8 @@ wire        sd_card_write_ready;
 wire        frame_write_finish;
 reg         frame_write_toggle_mem;
 
-wire [1:0]  write_buf_idx;
-wire [1:0]  disp_buf_idx;
+wire [2:0]  write_buf_idx;
+wire [2:0]  disp_buf_idx;
 wire        display_switch_toggle_sd;
 wire        display_slot_applied_toggle_video;
 wire        auto_play_enabled_sd;
@@ -249,11 +251,11 @@ end
 sd_media_pipeline #(
     .CLK_FREQ_HZ       (100_000_000),
     .SCAN_START_SECTOR (32'd0),
-    // Keep three discovered images in the three independent SDRAM frame
-    // slots.  A target of one made the startup scan stop after the first BMP,
+    // Keep five discovered images in five independent SDRAM frame slots.
+    // A target of one made the startup scan stop after the first BMP,
     // so the manual/automatic image switcher had nothing else to select.
     .SCAN_MAX_SECTOR   (32'd131071),
-    .SCAN_TARGET_COUNT (3'd3)
+    .SCAN_TARGET_COUNT (3'd5)
 ) sd_media_pipeline_m0(
     .clk               (sd_card_clk),
     .rst               (rst_sd),
@@ -451,7 +453,8 @@ frame_read_write #(
     .read_addr_0       (BUF0_ADDR),
     .read_addr_1       (BUF1_ADDR),
     .read_addr_2       (BUF2_ADDR),
-    .read_addr_3       ({ADDR_BITS{1'b0}}),
+    .read_addr_3       (BUF3_ADDR),
+    .read_addr_4       (BUF4_ADDR),
     .read_addr_index   (disp_buf_idx),
     .read_len          (FRAME_PIXELS),
     .read_en           (video_read_en),
@@ -473,7 +476,8 @@ frame_read_write #(
     .write_addr_0      (BUF0_ADDR),
     .write_addr_1      (BUF1_ADDR),
     .write_addr_2      (BUF2_ADDR),
-    .write_addr_3      ({ADDR_BITS{1'b0}}),
+    .write_addr_3      (BUF3_ADDR),
+    .write_addr_4      (BUF4_ADDR),
     .write_addr_index  (write_buf_idx),
     .write_len         (FRAME_PIXELS),
     .write_en          (sd_card_write_en),

@@ -4,7 +4,7 @@ module sd_media_pipeline #(
     parameter integer CLK_FREQ_HZ = 100_000_000,
     parameter [31:0] SCAN_START_SECTOR = 32'd0,
     parameter [31:0] SCAN_MAX_SECTOR = 32'd131071,
-    parameter [2:0] SCAN_TARGET_COUNT = 3'd3,
+    parameter [2:0] SCAN_TARGET_COUNT = 3'd5,
     // Board builds use 640x480.  Parameters make the complete BMP/FIFO/
     // scaler/session path practical to exercise in a small RTL regression.
     parameter integer SCALER_OUT_WIDTH = 640,
@@ -19,7 +19,7 @@ module sd_media_pipeline #(
     input wire display_switch_applied_toggle_async,
     output wire display_switch_toggle,
     output wire auto_play_enabled,
-    output wire [1:0] write_buf_idx, output wire [1:0] disp_buf_idx,
+    output wire [2:0] write_buf_idx, output wire [2:0] disp_buf_idx,
     output wire write_req, input wire write_req_ack, output wire write_en,
     output wire [31:0] write_data, input wire write_ready, output wire SD_nCS, output wire SD_DCLK,
     output wire SD_MOSI, input wire SD_MISO,
@@ -45,14 +45,15 @@ wire [7:0] sd_data_audio = sd_sec_read_data;
 wire sd_valid_bmp, sd_end_bmp, sd_valid_audio, sd_end_audio;
 wire scan_done, scan_found_valid; wire [31:0] scan_found_sector; wire [2:0] scan_found_total;
 reg scan_start, scan_kicked, source_complete, load_started;
-reg [2:0] media_count; reg [31:0] media_sector0, media_sector1, media_sector2, media_sector3;
+reg [2:0] media_count;
+reg [31:0] media_sector0, media_sector1, media_sector2, media_sector3, media_sector4;
 reg [2:0] write_finish_sync;
 reg write_req_ack_meta, write_req_ack_sync;
 reg write_toggle_baseline;
 reg write_complete_pending;
 reg sd_init_seen;
 wire sd_init_qualified = sd_init_done | sd_init_seen;
-wire load_start, load_inflight; wire [1:0] load_media_index;
+wire load_start, load_inflight; wire [2:0] load_media_index;
 wire write_complete = load_inflight && (write_finish_sync[2] != write_toggle_baseline);
 // The SD source and SDRAM writer finish in unrelated clock domains.  The old
 // one-cycle write_complete pulse had to coincide with source_complete; if it
@@ -83,13 +84,14 @@ wire source_fifo_write_ok = (source_fifo_wrusedw <= 10'd320);
 wire load_abort = load_inflight && load_started && bmp_ready && (bmp_load_failed || !scaler_started);
 
 function [31:0] selected_sector;
-    input [1:0] index;
+    input [2:0] index;
     begin
         case(index)
-            2'd0: selected_sector=media_sector0;
-            2'd1: selected_sector=media_sector1;
-            2'd2: selected_sector=media_sector2;
-            default: selected_sector=media_sector3;
+            3'd0: selected_sector=media_sector0;
+            3'd1: selected_sector=media_sector1;
+            3'd2: selected_sector=media_sector2;
+            3'd3: selected_sector=media_sector3;
+            default: selected_sector=media_sector4;
         endcase
     end
 endfunction
@@ -145,7 +147,8 @@ always @(posedge clk or posedge rst) begin
         write_finish_sync<=3'd0; write_toggle_baseline<=1'b0; write_complete_pending<=1'b0;
         write_req_ack_meta<=1'b0; write_req_ack_sync<=1'b0;
         sd_init_seen<=1'b0;
-        media_count<=3'd0; media_sector0<=32'd0; media_sector1<=32'd0; media_sector2<=32'd0; media_sector3<=32'd0;
+        media_count<=3'd0; media_sector0<=32'd0; media_sector1<=32'd0; media_sector2<=32'd0;
+        media_sector3<=32'd0; media_sector4<=32'd0;
     end else begin
         scan_start<=1'b0;
         write_req_ack_meta<=write_req_ack;
@@ -163,14 +166,15 @@ always @(posedge clk or posedge rst) begin
             if (!scan_kicked && bmp_ready) begin
                 scan_start<=1'b1; scan_kicked<=1'b1; media_count<=3'd0;
             end
-            if (scan_found_valid && media_count<SCAN_TARGET_COUNT && media_count<3'd3) begin
+            if (scan_found_valid && media_count<SCAN_TARGET_COUNT && media_count<3'd5) begin
                 case(media_count)
                     3'd0: media_sector0<=scan_found_sector;
                     3'd1: media_sector1<=scan_found_sector;
                     3'd2: media_sector2<=scan_found_sector;
-                    default: media_sector3<=scan_found_sector;
+                    3'd3: media_sector3<=scan_found_sector;
+                    default: media_sector4<=scan_found_sector;
                 endcase
-                media_count <= (media_count >= 3'd2) ? 3'd3 : (media_count + 3'd1);
+                media_count <= (media_count >= 3'd4) ? 3'd5 : (media_count + 3'd1);
             end
             if (!load_inflight) begin
                 // Start every request with fresh completion state.  This also
