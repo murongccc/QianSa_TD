@@ -104,6 +104,8 @@ end
 initial begin
     repeat(3) @(posedge clk);
     rst=0;
+    // 扫描结束与第一个缓存候选在同一拍发出；等待候选释放链完整走完。
+    wait(candidate_count==5);
     wait(scan_done);
     if(candidate_count!=5) $fatal(1,"expected five BMP candidates, got %0d",candidate_count);
     if(catalog_candidate_count!=3'd5)

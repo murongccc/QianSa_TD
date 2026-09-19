@@ -1,6 +1,6 @@
 // FAT32 根目录 BMP 候选器。
-// 目录项按物理出现顺序输出；一个候选完成加载或失败后才继续枚举，
-// 因此不需要缓存整张目录，也能在坏文件后补足可用图片。
+// 根目录先完整扫描并缓存前五个候选，再按物理顺序逐个输出。这样目录
+// 读取不再被 BMP 加载暂停，避免在真实 SD 卡上反复读同一目录扇区时丢项。
 module fat32_bmp_catalog(
     input wire clk, input wire rst, input wire sd_init_done,
     output reg sd_sec_read, output reg [31:0] sd_sec_read_addr,
@@ -19,7 +19,8 @@ localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            ST_DIR_CALC=4'd4, ST_DIR=4'd5, ST_DIR_FAT=4'd6,
            ST_WAIT_CANDIDATE=4'd7, ST_HOLD=4'd8,
            ST_DIR_OFFSET=4'd9, ST_DIR_ADDR=4'd10,
-           ST_DIR_FAT_CHECK=4'd11, ST_DIR_FAT_ADDR=4'd12;
+           ST_DIR_FAT_CHECK=4'd11, ST_DIR_FAT_ADDR=4'd12,
+           ST_EMIT_CANDIDATE=4'd13, ST_NEXT_CANDIDATE=4'd14;
 reg [3:0] state;
 reg [9:0] pos;
 reg [7:0] ent [0:31];
@@ -32,8 +33,10 @@ reg mbr_entry_is_fat, mbr_found_partition, mbr_writing_lba;
 reg [31:0] dir_cluster, dir_sector;
 reg [31:0] dir_cluster_offset, dir_data_sector_offset, dir_fat_sector_offset;
 reg [7:0] dir_sector_in_cluster;
-reg [9:0] resume_offset;
-reg candidate_pending;
+reg [2:0] candidate_output_index;
+reg dir_end_pending;
+reg [31:0] cached_first_cluster [0:4];
+reg [31:0] cached_file_size [0:4];
 reg [8:0] fat_offset;
 reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
 reg [31:0] fat_next_cluster_reg;
@@ -51,7 +54,6 @@ wire dir_entry_is_bmp = (ent[0] != 8'h00) && (ent[0] != 8'he5) &&
 
 task advance_directory_sector;
     begin
-        resume_offset <= 10'd0;
         pos <= 10'd0;
         if (dir_sector_in_cluster + 1'b1 < sectors_per_cluster) begin
             dir_sector_in_cluster <= dir_sector_in_cluster + 1'b1;
@@ -79,15 +81,22 @@ always @(posedge clk or posedge rst) begin
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
         dir_cluster<=0; dir_sector<=0; dir_cluster_offset<=0;
         dir_data_sector_offset<=0; dir_fat_sector_offset<=0;
-        dir_sector_in_cluster<=0; resume_offset<=0; candidate_pending<=0;
+        dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
         fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0;
         fat_next_cluster_reg<=0;
-        for (i=0;i<32;i=i+1) ent[i]<=0;
+        for (i=0;i<32;i=i+1) begin
+            ent[i]<=0;
+            if (i<5) begin
+                cached_first_cluster[i]<=0;
+                cached_file_size[i]<=0;
+            end
+        end
     end else begin
         case (state)
             ST_IDLE: if (sd_init_done) begin
-                scan_done<=0; volume_valid<=0; candidate_valid<=0; candidate_pending<=0;
+                scan_done<=0; volume_valid<=0; candidate_valid<=0;
                 candidate_count<=0;
+                candidate_output_index<=0; dir_end_pending<=0;
                 pos<=0; sd_sec_read_addr<=32'd0; sd_sec_read<=1'b1; state<=ST_MBR;
             end
             // LBA0 同时检查为直接 FAT32 引导扇区或 MBR。
@@ -193,46 +202,60 @@ always @(posedge clk or posedge rst) begin
             end
             ST_DIR: begin
                 if (sd_sec_read_data_valid) begin
-                    if (pos >= resume_offset) begin
-                        ent[pos[4:0]] <= sd_sec_read_data;
-                        if ((pos[4:0] == 5'd31) && !candidate_pending) begin
-                            if (ent[0] == 8'h00) begin
-                                scan_done <= 1'b1;
-                            end else if (dir_entry_is_bmp) begin
-                                candidate_first_cluster <= {ent[21],ent[20],ent[27],ent[26]};
-                                candidate_file_size <= {sd_sec_read_data,ent[30],ent[29],ent[28]};
-                                candidate_pending <= 1'b1;
-                                resume_offset <= pos + 1'b1;
-                            end
+                    ent[pos[4:0]] <= sd_sec_read_data;
+                    if (pos[4:0] == 5'd31) begin
+                        if (ent[0] == 8'h00) begin
+                            dir_end_pending <= 1'b1;
+                        end else if (dir_entry_is_bmp && candidate_count < 3'd5) begin
+                            cached_first_cluster[candidate_count] <= {ent[21],ent[20],ent[27],ent[26]};
+                            cached_file_size[candidate_count] <= {sd_sec_read_data,ent[30],ent[29],ent[28]};
+                            candidate_count <= candidate_count+1'b1;
+                            // 收满五项无需继续读取根目录其余扇区。
+                            if (candidate_count == 3'd4)
+                                dir_end_pending <= 1'b1;
                         end
                     end
                     pos <= pos + 1'b1;
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0;
-                    // 若候选项正好是本扇区最后一个目录项，candidate_pending
-                    // 仍在本拍写入；同时检查本拍命中条件，避免漏掉该文件。
-                    if (stop || scan_done) begin scan_done<=1'b1; state<=ST_HOLD; end
-                    else if (candidate_pending ||
-                        (sd_sec_read_data_valid && (pos[4:0]==5'd31) &&
-                         !candidate_pending && dir_entry_is_bmp)) begin
-                        candidate_valid<=1'b1; candidate_pending<=0;
-                        if (candidate_count < 3'd5)
-                            candidate_count<=candidate_count+1'b1;
-                        state<=ST_WAIT_CANDIDATE;
+                    if (stop || dir_end_pending) begin
+                        state<=ST_EMIT_CANDIDATE;
                     end else begin
                         advance_directory_sector;
                     end
                 end
             end
-            ST_WAIT_CANDIDATE: if (stop || candidate_release) begin
-                candidate_valid<=0;
-                if (stop) begin scan_done<=1'b1; state<=ST_HOLD; end
-                else if (resume_offset >= 10'd512) begin
-                    advance_directory_sector;
+            ST_EMIT_CANDIDATE: begin
+                scan_done<=1'b1;
+                if (candidate_count != 3'd0) begin
+                    candidate_output_index<=0;
+                    candidate_first_cluster<=cached_first_cluster[0];
+                    candidate_file_size<=cached_file_size[0];
+                    candidate_valid<=1'b1;
+                    state<=ST_WAIT_CANDIDATE;
                 end else begin
-                    pos<=0; sd_sec_read_addr<=dir_sector; sd_sec_read<=1'b1; state<=ST_DIR;
+                    candidate_valid<=1'b0;
+                    state<=ST_HOLD;
                 end
+            end
+            ST_WAIT_CANDIDATE: if (candidate_release) begin
+                if (candidate_output_index + 1'b1 < candidate_count) begin
+                    candidate_output_index<=candidate_output_index+1'b1;
+                    // 先撤销 valid 一个时钟，再给出下一描述符。否则控制器会
+                    // 在同一候选的旧描述符仍有效时再次启动加载。
+                    candidate_valid<=1'b0;
+                    state<=ST_NEXT_CANDIDATE;
+                end else begin
+                    candidate_valid<=1'b0;
+                    state<=ST_HOLD;
+                end
+            end
+            ST_NEXT_CANDIDATE: begin
+                candidate_first_cluster<=cached_first_cluster[candidate_output_index];
+                candidate_file_size<=cached_file_size[candidate_output_index];
+                candidate_valid<=1'b1;
+                state<=ST_WAIT_CANDIDATE;
             end
             ST_DIR_FAT: begin
                 if (sd_sec_read_data_valid) begin
@@ -250,10 +273,10 @@ always @(posedge clk or posedge rst) begin
             end
             ST_DIR_FAT_CHECK: begin
                     if (fat_next_cluster_reg>=32'h0fff_fff8 || fat_next_cluster_reg<32'd2) begin
-                        scan_done<=1'b1; state<=ST_HOLD;
+                        state<=ST_EMIT_CANDIDATE;
                     end else begin
                         dir_cluster<=fat_next_cluster_reg; dir_sector_in_cluster<=0;
-                        resume_offset<=0; state<=ST_DIR_CALC;
+                        state<=ST_DIR_CALC;
                     end
             end
             ST_DIR_FAT_ADDR: begin
