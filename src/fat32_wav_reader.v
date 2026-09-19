@@ -20,6 +20,7 @@ module fat32_wav_reader #(
  reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] ent[0:31]; integer i;
  reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
  reg [7:0] boot_fat0,boot_fat1,boot_fat2,boot_fat3,boot_fat4;
+ reg mbr_entry_is_fat,mbr_found_partition,mbr_writing_lba;
  reg [31:0] spf;
  reg [31:0] fat_sectors,cluster_offset;
  reg [1:0] calc_action;
@@ -65,6 +66,7 @@ module fat32_wav_reader #(
    fifo_we<=0;fifo_din<=0;busy<=0;done<=0;file_found<=0;format_ok<=0;format_error<=0;
    part<=0;fat_start<=0;data_start<=0;root<=0;spf<=0;fat_sectors<=0;cluster_offset<=0;calc_action<=0;reserved<=0;spc<=0;fats<=0;
    boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
+   mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
    first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
    pcm_index<=0;p0<=0;p1<=0;p2<=0;wav_data_remaining<=0;
    header_pos<=0;
@@ -79,11 +81,27 @@ module fat32_wav_reader #(
     // Let the BMP catalogue and first SDRAM frame finish before WAV metadata
     // begins using the shared SD SPI bus.  This guarantees a visible HDMI
     // picture even if the WAV file is absent, fragmented, or malformed.
-    IDLE:if(sd_init_done && enable)begin busy<=1;file_found<=0;format_ok<=0;pos<=0;sd_sec_read_addr<=0;sd_sec_read<=1;state<=MBR;end
+    IDLE:if(sd_init_done && enable)begin
+     busy<=1;file_found<=0;format_ok<=0;pos<=0;part<=0;
+     mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
+     boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
+     sd_sec_read_addr<=0;sd_sec_read<=1;state<=MBR;
+    end
     MBR:begin
      if(sd_data_valid)begin
-      if(pos==454)part[7:0]<=sd_data;if(pos==455)part[15:8]<=sd_data;
-      if(pos==456)part[23:16]<=sd_data;if(pos==457)part[31:24]<=sd_data;pos<=pos+1;
+      // MBR 中选择物理顺序最靠前的 FAT32 主分区，而不是盲目使用第一个分区。
+      if(pos==450||pos==466||pos==482||pos==498)
+       mbr_entry_is_fat<=(sd_data==8'h0b||sd_data==8'h0c);
+      if((pos==454||pos==470||pos==486||pos==502)&&mbr_entry_is_fat&&!mbr_found_partition)begin
+       part[7:0]<=sd_data;mbr_found_partition<=1;mbr_writing_lba<=1;
+      end else if(mbr_writing_lba&&(pos==455||pos==471||pos==487||pos==503))begin
+       part[15:8]<=sd_data;
+      end else if(mbr_writing_lba&&(pos==456||pos==472||pos==488||pos==504))begin
+       part[23:16]<=sd_data;
+      end else if(mbr_writing_lba&&(pos==457||pos==473||pos==489||pos==505))begin
+       part[31:24]<=sd_data;mbr_writing_lba<=0;
+      end
+      pos<=pos+1;
       if(pos==82)boot_fat0<=sd_data;if(pos==83)boot_fat1<=sd_data;
       if(pos==84)boot_fat2<=sd_data;if(pos==85)boot_fat3<=sd_data;if(pos==86)boot_fat4<=sd_data;
      end
@@ -91,9 +109,12 @@ module fat32_wav_reader #(
       pos<=0;
       // FAT32 引导扇区直接位于 LBA0（superfloppy）时不经过 MBR 分区项。
       if(boot_fat0=="F"&&boot_fat1=="A"&&boot_fat2=="T"&&boot_fat3=="3"&&boot_fat4=="2") begin
-       part<=0;sd_sec_read_addr<=0;
-      end else sd_sec_read_addr<=part;
-      sd_sec_read<=1;state<=BPB;
+       part<=0;sd_sec_read_addr<=0;sd_sec_read<=1;state<=BPB;
+      end else if(mbr_found_partition) begin
+       sd_sec_read_addr<=part;sd_sec_read<=1;state<=BPB;
+      end else begin
+       busy<=0;done<=1;state<=HOLD;
+      end
      end
     end
     BPB:begin

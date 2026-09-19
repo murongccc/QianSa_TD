@@ -15,7 +15,8 @@ module tb_fat32_wav_reader;
  task send_sector(input [31:0] addr); begin
   wait(sd_sec_read && sd_sec_read_addr==addr);
   for(i=0;i<512;i=i+1) begin
-   if(addr==0 && i>=454 && i<=457) byte((i==454)?0:(i==455)?8:(i==456)?0:0);
+   if(addr==0 && i==450) byte(8'h0c);
+   else if(addr==0 && i>=454 && i<=457) byte((i==454)?0:(i==455)?8:(i==456)?0:0);
    else if(addr==2048 && i==13) byte(1);
    else if(addr==2048 && i==14) byte(32);
    else if(addr==2048 && i==15) byte(0);
