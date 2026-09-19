@@ -19,11 +19,15 @@ module bmp_read(
     input sector_ready,
     output reg load_failed,
     // Legacy outputs are retained for source compatibility with old benches.
-    output reg bmp_data_wr_en, output reg [23:0] bmp_data
+    output reg bmp_data_wr_en, output reg [23:0] bmp_data,
+    input load_file_mode, input [31:0] load_first_cluster,
+    input [31:0] load_file_size, input [31:0] fat_start_sector,
+    input [31:0] first_data_sector, input [7:0] sectors_per_cluster
 );
 
 localparam ST_IDLE=3'd0, ST_SCAN=3'd1, ST_LOAD_HDR=3'd2, ST_LOAD_WAIT=3'd3,
-           ST_LOAD_DATA=3'd4, ST_LOAD_PAD=3'd5, ST_LOAD_THROT=3'd6;
+           ST_LOAD_DATA=3'd4, ST_LOAD_PAD=3'd5, ST_LOAD_THROT=3'd6,
+           ST_LOAD_FAT=3'd7;
 reg [2:0] state;
 reg [9:0] rd_cnt;
 reg [7:0] header_0, header_1;
@@ -38,6 +42,12 @@ reg [7:0] b_byte, g_byte;
 reg [15:0] src_col, src_row;
 reg frame_seen;
 reg header_valid;
+reg file_mode_latched;
+reg [31:0] file_cluster;
+reg [7:0] file_sector_in_cluster;
+reg [8:0] fat_offset;
+reg [7:0] fat_b0, fat_b1, fat_b2;
+reg [8:0] fat_byte_cnt;
 
 wire [31:0] abs_height = height[31] ? (~height + 32'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
@@ -55,6 +65,9 @@ wire bmp_data_valid = sd_sec_read_data_valid && (bmp_len_cnt >= pixel_offset) &&
 wire bmp_pixel_byte_valid = bmp_data_valid &&
                             (row_byte_cnt < (width + (width << 1))) &&
                             (!pixel_valid || pixel_ready);
+wire [31:0] fat_next_cluster = {sd_sec_read_data,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
+wire [31:0] fat_next_sector = first_data_sector +
+                              ((fat_next_cluster - 32'd2) * sectors_per_cluster);
 
 assign ready = (state == ST_IDLE);
 
@@ -99,7 +112,8 @@ always @(posedge clk or posedge rst) begin
             // All fields used by header_match have settled one byte earlier.
             // Register the result so the large validation expression is not
             // part of the sector-address and state clock-enable paths.
-            34: header_valid <= header_match;
+            34: header_valid <= header_match &&
+                                (!file_mode_latched || (file_len == load_file_size));
             default: ;
         endcase
     end
@@ -116,6 +130,8 @@ always @(posedge clk or posedge rst) begin
         bmp_data_wr_en<=0; bmp_data<=0;
         parsed_width<=0; parsed_height<=0; parsed_top_down<=0;
         load_failed<=0; frame_seen<=0;
+        file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
+        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_byte_cnt<=0;
     end else if (!sd_init_done) begin
         state<=ST_IDLE; state_code<=0; sd_sec_read<=0; write_req<=0;
         scan_done<=0; scan_found_valid<=0; scan_found_total<=0;
@@ -134,7 +150,14 @@ always @(posedge clk or posedge rst) begin
                     scan_done<=0; scan_found_total<=0; scan_sector<=scan_start_sector;
                     sd_sec_read_addr<=scan_start_sector; state<=ST_SCAN;
                 end else if (load_start) begin
-                    load_sector_latched<=load_sector; sd_sec_read_addr<=load_sector;
+                    file_mode_latched<=(load_file_mode === 1'b1);
+                    file_cluster<=load_first_cluster;
+                    file_sector_in_cluster<=0;
+                    fat_byte_cnt<=0;
+                    load_sector_latched<=load_file_mode ?
+                        (first_data_sector + ((load_first_cluster-32'd2) * sectors_per_cluster)) : load_sector;
+                    sd_sec_read_addr<=load_file_mode ?
+                        (first_data_sector + ((load_first_cluster-32'd2) * sectors_per_cluster)) : load_sector;
                     load_failed<=0; frame_seen<=0;
                     state<=ST_LOAD_HDR;
                 end
@@ -226,13 +249,44 @@ always @(posedge clk or posedge rst) begin
                             load_failed<=1'b1;
                         state<=ST_IDLE;
                     end
-                    else begin sd_sec_read_addr<=sd_sec_read_addr+1'b1; state<=ST_LOAD_THROT; end
+                    else if (file_mode_latched) begin
+                        if (file_sector_in_cluster + 1'b1 < sectors_per_cluster) begin
+                            file_sector_in_cluster<=file_sector_in_cluster+1'b1;
+                            sd_sec_read_addr<=sd_sec_read_addr+1'b1;
+                            state<=ST_LOAD_THROT;
+                        end else begin
+                            fat_offset<={file_cluster[6:0],2'b00};
+                            sd_sec_read_addr<=fat_start_sector+(file_cluster>>7);
+                            fat_byte_cnt<=0;
+                            state<=ST_LOAD_FAT;
+                        end
+                    end else begin sd_sec_read_addr<=sd_sec_read_addr+1'b1; state<=ST_LOAD_THROT; end
                 end
             end
             ST_LOAD_THROT: begin
                 state_code<=4'ha;
                 // pixel_ready is driven from the source FIFO safety threshold.
                 if (sector_ready && !pixel_valid) begin sd_sec_read<=1; state<=ST_LOAD_DATA; end
+            end
+            ST_LOAD_FAT: begin
+                state_code<=4'ha; sd_sec_read<=1;
+                if (sd_sec_read_data_valid) begin
+                    if (fat_byte_cnt==fat_offset) fat_b0<=sd_sec_read_data;
+                    if (fat_byte_cnt==fat_offset+1'b1) fat_b1<=sd_sec_read_data;
+                    if (fat_byte_cnt==fat_offset+2'd2) fat_b2<=sd_sec_read_data;
+                    fat_byte_cnt<=fat_byte_cnt+1'b1;
+                end
+                if (sd_sec_read_end) begin
+                    sd_sec_read<=0; fat_byte_cnt<=0;
+                    if (fat_next_cluster>=32'h0fff_fff8 || fat_next_cluster<32'd2) begin
+                        load_failed<=1'b1; state<=ST_IDLE;
+                    end else begin
+                        file_cluster<=fat_next_cluster;
+                        file_sector_in_cluster<=0;
+                        sd_sec_read_addr<=fat_next_sector;
+                        state<=ST_LOAD_THROT;
+                    end
+                end
             end
             default: state<=ST_IDLE;
         endcase

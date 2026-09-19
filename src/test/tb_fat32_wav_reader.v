@@ -9,7 +9,7 @@ module tb_fat32_wav_reader;
  fat32_wav_reader #(.FIFO_SAFE_LEVEL(3968)) dut(
   .clk(clk),.rst(rst),.sd_init_done(sd_init_done),.enable(1'b1),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
   .sd_data(sd_data),.sd_data_valid(sd_data_valid),.sd_sec_read_end(sd_sec_read_end),.fifo_we(fifo_we),.fifo_din(fifo_din),
-  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.busy(busy),.done(done),.file_found(file_found),.format_ok(format_ok),.format_error());
+  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(),.busy(busy),.done(done),.file_found(file_found),.format_ok(format_ok),.format_error());
  task byte(input [7:0] v); begin @(negedge clk);sd_data=v;sd_data_valid=1;@(negedge clk);sd_data_valid=0;end endtask
  task end_sector; begin @(negedge clk);sd_sec_read_end=1;@(negedge clk);sd_sec_read_end=0;end endtask
  task send_sector(input [31:0] addr); begin

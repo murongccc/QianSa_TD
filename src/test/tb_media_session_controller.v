@@ -9,7 +9,8 @@ reg key_auto = 1'b0;
 reg [2:0] uart_command_async = 3'd0;
 reg uart_command_toggle_async = 1'b0;
 reg scan_done = 1'b1;
-reg [2:0] media_count = 3'd5;
+reg candidate_valid = 1'b1;
+reg [2:0] media_count = 3'd0;
 reg loader_ready = 1'b1;
   reg frame_commit = 1'b0;
   reg load_abort = 1'b0;
@@ -32,7 +33,7 @@ media_session_controller #(
     .clk(clk), .rst(rst), .key_next(key_next), .key_auto(key_auto),
     .uart_command_async(uart_command_async),
     .uart_command_toggle_async(uart_command_toggle_async),
-    .scan_done(scan_done), .media_count(media_count), .loader_ready(loader_ready),
+    .scan_done(scan_done), .candidate_valid(candidate_valid), .media_count(media_count), .loader_ready(loader_ready),
       .frame_commit(frame_commit), .load_abort(load_abort),
     .display_switch_applied_toggle_async(display_switch_applied_toggle_async),
     .load_start(load_start),
@@ -61,6 +62,7 @@ task complete_load;
         frame_commit = 1'b1;
         @(negedge clk);
         frame_commit = 1'b0;
+        media_count = expected_slot + 3'd1;
         repeat (2) @(posedge clk);
     end
 endtask

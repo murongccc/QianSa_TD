@@ -19,6 +19,7 @@ module fat32_wav_reader #(
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] ent[0:31]; integer i;
  reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
+ reg [7:0] boot_fat0,boot_fat1,boot_fat2,boot_fat3,boot_fat4;
  reg [31:0] spf;
  reg [31:0] fat_sectors,cluster_offset;
  reg [1:0] calc_action;
@@ -63,6 +64,7 @@ module fat32_wav_reader #(
    state<=IDLE;pos<=0;fat_offset<=0;sd_sec_read<=0;sd_sec_read_addr<=0;
    fifo_we<=0;fifo_din<=0;busy<=0;done<=0;file_found<=0;format_ok<=0;format_error<=0;
    part<=0;fat_start<=0;data_start<=0;root<=0;spf<=0;fat_sectors<=0;cluster_offset<=0;calc_action<=0;reserved<=0;spc<=0;fats<=0;
+   boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
    first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
    pcm_index<=0;p0<=0;p1<=0;p2<=0;wav_data_remaining<=0;
    header_pos<=0;
@@ -82,8 +84,17 @@ module fat32_wav_reader #(
      if(sd_data_valid)begin
       if(pos==454)part[7:0]<=sd_data;if(pos==455)part[15:8]<=sd_data;
       if(pos==456)part[23:16]<=sd_data;if(pos==457)part[31:24]<=sd_data;pos<=pos+1;
+      if(pos==82)boot_fat0<=sd_data;if(pos==83)boot_fat1<=sd_data;
+      if(pos==84)boot_fat2<=sd_data;if(pos==85)boot_fat3<=sd_data;if(pos==86)boot_fat4<=sd_data;
      end
-     if(sd_sec_read_end)begin pos<=0;sd_sec_read_addr<=part;sd_sec_read<=1;state<=BPB;end
+     if(sd_sec_read_end)begin
+      pos<=0;
+      // FAT32 引导扇区直接位于 LBA0（superfloppy）时不经过 MBR 分区项。
+      if(boot_fat0=="F"&&boot_fat1=="A"&&boot_fat2=="T"&&boot_fat3=="3"&&boot_fat4=="2") begin
+       part<=0;sd_sec_read_addr<=0;
+      end else sd_sec_read_addr<=part;
+      sd_sec_read<=1;state<=BPB;
+     end
     end
     BPB:begin
      if(sd_data_valid)begin

@@ -377,6 +377,14 @@
                     <Attr Name="CompileOrder" Val="40"/>
                 </FileInfo>
             </File>
+            <File Path="../src/fat32_bmp_catalog.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&amp;R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="41"/>
+                </FileInfo>
+            </File>
             <File Path="../src/fat32_audio_controller.v">
                 <FileInfo>
                     <Attr Name="AutoExcluded" Val="true"/>

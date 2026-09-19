@@ -6,7 +6,7 @@ module media_session_controller #(
     // uart_command_async and its toggle originate in the 50 MHz UART domain.
     // The command value is held stable whenever its toggle changes.
     input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
-    input wire scan_done, input wire [2:0] media_count, input wire loader_ready,
+    input wire scan_done, input wire candidate_valid, input wire [2:0] media_count, input wire loader_ready,
     input wire frame_commit, input wire load_abort,
     // The video domain toggles this only after it has consumed the requested
     // slot on a frame boundary.  It is synchronized below before use.
@@ -125,7 +125,9 @@ always @(posedge clk or posedge rst) begin
         display_switch_applied_meta <= display_switch_applied_toggle_async;
         display_switch_applied_sync <= display_switch_applied_meta;
         load_start<=1'b0;
-        if (!scan_done || media_count==3'd0) begin
+        // 目录尚在遍历时保留已完成的槽位。只有目录结束、没有候选且
+        // 一张图片也未成功装入时才报告无图状态。
+        if (scan_done && media_count==3'd0 && !candidate_valid && !load_inflight) begin
             display_valid<=1'b0; auto_play_enabled<=1'b0; load_inflight<=1'b0;
             auto_count<=32'd0; manual_next_pending<=3'd0; auto_next_pending<=1'b0;
             slot_ready<=5'b00000; slot_failed<=5'b00000; display_switch_inflight<=1'b0;
@@ -195,15 +197,16 @@ always @(posedge clk or posedge rst) begin
                 // is no displayed frame, so advance the catalogue index
                 // directly to avoid retrying the same bad file forever.
                 load_inflight<=1'b0;
-                slot_failed[write_slot] <= 1'b1;
+                // 当前候选损坏时释放给目录器继续查找，槽位不标记失败，
+                // 以便下一张有效候选补入同一槽位。
             end else if (load_inflight && frame_commit) begin
                 slot_ready[write_slot] <= 1'b1;
                 load_inflight <= 1'b0;
             end
 
-            // First visible frame never waits for the other four BMP files.
-            // Thereafter all slot updates are display-only operations.
-            if (!display_valid && !display_switch_inflight && have_ready_slot) begin
+            // 目录器结束后才提交首个显示槽，保证首次画面时所有可用 BMP
+            // 已完成预装；此后所有槽位更新都是纯显示操作。
+            if (!display_valid && scan_done && !display_switch_inflight && have_ready_slot) begin
                 display_slot <= first_ready_slot(slot_ready);
                 display_switch_toggle <= ~display_switch_toggle;
                 display_switch_inflight <= 1'b1;
@@ -218,18 +221,13 @@ always @(posedge clk or posedge rst) begin
             // Keep each discovered source permanently assigned to its own
             // SDRAM frame slot.  A ready frame is therefore never re-read
             // from SD merely because the user changes picture.
-            if (!load_inflight && loader_ready) begin
-                if (!slot_ready[0] && !slot_failed[0]) begin
-                    load_media_index<=3'd0; write_slot<=3'd0; load_start<=1'b1; load_inflight<=1'b1;
-                end else if (media_count > 3'd1 && !slot_ready[1] && !slot_failed[1]) begin
-                    load_media_index<=3'd1; write_slot<=3'd1; load_start<=1'b1; load_inflight<=1'b1;
-                end else if (media_count > 3'd2 && !slot_ready[2] && !slot_failed[2]) begin
-                    load_media_index<=3'd2; write_slot<=3'd2; load_start<=1'b1; load_inflight<=1'b1;
-                end else if (media_count > 3'd3 && !slot_ready[3] && !slot_failed[3]) begin
-                    load_media_index<=3'd3; write_slot<=3'd3; load_start<=1'b1; load_inflight<=1'b1;
-                end else if (media_count > 3'd4 && !slot_ready[4] && !slot_failed[4]) begin
-                    load_media_index<=3'd4; write_slot<=3'd4; load_start<=1'b1; load_inflight<=1'b1;
-                end
+            if (!load_inflight && loader_ready && candidate_valid && media_count < 3'd5) begin
+                // catalog 保持候选描述符直到本次加载结束。成功计数直接
+                // 对应下一个空槽，失败则复用相同槽位加载下一候选。
+                load_media_index<=media_count;
+                write_slot<=media_count;
+                load_start<=1'b1;
+                load_inflight<=1'b1;
             end
         end
     end

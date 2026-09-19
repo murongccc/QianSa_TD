@@ -43,10 +43,14 @@ wire sd_read_mux; wire [31:0] sd_addr_mux;
 wire [7:0] sd_data_bmp = sd_sec_read_data;
 wire [7:0] sd_data_audio = sd_sec_read_data;
 wire sd_valid_bmp, sd_end_bmp, sd_valid_audio, sd_end_audio;
-wire scan_done, scan_found_valid; wire [31:0] scan_found_sector; wire [2:0] scan_found_total;
-reg scan_start, scan_kicked, source_complete, load_started;
+wire catalog_done, catalog_candidate_valid, catalog_volume_valid;
+wire [31:0] catalog_first_cluster, catalog_file_size, catalog_fat_start, catalog_data_start;
+wire [7:0] catalog_sectors_per_cluster;
+wire catalog_sd_read; wire [31:0] catalog_sd_addr;
+wire bmp_sd_read; wire [31:0] bmp_sd_addr;
+wire catalog_sd_valid, catalog_sd_end, bmp_sd_valid, bmp_sd_end;
+reg source_complete, load_started;
 reg [2:0] media_count;
-reg [31:0] media_sector0, media_sector1, media_sector2, media_sector3, media_sector4;
 reg [2:0] write_finish_sync;
 reg write_req_ack_meta, write_req_ack_sync;
 reg write_toggle_baseline;
@@ -82,19 +86,13 @@ wire scaler_dst_ready = write_ready;
 // the transaction and no byte is dropped mid-sector.
 wire source_fifo_write_ok = (source_fifo_wrusedw <= 10'd320);
 wire load_abort = load_inflight && load_started && bmp_ready && (bmp_load_failed || !scaler_started);
-
-function [31:0] selected_sector;
-    input [2:0] index;
-    begin
-        case(index)
-            3'd0: selected_sector=media_sector0;
-            3'd1: selected_sector=media_sector1;
-            3'd2: selected_sector=media_sector2;
-            3'd3: selected_sector=media_sector3;
-            default: selected_sector=media_sector4;
-        endcase
-    end
-endfunction
+wire catalog_release = load_inflight && (frame_commit || load_abort);
+assign sd_sec_read = bmp_sd_read | catalog_sd_read;
+assign sd_sec_read_addr = bmp_sd_read ? bmp_sd_addr : catalog_sd_addr;
+assign catalog_sd_valid = sd_valid_bmp && catalog_sd_read;
+assign catalog_sd_end = sd_end_bmp && catalog_sd_read;
+assign bmp_sd_valid = sd_valid_bmp && bmp_sd_read;
+assign bmp_sd_end = sd_end_bmp && bmp_sd_read;
 
 assign write_en = scaler_dst_valid && scaler_dst_ready;
 assign write_data = {scaler_dst_pixel,8'd0};
@@ -121,7 +119,7 @@ always @(posedge clk or posedge rst) begin
     end
 end
 assign state_code = !sd_init_qualified ? 4'd0 :
-                    (scan_done && media_count==0) ? 4'd8 :
+                    (catalog_done && media_count==0) ? 4'd8 :
                     bmp_load_failed ? 4'hd :
                     (load_inflight && bmp_ready && scaler_busy && !source_complete) ? 4'hb :
                     (load_inflight && source_complete && !write_complete_pending) ? 4'hc :
@@ -129,7 +127,8 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     audio_bad_format ? 4'd7 :
                     audio_ok_seen ? 4'd6 :
                     (display_valid && audio_busy) ?
-                    (audio_format_ok ? 4'd6 : (audio_file_found ? 4'd7 : 4'd5)) : bmp_state_code;
+                    (audio_format_ok ? 4'd6 : (audio_file_found ? 4'd7 : 4'd5)) :
+                    (!catalog_done || catalog_candidate_valid) ? 4'd2 : bmp_state_code;
 
 sd_sector_arbiter u_sd_arbiter (
     .clk(clk), .rst(rst), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
@@ -143,39 +142,26 @@ sd_sector_arbiter u_sd_arbiter (
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        scan_start<=1'b0; scan_kicked<=1'b0; source_complete<=1'b0; load_started<=1'b0;
+        source_complete<=1'b0; load_started<=1'b0;
         write_finish_sync<=3'd0; write_toggle_baseline<=1'b0; write_complete_pending<=1'b0;
         write_req_ack_meta<=1'b0; write_req_ack_sync<=1'b0;
         sd_init_seen<=1'b0;
-        media_count<=3'd0; media_sector0<=32'd0; media_sector1<=32'd0; media_sector2<=32'd0;
-        media_sector3<=32'd0; media_sector4<=32'd0;
+        media_count<=3'd0;
     end else begin
-        scan_start<=1'b0;
         write_req_ack_meta<=write_req_ack;
         write_req_ack_sync<=write_req_ack_meta;
         if (sd_init_done)
             sd_init_seen<=1'b1;
         write_finish_sync<={write_finish_sync[1:0],write_finish_toggle};
         if (!sd_init_qualified) begin
-            scan_kicked<=1'b0; media_count<=3'd0; source_complete<=1'b0;
+            media_count<=3'd0; source_complete<=1'b0;
             load_started<=1'b0;
             write_toggle_baseline<=write_finish_sync[2];
             write_complete_pending<=1'b0;
         end
         else begin
-            if (!scan_kicked && bmp_ready) begin
-                scan_start<=1'b1; scan_kicked<=1'b1; media_count<=3'd0;
-            end
-            if (scan_found_valid && media_count<SCAN_TARGET_COUNT && media_count<3'd5) begin
-                case(media_count)
-                    3'd0: media_sector0<=scan_found_sector;
-                    3'd1: media_sector1<=scan_found_sector;
-                    3'd2: media_sector2<=scan_found_sector;
-                    3'd3: media_sector3<=scan_found_sector;
-                    default: media_sector4<=scan_found_sector;
-                endcase
-                media_count <= (media_count >= 3'd4) ? 3'd5 : (media_count + 3'd1);
-            end
+            if (frame_commit && media_count < SCAN_TARGET_COUNT)
+                media_count <= media_count + 1'b1;
             if (!load_inflight) begin
                 // Start every request with fresh completion state.  This also
                 // prevents a delayed event from a previous frame being reused.
@@ -207,8 +193,9 @@ always @(posedge clk or posedge rst) begin
 end
 
 media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_session (
-    .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(scan_done),
+    .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
+    .candidate_valid(catalog_candidate_valid),
     .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_abort(load_abort),.load_start(load_start),
     .display_switch_applied_toggle_async(display_switch_applied_toggle_async),
     .load_media_index(load_media_index),.write_slot(write_buf_idx),.display_slot(disp_buf_idx),
@@ -217,18 +204,33 @@ media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_
 );
 
 bmp_read u_bmp_read(
-    .clk(clk),.rst(rst),.ready(bmp_ready),.scan_start(scan_start),.scan_start_sector(SCAN_START_SECTOR),
-    .scan_max_sector(SCAN_MAX_SECTOR),.scan_target_count(SCAN_TARGET_COUNT),.scan_done(scan_done),
-    .scan_found_valid(scan_found_valid),.scan_found_sector(scan_found_sector),.scan_found_total(scan_found_total),
-    .load_start(load_start),.load_sector(selected_sector(load_media_index)),.sd_init_done(sd_init_qualified),
+    .clk(clk),.rst(rst),.ready(bmp_ready),.scan_start(1'b0),.scan_start_sector(SCAN_START_SECTOR),
+    .scan_max_sector(SCAN_MAX_SECTOR),.scan_target_count(SCAN_TARGET_COUNT),.scan_done(),
+    .scan_found_valid(),.scan_found_sector(),.scan_found_total(),
+    .load_start(load_start),.load_sector(32'd0),.sd_init_done(sd_init_qualified),
     .state_code(bmp_state_code),.bmp_width(bmp_width),.bmp_height(bmp_height),.write_req(write_req),
     .parsed_width(parsed_width),.parsed_height(parsed_height),.parsed_top_down(parsed_top_down),
-    .write_req_ack(write_req_ack_sync),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
-    .sd_sec_read_data(sd_data_bmp),.sd_sec_read_data_valid(sd_valid_bmp),
-    .sd_sec_read_end(sd_end_bmp),.bmp_data_wr_en(bmp_data_wr_en),.bmp_data(bmp_data),
+    .write_req_ack(write_req_ack_sync),.sd_sec_read(bmp_sd_read),.sd_sec_read_addr(bmp_sd_addr),
+    .sd_sec_read_data(sd_data_bmp),.sd_sec_read_data_valid(bmp_sd_valid),
+    .sd_sec_read_end(bmp_sd_end),.bmp_data_wr_en(bmp_data_wr_en),.bmp_data(bmp_data),
     .pixel_valid(bmp_pixel_valid), .pixel_ready(bmp_pixel_ready), .pixel_data(bmp_pixel_data),
     .pixel_last(bmp_pixel_last), .frame_last(bmp_frame_last), .load_failed(bmp_load_failed)
-    , .sector_ready(source_fifo_write_ok)
+    , .sector_ready(source_fifo_write_ok), .load_file_mode(1'b1),
+    .load_first_cluster(catalog_first_cluster), .load_file_size(catalog_file_size),
+    .fat_start_sector(catalog_fat_start), .first_data_sector(catalog_data_start),
+    .sectors_per_cluster(catalog_sectors_per_cluster)
+);
+
+fat32_bmp_catalog u_bmp_catalog(
+    .clk(clk), .rst(rst), .sd_init_done(sd_init_qualified),
+    .sd_sec_read(catalog_sd_read), .sd_sec_read_addr(catalog_sd_addr),
+    .sd_sec_read_data_valid(catalog_sd_valid), .sd_sec_read_data(sd_data_bmp),
+    .sd_sec_read_end(catalog_sd_end), .candidate_valid(catalog_candidate_valid),
+    .candidate_first_cluster(catalog_first_cluster), .candidate_file_size(catalog_file_size),
+    .fat_start_sector(catalog_fat_start), .first_data_sector(catalog_data_start),
+    .sectors_per_cluster(catalog_sectors_per_cluster), .candidate_release(catalog_release),
+    .stop(media_count >= SCAN_TARGET_COUNT),
+    .scan_done(catalog_done), .volume_valid(catalog_volume_valid)
 );
 
 // This is a single-clock FIFO: both BMP decoding and scaling execute in
