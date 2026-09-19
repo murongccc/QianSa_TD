@@ -10,6 +10,8 @@ module fat32_bmp_catalog(
     output reg [31:0] candidate_file_size,
     output reg [31:0] fat_start_sector, output reg [31:0] first_data_sector,
     output reg [7:0] sectors_per_cluster,
+    // 已交给 BMP 读取器的候选数量，用于板级区分目录枚举与加载失败。
+    output reg [2:0] candidate_count,
     input wire candidate_release, input wire stop,
     output reg scan_done, output reg volume_valid
 );
@@ -71,6 +73,7 @@ always @(posedge clk or posedge rst) begin
         state<=ST_IDLE; pos<=0; sd_sec_read<=0; sd_sec_read_addr<=0;
         candidate_valid<=0; candidate_first_cluster<=0; candidate_file_size<=0;
         fat_start_sector<=0; first_data_sector<=0; sectors_per_cluster<=0;
+        candidate_count<=0;
         scan_done<=0; volume_valid<=0; bytes_per_sector<=0; reserved_sector_count<=0;
         fat_count<=0; sectors_per_fat<=0; root_cluster<=0; volume_base<=0;
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
@@ -84,6 +87,7 @@ always @(posedge clk or posedge rst) begin
         case (state)
             ST_IDLE: if (sd_init_done) begin
                 scan_done<=0; volume_valid<=0; candidate_valid<=0; candidate_pending<=0;
+                candidate_count<=0;
                 pos<=0; sd_sec_read_addr<=32'd0; sd_sec_read<=1'b1; state<=ST_MBR;
             end
             // LBA0 同时检查为直接 FAT32 引导扇区或 MBR。
@@ -212,7 +216,10 @@ always @(posedge clk or posedge rst) begin
                     else if (candidate_pending ||
                         (sd_sec_read_data_valid && (pos[4:0]==5'd31) &&
                          !candidate_pending && dir_entry_is_bmp)) begin
-                        candidate_valid<=1'b1; candidate_pending<=0; state<=ST_WAIT_CANDIDATE;
+                        candidate_valid<=1'b1; candidate_pending<=0;
+                        if (candidate_count < 3'd5)
+                            candidate_count<=candidate_count+1'b1;
+                        state<=ST_WAIT_CANDIDATE;
                     end else begin
                         advance_directory_sector;
                     end

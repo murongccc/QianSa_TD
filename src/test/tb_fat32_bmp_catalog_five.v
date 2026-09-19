@@ -7,6 +7,7 @@ reg clk=0, rst=1, sd_valid=0, sd_end=0, candidate_release=0;
 reg [7:0] sd_data=0;
 wire sd_read, candidate_valid, scan_done;
 wire [31:0] sd_addr, first_cluster, file_size;
+wire [2:0] catalog_candidate_count;
 reg [1:0] transport_state=0;
 reg [31:0] transport_addr=0;
 reg [9:0] transport_index=0;
@@ -23,7 +24,8 @@ fat32_bmp_catalog dut(
     .sd_sec_read_data_valid(sd_valid),.sd_sec_read_data(sd_data),.sd_sec_read_end(sd_end),
     .candidate_valid(candidate_valid),.candidate_first_cluster(first_cluster),
     .candidate_file_size(file_size),.fat_start_sector(),.first_data_sector(),
-    .sectors_per_cluster(),.candidate_release(candidate_release),.stop(1'b0),
+    .sectors_per_cluster(),.candidate_count(catalog_candidate_count),
+    .candidate_release(candidate_release),.stop(1'b0),
     .scan_done(scan_done),.volume_valid()
 );
 
@@ -104,6 +106,8 @@ initial begin
     rst=0;
     wait(scan_done);
     if(candidate_count!=5) $fatal(1,"expected five BMP candidates, got %0d",candidate_count);
+    if(catalog_candidate_count!=3'd5)
+        $fatal(1,"catalogue diagnostic count mismatch: %0d",catalog_candidate_count);
     $display("PASS FAT32 BMP catalog: five root entries emitted in physical order");
     $finish;
 end

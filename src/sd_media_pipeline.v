@@ -46,6 +46,7 @@ wire sd_valid_bmp, sd_end_bmp, sd_valid_audio, sd_end_audio;
 wire catalog_done, catalog_candidate_valid, catalog_volume_valid;
 wire [31:0] catalog_first_cluster, catalog_file_size, catalog_fat_start, catalog_data_start;
 wire [7:0] catalog_sectors_per_cluster;
+wire [2:0] catalog_candidate_count;
 wire catalog_sd_read; wire [31:0] catalog_sd_addr;
 wire bmp_sd_read; wire [31:0] bmp_sd_addr;
 wire catalog_sd_valid, catalog_sd_end, bmp_sd_valid, bmp_sd_end;
@@ -132,6 +133,10 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     // 目录扫描完成后的空闲码直接显示已经提交至 SDRAM 的
                     // 图片数（1..5）。此前固定显示 bmp_read 的空闲码 1，
                     // 无法区分“仅一张可切换图片”与“五张均已预装”。
+                    // 若目录已交出更多候选但提交数较少，D 表示后续帧在
+                    // BMP/缩放/SDRAM 提交链中被放弃，而非目录只找到一张。
+                    (catalog_done && !catalog_candidate_valid &&
+                     catalog_candidate_count > media_count) ? 4'hd :
                     (bmp_state_code == 4'd1 && media_count != 3'd0) ?
                     {1'b0, media_count} : bmp_state_code;
 
@@ -233,7 +238,8 @@ fat32_bmp_catalog u_bmp_catalog(
     .sd_sec_read_end(catalog_sd_end), .candidate_valid(catalog_candidate_valid),
     .candidate_first_cluster(catalog_first_cluster), .candidate_file_size(catalog_file_size),
     .fat_start_sector(catalog_fat_start), .first_data_sector(catalog_data_start),
-    .sectors_per_cluster(catalog_sectors_per_cluster), .candidate_release(catalog_release),
+    .sectors_per_cluster(catalog_sectors_per_cluster), .candidate_count(catalog_candidate_count),
+    .candidate_release(catalog_release),
     .stop(media_count >= SCAN_TARGET_COUNT),
     .scan_done(catalog_done), .volume_valid(catalog_volume_valid)
 );

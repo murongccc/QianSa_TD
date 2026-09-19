@@ -7,6 +7,7 @@ reg sd_valid=0, sd_end=0; reg [7:0] sd_data=0;
 wire candidate_valid, scan_done, volume_valid;
 wire [31:0] first_cluster, file_size, fat_start, data_start;
 wire [7:0] spc;
+wire [2:0] catalog_candidate_count;
 reg candidate_release=0;
 reg [1:0] transport_state=0;
 reg [31:0] transport_addr=0;
@@ -20,6 +21,7 @@ fat32_bmp_catalog dut(
     .sd_sec_read_data_valid(sd_valid),.sd_sec_read_data(sd_data),.sd_sec_read_end(sd_end),
     .candidate_valid(candidate_valid),.candidate_first_cluster(first_cluster),.candidate_file_size(file_size),
     .fat_start_sector(fat_start),.first_data_sector(data_start),.sectors_per_cluster(spc),
+    .candidate_count(catalog_candidate_count),
     .candidate_release(candidate_release),.stop(1'b0),.scan_done(scan_done),.volume_valid(volume_valid)
 );
 
