@@ -28,7 +28,9 @@ module bmp_read(
 localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
            ST_LOAD_DATA=4'd4, ST_LOAD_PAD=4'd5, ST_LOAD_THROT=4'd6,
            ST_LOAD_FAT=4'd7, ST_LOAD_FAT_CLUSTER=4'd8,
-           ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10;
+           ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10,
+           ST_LOAD_FIRST_CLUSTER=4'd11, ST_LOAD_FIRST_OFFSET=4'd12,
+           ST_LOAD_FIRST_ADDR=4'd13;
 reg [3:0] state;
 reg [9:0] rd_cnt;
 reg [7:0] header_0, header_1;
@@ -50,6 +52,8 @@ reg [8:0] fat_offset;
 reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
 reg [8:0] fat_byte_cnt;
 reg [31:0] fat_next_cluster_reg, fat_cluster_offset, fat_data_sector_offset;
+reg [31:0] file_size_latched, fat_start_sector_latched, first_data_sector_latched;
+reg [7:0] sectors_per_cluster_latched;
 
 wire [31:0] abs_height = height[31] ? (~height + 32'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
@@ -113,7 +117,7 @@ always @(posedge clk or posedge rst) begin
             // FAT 目录长度可以大于 BMP 头 bfSize（例如文件尾有附加数据），
             // 只拒绝目录长度不足、会导致像素数据被截断的候选文件。
             34: header_valid <= header_match &&
-                                (!file_mode_latched || (file_len <= load_file_size));
+                                (!file_mode_latched || (file_len <= file_size_latched));
             default: ;
         endcase
     end
@@ -133,6 +137,8 @@ always @(posedge clk or posedge rst) begin
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
         fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0; fat_byte_cnt<=0;
         fat_next_cluster_reg<=0; fat_cluster_offset<=0; fat_data_sector_offset<=0;
+        file_size_latched<=0; fat_start_sector_latched<=0; first_data_sector_latched<=0;
+        sectors_per_cluster_latched<=0;
     end else if (!sd_init_done) begin
         state<=ST_IDLE; state_code<=0; sd_sec_read<=0; write_req<=0;
         scan_done<=0; scan_found_valid<=0; scan_found_total<=0;
@@ -155,12 +161,21 @@ always @(posedge clk or posedge rst) begin
                     file_cluster<=load_first_cluster;
                     file_sector_in_cluster<=0;
                     fat_byte_cnt<=0;
-                    load_sector_latched<=load_file_mode ?
-                        (first_data_sector + ((load_first_cluster-32'd2) * sectors_per_cluster)) : load_sector;
-                    sd_sec_read_addr<=load_file_mode ?
-                        (first_data_sector + ((load_first_cluster-32'd2) * sectors_per_cluster)) : load_sector;
+                    // 目录候选描述符跨模块而来，先全部锁存。不能将首簇
+                    // 直接经过乘法/加法送往 SD 地址寄存器，否则会形成
+                    // candidate_first_cluster -> sd_sec_read_addr 的长路径。
+                    file_size_latched<=load_file_size;
+                    fat_start_sector_latched<=fat_start_sector;
+                    first_data_sector_latched<=first_data_sector;
+                    sectors_per_cluster_latched<=sectors_per_cluster;
                     load_failed<=0; frame_seen<=0;
-                    state<=ST_LOAD_HDR;
+                    if (load_file_mode === 1'b1) begin
+                        state<=ST_LOAD_FIRST_CLUSTER;
+                    end else begin
+                        load_sector_latched<=load_sector;
+                        sd_sec_read_addr<=load_sector;
+                        state<=ST_LOAD_HDR;
+                    end
                 end
             end
             ST_SCAN: begin
@@ -251,13 +266,13 @@ always @(posedge clk or posedge rst) begin
                         state<=ST_IDLE;
                     end
                     else if (file_mode_latched) begin
-                        if (file_sector_in_cluster + 1'b1 < sectors_per_cluster) begin
+                        if (file_sector_in_cluster + 1'b1 < sectors_per_cluster_latched) begin
                             file_sector_in_cluster<=file_sector_in_cluster+1'b1;
                             sd_sec_read_addr<=sd_sec_read_addr+1'b1;
                             state<=ST_LOAD_THROT;
                         end else begin
                             fat_offset<={file_cluster[6:0],2'b00};
-                            sd_sec_read_addr<=fat_start_sector+(file_cluster>>7);
+                            sd_sec_read_addr<=fat_start_sector_latched+(file_cluster>>7);
                             fat_byte_cnt<=0;
                             state<=ST_LOAD_FAT;
                         end
@@ -268,6 +283,42 @@ always @(posedge clk or posedge rst) begin
                 state_code<=4'ha;
                 // pixel_ready is driven from the source FIFO safety threshold.
                 if (sector_ready && !pixel_valid) begin sd_sec_read<=1; state<=ST_LOAD_DATA; end
+            end
+            // 首簇地址计算与后续 FAT 跳簇使用同样的三级流水，保证目录器
+            // 的候选寄存器不会直通 SD 地址，且不使用综合出的乘法器。
+            ST_LOAD_FIRST_CLUSTER: begin
+                state_code<=4'ha;
+                if (file_cluster<32'd2) begin load_failed<=1'b1; state<=ST_IDLE; end
+                else begin
+                    fat_cluster_offset<=file_cluster-32'd2;
+                    state<=ST_LOAD_FIRST_OFFSET;
+                end
+            end
+            ST_LOAD_FIRST_OFFSET: begin
+                state_code<=4'ha;
+                case (sectors_per_cluster_latched)
+                    8'd1:   fat_data_sector_offset<=fat_cluster_offset;
+                    8'd2:   fat_data_sector_offset<=fat_cluster_offset<<1;
+                    8'd4:   fat_data_sector_offset<=fat_cluster_offset<<2;
+                    8'd8:   fat_data_sector_offset<=fat_cluster_offset<<3;
+                    8'd16:  fat_data_sector_offset<=fat_cluster_offset<<4;
+                    8'd32:  fat_data_sector_offset<=fat_cluster_offset<<5;
+                    8'd64:  fat_data_sector_offset<=fat_cluster_offset<<6;
+                    8'd128: fat_data_sector_offset<=fat_cluster_offset<<7;
+                    default: begin load_failed<=1'b1; fat_data_sector_offset<=0; end
+                endcase
+                state<=ST_LOAD_FIRST_ADDR;
+            end
+            ST_LOAD_FIRST_ADDR: begin
+                state_code<=4'ha;
+                if (sectors_per_cluster_latched==0 ||
+                    (sectors_per_cluster_latched & (sectors_per_cluster_latched-1'b1)) != 0) begin
+                    load_failed<=1'b1; state<=ST_IDLE;
+                end else begin
+                    load_sector_latched<=first_data_sector_latched+fat_data_sector_offset;
+                    sd_sec_read_addr<=first_data_sector_latched+fat_data_sector_offset;
+                    state<=ST_LOAD_HDR;
+                end
             end
             ST_LOAD_FAT: begin
                 state_code<=4'ha; sd_sec_read<=1;
@@ -300,7 +351,7 @@ always @(posedge clk or posedge rst) begin
             ST_LOAD_FAT_OFFSET: begin
                 state_code<=4'ha;
                 // FAT32 的每簇扇区数是 1、2、4…128；使用固定移位替代乘法。
-                case (sectors_per_cluster)
+                case (sectors_per_cluster_latched)
                     8'd1:   fat_data_sector_offset<=fat_cluster_offset;
                     8'd2:   fat_data_sector_offset<=fat_cluster_offset<<1;
                     8'd4:   fat_data_sector_offset<=fat_cluster_offset<<2;
@@ -315,10 +366,11 @@ always @(posedge clk or posedge rst) begin
             end
             ST_LOAD_FAT_ADDR: begin
                 state_code<=4'ha;
-                if (sectors_per_cluster==0 || (sectors_per_cluster & (sectors_per_cluster-1'b1)) != 0) begin
+                if (sectors_per_cluster_latched==0 ||
+                    (sectors_per_cluster_latched & (sectors_per_cluster_latched-1'b1)) != 0) begin
                     load_failed<=1'b1; state<=ST_IDLE;
                 end else begin
-                    sd_sec_read_addr<=first_data_sector+fat_data_sector_offset;
+                    sd_sec_read_addr<=first_data_sector_latched+fat_data_sector_offset;
                     state<=ST_LOAD_THROT;
                 end
             end
