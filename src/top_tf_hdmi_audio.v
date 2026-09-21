@@ -72,6 +72,7 @@ reg presentation_de_d1, presentation_de_d2;
 reg presentation_vs_d1, presentation_vs_d2;
 wire axis_input_de, axis_input_vs;
 wire        display_valid;
+wire        video_display_active;
 
 wire [3:0]  state_code;
 wire [15:0] bmp_source_width, bmp_source_height;
@@ -488,7 +489,8 @@ frame_read_write #(
 frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
     .clk                (video_clk),
     .rst                (rst_video),
-    .display_valid_async(display_valid),
+    // 只统计视频域启动保护已放行的帧，忽略 SDRAM/FIFO 预热阶段。
+    .display_valid_async(video_display_active),
     .display_slot_async (disp_buf_idx),
     .vs                 (vs),
     .fifo_read_req      (video_read_en),
@@ -582,6 +584,7 @@ video_presentation #(
     .display_slot_async (disp_buf_idx),
     .display_switch_toggle_async(display_switch_toggle_sd),
     .display_slot_applied_toggle(display_slot_applied_toggle_video),
+    .display_active      (video_display_active),
     .brightness_level_async(uart_brightness_level),
     .image_brightness_async(image_brightness),
     .image_contrast_async(image_contrast),

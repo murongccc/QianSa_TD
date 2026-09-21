@@ -31,7 +31,8 @@ reg [7:0] previous_control_value;
 always #20 clk = ~clk;
 
 video_presentation #(
-    .ACTIVE_WIDTH(64), .ACTIVE_HEIGHT(480), .OSD_DISPLAY_CYCLES(5000)
+    .ACTIVE_WIDTH(64), .ACTIVE_HEIGHT(480), .OSD_DISPLAY_CYCLES(5000),
+    .INITIAL_WARMUP_FRAMES(0)
 ) dut (
     .clk(clk), .rst(rst), .display_valid(display_valid),
     .display_slot_async(display_slot_async),

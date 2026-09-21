@@ -5,12 +5,15 @@
 module video_presentation #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer ACTIVE_HEIGHT = 480,
-    parameter integer OSD_DISPLAY_CYCLES = 50_000_000
+    parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
+    // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
+    parameter integer INITIAL_WARMUP_FRAMES = 8
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
     input wire display_switch_toggle_async,
     output reg display_slot_applied_toggle,
+    output reg display_active,
     input wire [2:0] brightness_level_async,
     input wire [6:0] image_brightness_async,
     input wire [6:0] image_contrast_async,
@@ -27,6 +30,7 @@ reg display_switch_toggle_meta, display_switch_toggle_sync;
 reg display_switch_toggle_seen;
 reg vs_d, de_d;
 reg display_valid_meta, display_valid_sync;
+reg [3:0] initial_warmup_frames;
 reg [9:0] pixel_x, pixel_y, reveal_x;
 reg [6:0] fade_level;
 reg [2:0] brightness_meta, brightness_sync;
@@ -58,6 +62,7 @@ localparam [9:0] SUBTITLE_TEXT_TOP = 10'd438;
 // period completes in 6.4 seconds and repeats without a visible jump.
 localparam [18:0] SUBTITLE_TICK_CYCLES = 19'd312500;
 localparam [26:0] OSD_DISPLAY_CYCLES_VALUE = OSD_DISPLAY_CYCLES;
+localparam [3:0] INITIAL_WARMUP_FRAMES_VALUE = INITIAL_WARMUP_FRAMES;
 
 function [6:0] brightness_gain;
     input [2:0] level;
@@ -440,6 +445,7 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         slot_sync0 <= 2'd0; slot_sync1 <= 2'd0; active_slot <= 2'd0;
         display_valid_meta <= 1'b0; display_valid_sync <= 1'b0;
+        display_active <= 1'b0; initial_warmup_frames <= 4'd0;
         display_switch_toggle_meta <= 1'b0;
         display_switch_toggle_sync <= 1'b0;
         display_switch_toggle_seen <= 1'b0;
@@ -503,6 +509,16 @@ always @(posedge clk or posedge rst) begin
         vs_d <= vs; de_d <= de;
         if (frame_start) begin
             pixel_y <= 10'd0;
+            // 首槽已在帧边界选定后，display_valid 才从 SD 域返回。先让
+            // SDRAM 读通路和 FIFO 经过完整帧预热，避免在该帧中途放开 RGB；
+            // 仅在当前视频帧边界显示首图。display_active 置位后保持到
+            // 复位，因此手动切图和自动轮播不增加启动等待。
+            if (!display_active && display_valid_sync) begin
+                if (initial_warmup_frames == INITIAL_WARMUP_FRAMES_VALUE)
+                    display_active <= 1'b1;
+                else
+                    initial_warmup_frames <= initial_warmup_frames + 1'b1;
+            end
             if (display_switch_toggle_sync != display_switch_toggle_seen) begin
                 // The slot bus is held until this acknowledgement crosses
                 // back to the SD domain.  Apply it only on a frame boundary
@@ -531,7 +547,7 @@ always @(posedge clk or posedge rst) begin
         banner_rgb_stage <= subtitle_banner_rgb;
         spectrum_rgb_stage <= spectrum_rgb;
         sharpness_stage <= image_sharpness_sync;
-        base_valid_stage <= display_valid_sync && de && (render_x < reveal_x);
+        base_valid_stage <= display_active && de && (render_x < reveal_x);
         line_first_stage <= line_start;
         param_osd_stage <= param_osd_pixel;
         spectrum_stage <= spectrum_on;
