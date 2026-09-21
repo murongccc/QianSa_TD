@@ -14,14 +14,15 @@ module bmp_bilinear_scaler #(
     output reg [9:0] dst_x, output reg [9:0] dst_y,
     output reg busy, output reg done
 );
-localparam ST_IDLE=4'd0, ST_DIV_X_INIT=4'd1, ST_DIV_X_RUN=4'd2,
-           ST_DIV_Y_INIT=4'd3, ST_DIV_Y_RUN=4'd4, ST_FILL=4'd5,
-           ST_READ0=4'd6, ST_READ1=4'd7, ST_READ2=4'd8,
-           ST_HORIZ=4'd9, ST_VERT=4'd10, ST_PACK=4'd11,
-           ST_EMIT=4'd12, ST_DONE=4'd13, ST_CHECK=4'd14,
-           ST_CHECK_ROWS=4'd15;
+localparam ST_IDLE=5'd0, ST_DIV_X_INIT=5'd1, ST_DIV_X_RUN=5'd2,
+           ST_DIV_Y_INIT=5'd3, ST_DIV_Y_RUN=5'd4, ST_FILL=5'd5,
+           ST_READ0=5'd6, ST_READ1=5'd7, ST_READ2=5'd8,
+           ST_H0_BASE=5'd9, ST_H0_ACC=5'd10, ST_H1_BASE=5'd11,
+           ST_H1_ACC=5'd12, ST_V_BASE=5'd13, ST_V_ACC=5'd14,
+           ST_PACK=5'd15, ST_EMIT=5'd16, ST_DONE=5'd17,
+           ST_CHECK=5'd18, ST_CHECK_ROWS=5'd19;
 
-reg [3:0] state;
+reg [4:0] state;
 reg [15:0] sw,sh,fill_col,next_row;
 reg [15:0] required_row;
 reg [9:0] out_x,out_y;
@@ -32,9 +33,48 @@ reg [15:0] x_rem_step,y_rem_step,x_phase,y_phase;
 // are packed into the same 100 MHz path.
 reg [8:0] fx_inv_q,fx_weight_q,fy_inv_q,fy_weight_q;
 reg [23:0] p00_q,p01_q,p10_q,p11_q;
+reg [16:0] h0_base_r,h0_base_g,h0_base_b,h1_base_r,h1_base_g,h1_base_b;
 reg [17:0] h0_r,h0_g,h0_b,h1_r,h1_g,h1_b;
+reg [26:0] v_base_r,v_base_g,v_base_b;
 reg [27:0] v_r,v_g,v_b;
 reg last_q,frame_last_q;
+
+// Three physical multipliers are shared by all RGB horizontal and vertical
+// terms.  The scaler runs only while frames are preloaded, so the additional
+// internal cycles do not affect the video output rate.  Keeping the operands
+// registered makes the resource-sharing intent unambiguous to synthesis.
+reg [17:0] mul_a0,mul_a1,mul_a2;
+reg [17:0] mul_b0,mul_b1,mul_b2;
+wire [35:0] mul_p0,mul_p1,mul_p2;
+
+// Do not leave the shared operators as generic '*' expressions: TD may clone
+// such expressions while optimizing the state-dependent operand muxes.  These
+// three explicit EG4 multiplier primitives are therefore the only DSPs used
+// by the scaler arithmetic schedule.
+EG_LOGIC_MULT #(
+    .INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")
+) u_mul0 (
+    .p(mul_p0),.a(mul_a0),.b(mul_b0),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(~rst),.rstbn(~rst),.rstpdn(~rst)
+);
+EG_LOGIC_MULT #(
+    .INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")
+) u_mul1 (
+    .p(mul_p1),.a(mul_a1),.b(mul_b1),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(~rst),.rstbn(~rst),.rstpdn(~rst)
+);
+EG_LOGIC_MULT #(
+    .INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")
+) u_mul2 (
+    .p(mul_p2),.a(mul_a2),.b(mul_b2),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(~rst),.rstbn(~rst),.rstpdn(~rst)
+);
 
 // A shared sequential divider computes the coordinate step only once per
 // frame.  Per-pixel mapping is then just fixed-point addition.
@@ -97,7 +137,10 @@ always @(posedge clk or posedge rst) begin
   x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
   fx_inv_q<=0;fx_weight_q<=0;fy_inv_q<=0;fy_weight_q<=0;
   p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
-  h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;v_r<=0;v_g<=0;v_b<=0;
+  h0_base_r<=0;h0_base_g<=0;h0_base_b<=0;h1_base_r<=0;h1_base_g<=0;h1_base_b<=0;
+  h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;
+  v_base_r<=0;v_base_g<=0;v_base_b<=0;v_r<=0;v_g<=0;v_b<=0;
+  mul_a0<=0;mul_a1<=0;mul_a2<=0;mul_b0<=0;mul_b1<=0;mul_b2<=0;
   last_q<=0;frame_last_q<=0;
   dst_valid<=0;dst_pixel<=0;dst_last<=0;dst_frame_last<=0;dst_x<=0;dst_y<=0;
   busy<=0;done<=0;div_dividend<=0;div_quotient<=0;div_divisor<=0;div_remainder<=0;div_bit<=0;
@@ -162,25 +205,56 @@ always @(posedge clk or posedge rst) begin
     busy<=1;p00_q<=top_dout;p10_q<=bottom_dout;state<=ST_READ2;
    end
    ST_READ2: begin
-    busy<=1;p01_q<=top_dout;p11_q<=bottom_dout;state<=ST_HORIZ;
-   end
-   // Split bilinear interpolation across two multiplier stages.  This keeps
-   // the 100 MHz SD/scaler domain from containing two cascaded multiplies.
-   ST_HORIZ: begin
     busy<=1;
-    h0_r<=p00_q[23:16]*fx_inv_q+p01_q[23:16]*fx_weight_q;
-    h0_g<=p00_q[15:8]*fx_inv_q+p01_q[15:8]*fx_weight_q;
-    h0_b<=p00_q[7:0]*fx_inv_q+p01_q[7:0]*fx_weight_q;
-    h1_r<=p10_q[23:16]*fx_inv_q+p11_q[23:16]*fx_weight_q;
-    h1_g<=p10_q[15:8]*fx_inv_q+p11_q[15:8]*fx_weight_q;
-    h1_b<=p10_q[7:0]*fx_inv_q+p11_q[7:0]*fx_weight_q;
-    state<=ST_VERT;
+    p01_q<=top_dout;p11_q<=bottom_dout;
+    mul_a0<={10'd0,p00_q[23:16]};mul_a1<={10'd0,p00_q[15:8]};mul_a2<={10'd0,p00_q[7:0]};
+    mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
+    state<=ST_H0_BASE;
    end
-   ST_VERT: begin
+   // The six interpolation terms are scheduled through the three shared
+   // multipliers.  Widths match the former direct expressions exactly:
+   // 8x9 products -> 17 bits, horizontal sums -> 18 bits, and vertical
+   // products/sums -> 27 bits (zero-extended into the 28-bit round input).
+   ST_H0_BASE: begin
     busy<=1;
-    v_r<=h0_r*fy_inv_q+h1_r*fy_weight_q;
-    v_g<=h0_g*fy_inv_q+h1_g*fy_weight_q;
-    v_b<=h0_b*fy_inv_q+h1_b*fy_weight_q;
+    h0_base_r<=mul_p0[16:0];h0_base_g<=mul_p1[16:0];h0_base_b<=mul_p2[16:0];
+    mul_a0<={10'd0,p01_q[23:16]};mul_a1<={10'd0,p01_q[15:8]};mul_a2<={10'd0,p01_q[7:0]};
+    mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
+    state<=ST_H0_ACC;
+   end
+   ST_H0_ACC: begin
+    busy<=1;
+    h0_r<=h0_base_r+mul_p0[16:0];h0_g<=h0_base_g+mul_p1[16:0];h0_b<=h0_base_b+mul_p2[16:0];
+    mul_a0<={10'd0,p10_q[23:16]};mul_a1<={10'd0,p10_q[15:8]};mul_a2<={10'd0,p10_q[7:0]};
+    mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
+    state<=ST_H1_BASE;
+   end
+   ST_H1_BASE: begin
+    busy<=1;
+    h1_base_r<=mul_p0[16:0];h1_base_g<=mul_p1[16:0];h1_base_b<=mul_p2[16:0];
+    mul_a0<={10'd0,p11_q[23:16]};mul_a1<={10'd0,p11_q[15:8]};mul_a2<={10'd0,p11_q[7:0]};
+    mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
+    state<=ST_H1_ACC;
+   end
+   ST_H1_ACC: begin
+    busy<=1;
+    h1_r<=h1_base_r+mul_p0[16:0];h1_g<=h1_base_g+mul_p1[16:0];h1_b<=h1_base_b+mul_p2[16:0];
+    mul_a0<=h0_r;mul_a1<=h0_g;mul_a2<=h0_b;
+    mul_b0<={9'd0,fy_inv_q};mul_b1<={9'd0,fy_inv_q};mul_b2<={9'd0,fy_inv_q};
+    state<=ST_V_BASE;
+   end
+   ST_V_BASE: begin
+    busy<=1;
+    v_base_r<=mul_p0;v_base_g<=mul_p1;v_base_b<=mul_p2;
+    mul_a0<=h1_r;mul_a1<=h1_g;mul_a2<=h1_b;
+    mul_b0<={9'd0,fy_weight_q};mul_b1<={9'd0,fy_weight_q};mul_b2<={9'd0,fy_weight_q};
+    state<=ST_V_ACC;
+   end
+   ST_V_ACC: begin
+    busy<=1;
+    v_r<={1'b0,v_base_r}+{1'b0,mul_p0};
+    v_g<={1'b0,v_base_g}+{1'b0,mul_p1};
+    v_b<={1'b0,v_base_b}+{1'b0,mul_p2};
     state<=ST_PACK;
    end
    ST_PACK: begin
