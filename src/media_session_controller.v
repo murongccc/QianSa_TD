@@ -206,7 +206,11 @@ always @(posedge clk or posedge rst) begin
 
             // 目录器结束后才提交首个显示槽，保证首次画面时所有可用 BMP
             // 已完成预装；此后所有槽位更新都是纯显示操作。
-            if (!display_valid && scan_done && !display_switch_inflight && have_ready_slot) begin
+            // catalog_done 仅表示目录描述符已缓存；最后一个候选还可能正在
+            // 写入 SDRAM。只有目录器已释放全部候选且没有在途加载时才显示
+            // 首帧，避免后续图片被音频仲裁降为后台加载。
+            if (!display_valid && scan_done && !candidate_valid && !load_inflight &&
+                !display_switch_inflight && have_ready_slot) begin
                 display_slot <= first_ready_slot(slot_ready);
                 display_switch_toggle <= ~display_switch_toggle;
                 display_switch_inflight <= 1'b1;

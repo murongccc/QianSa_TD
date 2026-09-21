@@ -80,11 +80,9 @@ initial begin
     repeat (3) @(posedge clk);
     rst = 1'b0;
 
-    // First picture is loaded, then becomes visible only after the video
-    // domain applies the requested slot on a frame boundary.
+    // 首帧必须等待所有目录候选处理完成，不能在后续图片后台加载时显示。
     complete_load(3'd0);
-    apply_display;
-    if (!display_valid) $fatal(1, "first picture was not committed");
+    if (display_valid) $fatal(1, "display started before catalogue drain");
 
     // The other catalogue entries are background-preloaded into their fixed
     // slots.  No further SD load may occur when the user switches images.
@@ -92,9 +90,13 @@ initial begin
     complete_load(3'd2);
     complete_load(3'd3);
     complete_load(3'd4);
+    @(negedge clk);
+    candidate_valid = 1'b0;
     repeat (4) @(posedge clk);
     if (load_inflight || dut.slot_ready != 5'b11111)
         $fatal(1, "background preload did not finish all five slots");
+    apply_display;
+    if (!display_valid) $fatal(1, "first picture was not committed after preload");
 
     // Queue five manual changes before the first acknowledgement.  They
     // must be presented in sequence rather than collapsed by the video CDC.
