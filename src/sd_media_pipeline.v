@@ -29,6 +29,15 @@ module sd_media_pipeline #(
     output wire audio_reader_busy, output wire audio_reader_done
 );
 wire sd_sec_read; wire [31:0] sd_sec_read_addr; wire [7:0] sd_sec_read_data;
+// rst_sd 原先直接驱动本层所有异步复位端。这里把最终释放限定在本层：
+// 断言仍然异步，撤销则在本地保持 16 个时钟并三级同步，避免顶层大扇出
+// reset-removal 路径的极小裕量使 BMP/缩放器启动状态不确定。
+wire rst_local;
+domain_reset_sync #(.COUNTER_WIDTH(5), .HOLD_CYCLES(16)) u_reset_local (
+    .clk         (clk),
+    .async_reset (rst),
+    .reset       (rst_local)
+);
 wire sd_sec_read_data_valid, sd_sec_read_end, bmp_data_wr_en, sd_init_done, bmp_ready;
 wire [3:0] bmp_state_code;
 wire audio_sd_read; wire [31:0] audio_sd_addr;
@@ -105,8 +114,8 @@ assign audio_reader_done = audio_done;
 reg audio_not_found;
 reg audio_bad_format;
 reg audio_ok_seen;
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
+always @(posedge clk or posedge rst_local) begin
+    if (rst_local) begin
         audio_not_found<=0; audio_bad_format<=0; audio_ok_seen<=0;
     end else if (audio_done && !audio_file_found) begin
         audio_not_found<=1;
@@ -141,7 +150,7 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     {1'b0, media_count} : bmp_state_code;
 
 sd_sector_arbiter u_sd_arbiter (
-    .clk(clk), .rst(rst), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
+    .clk(clk), .rst(rst_local), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
     .audio_req(audio_sd_read), .audio_addr(audio_sd_addr),
     .audio_urgent(audio_urgent),
     .sd_req(sd_read_mux), .sd_addr(sd_addr_mux),
@@ -150,8 +159,8 @@ sd_sector_arbiter u_sd_arbiter (
     .audio_valid(sd_valid_audio), .audio_done(sd_end_audio)
 );
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
+always @(posedge clk or posedge rst_local) begin
+    if (rst_local) begin
         source_complete<=1'b0; load_started<=1'b0;
         write_finish_sync<=3'd0; write_toggle_baseline<=1'b0; write_complete_pending<=1'b0;
         write_req_ack_meta<=1'b0; write_req_ack_sync<=1'b0;
@@ -203,7 +212,7 @@ always @(posedge clk or posedge rst) begin
 end
 
 media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_session (
-    .clk(clk),.rst(rst),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
+    .clk(clk),.rst(rst_local),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
     .candidate_valid(catalog_candidate_valid),
     .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_abort(load_abort),.load_start(load_start),
@@ -214,7 +223,7 @@ media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_
 );
 
 bmp_read u_bmp_read(
-    .clk(clk),.rst(rst),.ready(bmp_ready),.scan_start(1'b0),.scan_start_sector(SCAN_START_SECTOR),
+    .clk(clk),.rst(rst_local),.ready(bmp_ready),.scan_start(1'b0),.scan_start_sector(SCAN_START_SECTOR),
     .scan_max_sector(SCAN_MAX_SECTOR),.scan_target_count(SCAN_TARGET_COUNT),.scan_done(),
     .scan_found_valid(),.scan_found_sector(),.scan_found_total(),
     .load_start(load_start),.load_sector(32'd0),.sd_init_done(sd_init_qualified),
@@ -232,7 +241,7 @@ bmp_read u_bmp_read(
 );
 
 fat32_bmp_catalog u_bmp_catalog(
-    .clk(clk), .rst(rst), .sd_init_done(sd_init_qualified),
+    .clk(clk), .rst(rst_local), .sd_init_done(sd_init_qualified),
     .sd_sec_read(catalog_sd_read), .sd_sec_read_addr(catalog_sd_addr),
     .sd_sec_read_data_valid(catalog_sd_valid), .sd_sec_read_data(sd_data_bmp),
     .sd_sec_read_end(catalog_sd_end), .candidate_valid(catalog_candidate_valid),
@@ -250,7 +259,7 @@ fat32_bmp_catalog u_bmp_catalog(
 // scaler_start clears stale pixels from a previous/aborted load before the
 // first sector of the new BMP is admitted.
 source_pixel_fifo_ip source_pixel_fifo (
-    .srst(rst | scaler_start), .clk(clk),
+    .srst(rst_local | scaler_start), .clk(clk),
     .we(bmp_pixel_valid && bmp_pixel_ready),
     .di({bmp_frame_last,bmp_pixel_last,bmp_pixel_data,6'b0}),
     .re(source_fifo_re), .dout(source_fifo_dout), .valid(source_fifo_valid),
@@ -263,7 +272,7 @@ bmp_bilinear_scaler #(
     .OUT_WIDTH(SCALER_OUT_WIDTH), .OUT_HEIGHT(SCALER_OUT_HEIGHT),
     .MAX_WIDTH(1920)
 ) u_scaler (
-    .clk(clk), .rst(rst), .start(scaler_start), .abort(load_abort),
+    .clk(clk), .rst(rst_local), .start(scaler_start), .abort(load_abort),
     .src_width(parsed_width), .src_height(parsed_height),
     .src_valid(source_fifo_valid), .src_pixel(source_fifo_dout[29:6]),
     .src_last(source_fifo_dout[30]), .src_frame_last(source_fifo_dout[31]),
@@ -273,14 +282,14 @@ bmp_bilinear_scaler #(
     .dst_x(scaler_dst_x), .dst_y(scaler_dst_y), .busy(scaler_busy), .done(scaler_done)
 );
 
-always @(posedge clk or posedge rst) begin
-    if (rst) scaler_started <= 1'b0;
+always @(posedge clk or posedge rst_local) begin
+    if (rst_local) scaler_started <= 1'b0;
     else if (!load_inflight) scaler_started <= 1'b0;
     else if (scaler_start) scaler_started <= 1'b1;
 end
 
 fat32_wav_reader u_sd_audio_reader(
-    .clk(clk), .rst(rst | audio_reader_reset), .sd_init_done(sd_init_qualified),
+    .clk(clk), .rst(rst_local | audio_reader_reset), .sd_init_done(sd_init_qualified),
     .enable(display_valid && audio_reader_enable),
     .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),
     .sd_data(sd_data_audio), .sd_data_valid(sd_valid_audio),
@@ -297,7 +306,7 @@ media_startup_sector_model u_sd(
 `else
 sd_card_top u_sd(
 `endif
-    .clk(clk),.rst(rst),.SD_nCS(SD_nCS),.SD_DCLK(SD_DCLK),.SD_MOSI(SD_MOSI),.SD_MISO(SD_MISO),
+    .clk(clk),.rst(rst_local),.SD_nCS(SD_nCS),.SD_DCLK(SD_DCLK),.SD_MOSI(SD_MOSI),.SD_MISO(SD_MISO),
     .sd_init_done(sd_init_done),.sd_sec_read(sd_read_mux),.sd_sec_read_addr(sd_addr_mux),
     .sd_sec_read_data(sd_sec_read_data),.sd_sec_read_data_valid(sd_sec_read_data_valid),.sd_sec_read_end(sd_sec_read_end),
     .sd_sec_write(1'b0),.sd_sec_write_addr(32'd0),.sd_sec_write_data(8'd0),.sd_sec_write_data_req(),.sd_sec_write_end()
