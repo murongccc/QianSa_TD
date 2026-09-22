@@ -1,8 +1,8 @@
 // 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
 // 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
 `define IMAGE_RAW_BYPASS
-// 第二级定位：保持 HDMI 的 DE/VS 节拍，彻底切断帧读出的像素数据。
-`define HDMI_SOLID_COLOR_DIAG
+// 第三级定位：切断帧像素数据，同时保持最高频的 TMDS 数据翻转。
+`define HDMI_CHECKER_DIAG
 
 module top(
     input                       clk,
@@ -182,6 +182,16 @@ wire        rst_clk;
 wire        rst_sd;
 wire        rst_mem;
 wire        rst_video;
+`ifdef HDMI_CHECKER_DIAG
+reg         hdmi_checker_bit;
+// 每一可见行从黑色开始逐像素翻转，构造与存储帧无关的高翻转率测试图。
+always @(posedge video_clk or posedge rst_video) begin
+    if (rst_video || !de)
+        hdmi_checker_bit <= 1'b0;
+    else
+        hdmi_checker_bit <= ~hdmi_checker_bit;
+end
+`endif
 wire        rst_audio_fifo;
 wire [2:0]  uart_brightness_level;
 wire [2:0]  uart_volume_level;
@@ -625,7 +635,9 @@ video_presentation #(
 );
 
 `ifdef IMAGE_RAW_BYPASS
-`ifdef HDMI_SOLID_COLOR_DIAG
+`ifdef HDMI_CHECKER_DIAG
+assign vout_data = {24{hdmi_checker_bit}};
+`elsif HDMI_SOLID_COLOR_DIAG
 assign vout_data = 24'h404040;
 `else
 assign vout_data = vout_data_raw;
