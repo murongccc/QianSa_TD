@@ -156,7 +156,9 @@ frame_fifo_write_m0
 );
 
 //instantiate an asynchronous FIFO 
-rfifo_32_32_512 read_buf
+// 读侧使用 RAM 输出寄存器：跨时钟 FIFO 的数据在视频域整周期稳定后再取用。
+// video_delay 将读请求相应提前一拍，保持最终 RGB/DE 的原有对齐。
+rfifo_32_32_512 #(.OUTREG_EN("OUTREG")) read_buf
 	(
 	.clkr                     	(read_clk                   ),          // Read side clock
 	.clkw                     	(mem_clk                    ),          // Write side clock

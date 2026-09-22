@@ -22,7 +22,8 @@ reg [20:0] vs_d;
 reg [20:0] de_d;
 reg[DATA_WIDTH - 1:0]  vout_data_r;
 
-assign read_en = de_d[18];
+// FIFO 读口启用 OUTREG 后，数据有效期相对读请求多一拍；提前请求以保持 RGB/DE 对齐。
+assign read_en = de_d[17];
 assign hs_r = hs_d[20];
 assign vs_r = vs_d[20];
 assign de_r = de_d[20];
