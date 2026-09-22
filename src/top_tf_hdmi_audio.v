@@ -1,8 +1,8 @@
 // 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
 // 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
 `define IMAGE_RAW_BYPASS
-// 第三级定位：切断帧像素数据，同时保持最高频的 TMDS 数据翻转。
-`define HDMI_CHECKER_DIAG
+// 第三级定位：切断帧像素数据，并覆盖 RGB 三通道的独立 TMDS 翻转组合。
+`define HDMI_COLOR_SEQUENCE_DIAG
 
 module top(
     input                       clk,
@@ -182,14 +182,21 @@ wire        rst_clk;
 wire        rst_sd;
 wire        rst_mem;
 wire        rst_video;
-`ifdef HDMI_CHECKER_DIAG
-reg         hdmi_checker_bit;
-// 每一可见行从黑色开始逐像素翻转，构造与存储帧无关的高翻转率测试图。
+`ifdef HDMI_COLOR_SEQUENCE_DIAG
+reg  [2:0]  hdmi_color_phase;
+wire [23:0] hdmi_color_pattern = (hdmi_color_phase == 3'd0) ? 24'h000000 :
+                                 (hdmi_color_phase == 3'd1) ? 24'hff0000 :
+                                 (hdmi_color_phase == 3'd2) ? 24'h00ff00 :
+                                 (hdmi_color_phase == 3'd3) ? 24'h0000ff :
+                                 (hdmi_color_phase == 3'd4) ? 24'hffff00 :
+                                 (hdmi_color_phase == 3'd5) ? 24'h00ffff :
+                                 (hdmi_color_phase == 3'd6) ? 24'hff00ff : 24'hffffff;
+// 每一可见行从黑色开始逐像素轮换八色，覆盖与帧内容无关的 RGB 编码组合。
 always @(posedge video_clk or posedge rst_video) begin
     if (rst_video || !de)
-        hdmi_checker_bit <= 1'b0;
+        hdmi_color_phase <= 3'd0;
     else
-        hdmi_checker_bit <= ~hdmi_checker_bit;
+        hdmi_color_phase <= hdmi_color_phase + 1'b1;
 end
 `endif
 wire        rst_audio_fifo;
@@ -635,8 +642,8 @@ video_presentation #(
 );
 
 `ifdef IMAGE_RAW_BYPASS
-`ifdef HDMI_CHECKER_DIAG
-assign vout_data = {24{hdmi_checker_bit}};
+`ifdef HDMI_COLOR_SEQUENCE_DIAG
+assign vout_data = hdmi_color_pattern;
 `elsif HDMI_SOLID_COLOR_DIAG
 assign vout_data = 24'h404040;
 `else
