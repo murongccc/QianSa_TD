@@ -851,6 +851,11 @@ reg [18:0] word_count;
 reg [31:0] frame_signature;
 reg [31:0] baseline_signature;
 reg        baseline_valid;
+// frame_start 来自请求/应答握手。read_req_ack 在 S_ACK 状态会保持多个
+// mem_clk，故必须边沿化；直接把其电平作为开始条件会重复清空本帧签名。
+reg        frame_start_d;
+
+wire frame_start_pulse = frame_start && !frame_start_d;
 
 wire [31:0] signature_next = {frame_signature[30:0], frame_signature[31]} ^
                              data ^ {13'd0, word_count};
@@ -862,32 +867,36 @@ always @(posedge clk or posedge rst) begin
         frame_signature    <= 32'd0;
         baseline_signature <= 32'd0;
         baseline_valid     <= 1'b0;
+        frame_start_d      <= 1'b0;
         mismatch_count     <= 16'd0;
         mismatch_sticky    <= 1'b0;
-    end else if (frame_start) begin
-        active          <= 1'b1;
-        word_count      <= 19'd0;
-        frame_signature <= 32'd0;
     end else begin
-        if (active && data_valid) begin
-            frame_signature <= signature_next;
-            if (word_count != 19'h7ffff)
-                word_count <= word_count + 1'b1;
-        end
+        frame_start_d <= frame_start;
+        if (frame_start_pulse) begin
+            active          <= 1'b1;
+            word_count      <= 19'd0;
+            frame_signature <= 32'd0;
+        end else begin
+            if (active && data_valid) begin
+                frame_signature <= signature_next;
+                if (word_count != 19'h7ffff)
+                    word_count <= word_count + 1'b1;
+            end
 
-        if (frame_finish && active) begin
-            active <= 1'b0;
-            if (word_count != EXPECTED_WORDS) begin
-                mismatch_sticky <= 1'b1;
-                if (mismatch_count != 16'hffff)
-                    mismatch_count <= mismatch_count + 1'b1;
-            end else if (!baseline_valid) begin
-                baseline_signature <= frame_signature;
-                baseline_valid <= 1'b1;
-            end else if (frame_signature != baseline_signature) begin
-                mismatch_sticky <= 1'b1;
-                if (mismatch_count != 16'hffff)
-                    mismatch_count <= mismatch_count + 1'b1;
+            if (frame_finish && active) begin
+                active <= 1'b0;
+                if (word_count != EXPECTED_WORDS) begin
+                    mismatch_sticky <= 1'b1;
+                    if (mismatch_count != 16'hffff)
+                        mismatch_count <= mismatch_count + 1'b1;
+                end else if (!baseline_valid) begin
+                    baseline_signature <= frame_signature;
+                    baseline_valid <= 1'b1;
+                end else if (frame_signature != baseline_signature) begin
+                    mismatch_sticky <= 1'b1;
+                    if (mismatch_count != 16'hffff)
+                        mismatch_count <= mismatch_count + 1'b1;
+                end
             end
         end
     end
