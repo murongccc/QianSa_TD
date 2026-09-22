@@ -1,6 +1,8 @@
 // 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
 // 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
 `define IMAGE_RAW_BYPASS
+// 第二级定位：保持 HDMI 的 DE/VS 节拍，彻底切断帧读出的像素数据。
+`define HDMI_SOLID_COLOR_DIAG
 
 module top(
     input                       clk,
@@ -623,7 +625,11 @@ video_presentation #(
 );
 
 `ifdef IMAGE_RAW_BYPASS
+`ifdef HDMI_SOLID_COLOR_DIAG
+assign vout_data = 24'h404040;
+`else
 assign vout_data = vout_data_raw;
+`endif
 assign axis_input_de = de;
 assign axis_input_vs = vs;
 `else
