@@ -71,15 +71,15 @@ reg App_rd_en_d0;
 
 
 wire rd_vld;
-reg [3:0] rd_delay;
+reg [BURST_BITS - 1:0] rd_data_cnt;
 
 assign App_rd_addr = {App_rd_addr_r[ADDR_BITS - 1:0]};
 assign rd_vld = (state == S_READ_BURST && burst_cnt >= BURST_SIZE);
 
 assign O_rd_busy = (state == S_READ_BURST);//读指令期间
-//burst_cnt代表发送的读指令
-//但rd_burst_finish需要在发送完十个时钟后拉高，此时数据全部读出
-assign rd_burst_finish = (rd_vld && rd_delay == 4'd10);
+// burst 不能按固定等待拍数结束：刷新或控制器流水线可能延后返回数据。
+// 只有已发完请求且实际收到完整 BURST_SIZE 个返回字，才允许下一 burst。
+assign rd_burst_finish = rd_vld && (rd_data_cnt >= BURST_SIZE);
 assign read_finish = (state == S_END) ? 1'b1 : 1'b0;             //read finish at state 'S_END'
 assign App_rd_en = App_rd_en_d0;
 always@(posedge mem_clk or posedge rst)
@@ -109,12 +109,10 @@ end
 
 always @(posedge mem_clk or posedge rst)
 begin
-	if(rst || App_rd_en)begin
-        rd_delay <= 4'd0;
-    end
-    else if(rd_delay < 4'd10)begin
-    	rd_delay <= rd_delay + 1'b1;
-    end
+    if(rst || state != S_READ_BURST)
+        rd_data_cnt <= ZERO[BURST_BITS - 1:0];
+    else if(Sdr_rd_en && rd_data_cnt < BURST_SIZE)
+        rd_data_cnt <= rd_data_cnt + 1'b1;
 end
 always @(posedge mem_clk or posedge rst)
 begin
