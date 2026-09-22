@@ -1,3 +1,7 @@
+// 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
+// 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
+`define IMAGE_RAW_BYPASS
+
 module top(
     input                       clk,
     input                       rst_n,
