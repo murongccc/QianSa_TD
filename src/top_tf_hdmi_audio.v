@@ -84,7 +84,7 @@ reg  [13:0] refresh_gap_meta, refresh_gap_sync;
 reg         refresh_fault_meta, refresh_fault_sync;
 wire [6:0]  seg_refresh_fault;
 wire [6:0]  seg_diag_0, seg_diag_1, seg_diag_2, seg_diag_3;
-wire [6:0]  seg_diag_underflow, seg_diag_mismatch;
+wire [6:0]  seg_diag_underflow, seg_diag_mismatch, seg_diag_axis_stall;
 reg  [1:0]  diag_page;
 reg  [26:0] diag_page_count;
 wire [15:0] diag_display_value;
@@ -92,6 +92,11 @@ reg  [15:0] underflow_count_meta, underflow_count_sync, underflow_count_previous
 reg  [15:0] underflow_count_display;
 reg  [15:0] mismatch_count_meta, mismatch_count_sync, mismatch_count_previous;
 reg  [15:0] mismatch_count_display;
+// HDMI 核的 AXIS ready 是其唯一能直接反映输入端接收状态的信号。
+// 帧 FIFO 的 b/d 正常但 HDMI 显示出现横线时，记录这里是否拒收过有效像素。
+reg  [15:0] axis_backpressure_count;
+reg  [15:0] axis_backpressure_meta, axis_backpressure_sync, axis_backpressure_previous;
+reg  [15:0] axis_backpressure_display;
 
 wire        video_read_req;
 wire        video_read_req_ack;
@@ -304,13 +309,15 @@ seg_decoder seg_decoder_m0(
 seg_decoder seg_decoder_refresh_fault(.bin_data(4'he), .seg_data(seg_refresh_fault));
 assign diag_display_value = (diag_page == 2'd0) ? {2'b00, refresh_gap_sync} :
                             (diag_page == 2'd1) ? underflow_count_display :
-                                                  mismatch_count_display;
+                            (diag_page == 2'd2) ? mismatch_count_display :
+                                                  axis_backpressure_display;
 seg_decoder seg_decoder_diag_0(.bin_data(diag_display_value[3:0]), .seg_data(seg_diag_0));
 seg_decoder seg_decoder_diag_1(.bin_data(diag_display_value[7:4]), .seg_data(seg_diag_1));
 seg_decoder seg_decoder_diag_2(.bin_data(diag_display_value[11:8]), .seg_data(seg_diag_2));
 seg_decoder seg_decoder_diag_3(.bin_data(diag_display_value[15:12]), .seg_data(seg_diag_3));
 seg_decoder seg_decoder_diag_underflow(.bin_data(4'hb), .seg_data(seg_diag_underflow));
 seg_decoder seg_decoder_diag_mismatch(.bin_data(4'hd), .seg_data(seg_diag_mismatch));
+seg_decoder seg_decoder_diag_axis(.bin_data(4'ha), .seg_data(seg_diag_axis_stall));
 
 // Show 0 while SD initialization is pending; hiding it as 1 made a dead SD
 // transport indistinguishable from idle. Synchronize and accept only stable
@@ -333,6 +340,10 @@ always @(posedge clk or posedge rst_clk) begin
         mismatch_count_sync <= 16'd0;
         mismatch_count_previous <= 16'd0;
         mismatch_count_display <= 16'd0;
+        axis_backpressure_meta <= 16'd0;
+        axis_backpressure_sync <= 16'd0;
+        axis_backpressure_previous <= 16'd0;
+        axis_backpressure_display <= 16'd0;
         diag_page <= 2'd0;
         diag_page_count <= 27'd0;
     end else begin
@@ -357,10 +368,15 @@ always @(posedge clk or posedge rst_clk) begin
         mismatch_count_previous <= mismatch_count_sync;
         if (mismatch_count_sync == mismatch_count_previous)
             mismatch_count_display <= mismatch_count_sync;
+        axis_backpressure_meta <= axis_backpressure_count;
+        axis_backpressure_sync <= axis_backpressure_meta;
+        axis_backpressure_previous <= axis_backpressure_sync;
+        if (axis_backpressure_sync == axis_backpressure_previous)
+            axis_backpressure_display <= axis_backpressure_sync;
 
         if (diag_page_count == 27'd99_999_999) begin
             diag_page_count <= 27'd0;
-            if (diag_page == 2'd2)
+            if (diag_page == 2'd3)
                 diag_page <= 2'd0;
             else
                 diag_page <= diag_page + 1'b1;
@@ -375,16 +391,19 @@ seg_scan seg_scan_m0(
     .rst_n             (~rst_clk),
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
-    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、帧数据变化计数(d)。
+    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、帧数据变化计数(d)、
+    // HDMI AXIS 反压计数(A)。
     .seg_data_0        ({1'b1,seg_diag_3}),
     .seg_data_1        ({1'b1,seg_diag_2}),
     .seg_data_2        ({1'b1,seg_diag_1}),
     .seg_data_3        ({1'b1,seg_diag_0}),
     .seg_data_4        ({(diag_page == 2'd1) ? (underflow_count_display == 16'd0) :
-                         (diag_page == 2'd2) ? (mismatch_count_display == 16'd0) : 1'b1,
+                         (diag_page == 2'd2) ? (mismatch_count_display == 16'd0) :
+                         (diag_page == 2'd3) ? (axis_backpressure_display == 16'd0) : 1'b1,
                               (diag_page == 2'd0) ?
                                    (refresh_fault_sync ? seg_refresh_fault : 7'b1111_111) :
-                               (diag_page == 2'd1) ? seg_diag_underflow : seg_diag_mismatch}),
+                               (diag_page == 2'd1) ? seg_diag_underflow :
+                               (diag_page == 2'd2) ? seg_diag_mismatch : seg_diag_axis_stall}),
     // Decimal point lights while automatic playback is enabled (active-low DP).
     .seg_data_5        ({~auto_play_display,seg_data_0})
 );
@@ -640,6 +659,16 @@ video_rgb_to_axis_640x480 u_video_rgb_to_axis_640x480(
     .O_video_last  (axis_s_last),
     .O_video_data  (axis_s_data)
 );
+
+// AXIS 源是等时视频流，不能因 ready 拉低而暂停像素时钟；因此这里仅
+// 统计而不改变数据通路。若该计数增长，HDMI 核在有效像素期间拒收数据，
+// 会直接解释 b/d 不变但画面出现短横线的现象。
+always @(posedge video_clk or posedge rst_video) begin
+    if (rst_video)
+        axis_backpressure_count <= 16'd0;
+    else if (axis_s_valid && !axis_s_ready && axis_backpressure_count != 16'hffff)
+        axis_backpressure_count <= axis_backpressure_count + 1'b1;
+end
 
 // 上电后自动打一拍，触发一次 EDID 读取
 startup_pulse #(
