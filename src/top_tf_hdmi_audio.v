@@ -1,8 +1,6 @@
 // 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
 // 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
 `define IMAGE_RAW_BYPASS
-// 第三级定位：切断帧像素数据，并覆盖 RGB 三通道的独立 TMDS 翻转组合。
-`define HDMI_COLOR_SEQUENCE_DIAG
 
 module top(
     input                       clk,
@@ -115,6 +113,8 @@ wire [15:0] video_underflow_count;
 wire        video_underflow_sticky;
 wire [15:0] video_mismatch_count;
 wire        video_mismatch_sticky;
+wire [15:0] video_output_mismatch_count;
+wire        video_output_mismatch_sticky;
 
 wire        sd_card_write_en;
 wire [31:0] sd_card_write_data;
@@ -386,7 +386,7 @@ always @(posedge clk or posedge rst_clk) begin
         underflow_count_previous <= underflow_count_sync;
         if (underflow_count_sync == underflow_count_previous)
             underflow_count_display <= underflow_count_sync;
-        mismatch_count_meta <= video_mismatch_count;
+        mismatch_count_meta <= video_output_mismatch_count;
         mismatch_count_sync <= mismatch_count_meta;
         mismatch_count_previous <= mismatch_count_sync;
         if (mismatch_count_sync == mismatch_count_previous)
@@ -414,7 +414,7 @@ seg_scan seg_scan_m0(
     .rst_n             (~rst_clk),
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
-    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、帧数据变化计数(d)、
+    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、video_delay 输出帧变化(d)、
     // HDMI AXIS 反压计数(A)。
     .seg_data_0        ({1'b1,seg_diag_3}),
     .seg_data_1        ({1'b1,seg_diag_2}),
@@ -545,6 +545,24 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
     .mismatch_sticky    (video_mismatch_sticky)
 );
 
+// 直接校验 video_delay 送往 HDMI 的 RGB，而不是仅校验 FIFO 输出。
+// 此计数可区分内部像素链错误与 HDMI 物理输出错误。
+frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_video_output_monitor (
+    .clk                (video_clk),
+    .rst                (rst_video),
+    .display_valid_async(video_display_active),
+    .display_slot_async (disp_buf_idx),
+    .vs                 (vs),
+    .fifo_read_req      (de),
+    .fifo_empty         (1'b0),
+    .fifo_valid         (de),
+    .fifo_data          ({vout_data_raw, 8'd0}),
+    .underflow_count    (),
+    .underflow_sticky   (),
+    .mismatch_count     (video_output_mismatch_count),
+    .mismatch_sticky    (video_output_mismatch_sticky)
+);
+
 sdram U3(
     .Clk               (ext_mem_clk),
     .Clk_sft           (ext_mem_clk_sft),
@@ -642,13 +660,7 @@ video_presentation #(
 );
 
 `ifdef IMAGE_RAW_BYPASS
-`ifdef HDMI_COLOR_SEQUENCE_DIAG
-assign vout_data = hdmi_color_pattern;
-`elsif HDMI_SOLID_COLOR_DIAG
-assign vout_data = 24'h404040;
-`else
 assign vout_data = vout_data_raw;
-`endif
 assign axis_input_de = de;
 assign axis_input_vs = vs;
 `else
