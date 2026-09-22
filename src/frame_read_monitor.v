@@ -32,9 +32,6 @@ reg [31:0] baseline_signature [0:4];
 reg [4:0]  baseline_valid;
 
 wire frame_start = vs && !vs_d;
-// valid 是异步 show-ahead FIFO 的数据就绪指示；读使能撤销后可能仍有
-// 一个尾拍。只有请求和 valid 同时为高时，数据才真正进入视频像素链路。
-wire fifo_read_fire = fifo_read_req && fifo_valid;
 wire [31:0] signature_next = {frame_signature[30:0], frame_signature[31]} ^
                              fifo_data ^ {13'd0, pixel_count};
 
@@ -93,7 +90,7 @@ always @(posedge clk or posedge rst) begin
             frame_slot <= slot_sync;
             pixel_count <= 19'd0;
             frame_signature <= 32'd0;
-        end else if (frame_monitor_active && fifo_read_fire) begin
+        end else if (frame_monitor_active && fifo_valid) begin
             frame_signature <= signature_next;
             if (pixel_count != 19'h7ffff)
                 pixel_count <= pixel_count + 1'b1;

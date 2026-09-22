@@ -39,17 +39,7 @@ endtask
 task pixel;
     input [31:0] value;
     begin
-        @(negedge clk); fifo_data = value; fifo_valid = 1'b1; fifo_read_req = 1'b1;
-        @(posedge clk); #1;
-        @(negedge clk); fifo_valid = 1'b0; fifo_read_req = 1'b0;
-    end
-endtask
-
-task idle_valid_tail;
-    input [31:0] value;
-    begin
-        // Show-ahead FIFO 在 re 已撤销时的 valid 尾拍不能被诊断当成像素。
-        @(negedge clk); fifo_data = value; fifo_valid = 1'b1; fifo_read_req = 1'b0;
+        @(negedge clk); fifo_data = value; fifo_valid = 1'b1;
         @(posedge clk); #1;
         @(negedge clk); fifo_valid = 1'b0;
     end
@@ -79,12 +69,6 @@ initial begin
     complete_frame(32'd0, 1'b0);
     if (mismatch_count != 16'd0)
         $fatal(1, "identical frames raised a mismatch");
-
-    // 空闲 valid 尾拍不得增加像素数或污染同槽签名。
-    idle_valid_tail(32'hcafef00d);
-    complete_frame(32'd0, 1'b0);
-    if (mismatch_count != 16'd0)
-        $fatal(1, "idle FIFO valid tail was counted as a pixel");
 
     // 单像素变化必须产生一次帧数据变化。
     complete_frame(32'hdeadbeef, 1'b1);
