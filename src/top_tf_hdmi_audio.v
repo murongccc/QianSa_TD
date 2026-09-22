@@ -88,7 +88,7 @@ reg  [13:0] refresh_gap_meta, refresh_gap_sync;
 reg         refresh_fault_meta, refresh_fault_sync;
 wire [6:0]  seg_refresh_fault;
 wire [6:0]  seg_diag_0, seg_diag_1, seg_diag_2, seg_diag_3;
-wire [6:0]  seg_diag_underflow, seg_diag_mismatch, seg_diag_source, seg_diag_axis_stall;
+wire [6:0]  seg_diag_underflow, seg_diag_mismatch, seg_diag_source, seg_diag_memory, seg_diag_axis_stall;
 reg  [2:0]  diag_page;
 reg  [26:0] diag_page_count;
 wire [15:0] diag_display_value;
@@ -98,6 +98,8 @@ reg  [15:0] mismatch_count_meta, mismatch_count_sync, mismatch_count_previous;
 reg  [15:0] mismatch_count_display;
 reg  [15:0] source_mismatch_meta, source_mismatch_sync, source_mismatch_previous;
 reg  [15:0] source_mismatch_display;
+reg  [15:0] memory_mismatch_meta, memory_mismatch_sync, memory_mismatch_previous;
+reg  [15:0] memory_mismatch_display;
 // HDMI 核的 AXIS ready 是其唯一能直接反映输入端接收状态的信号。
 // 帧 FIFO 的 b/d 正常但 HDMI 显示出现横线时，记录这里是否拒收过有效像素。
 reg  [15:0] axis_backpressure_count;
@@ -106,6 +108,7 @@ reg  [15:0] axis_backpressure_display;
 
 wire        video_read_req;
 wire        video_read_req_ack;
+wire        video_read_finish_mem;
 wire        video_read_en;
 wire [31:0] video_read_data;
 wire        video_read_fifo_empty;
@@ -117,6 +120,8 @@ wire [15:0] video_mismatch_count;
 wire        video_mismatch_sticky;
 wire [15:0] video_output_mismatch_count;
 wire        video_output_mismatch_sticky;
+wire [15:0] sdram_return_mismatch_count;
+wire        sdram_return_mismatch_sticky;
 
 wire        sd_card_write_en;
 wire [31:0] sd_card_write_data;
@@ -336,6 +341,7 @@ assign diag_display_value = (diag_page == 3'd0) ? {2'b00, refresh_gap_sync} :
                             (diag_page == 3'd1) ? underflow_count_display :
                             (diag_page == 3'd2) ? mismatch_count_display :
                             (diag_page == 3'd3) ? source_mismatch_display :
+                            (diag_page == 3'd4) ? memory_mismatch_display :
                                                   axis_backpressure_display;
 seg_decoder seg_decoder_diag_0(.bin_data(diag_display_value[3:0]), .seg_data(seg_diag_0));
 seg_decoder seg_decoder_diag_1(.bin_data(diag_display_value[7:4]), .seg_data(seg_diag_1));
@@ -344,6 +350,7 @@ seg_decoder seg_decoder_diag_3(.bin_data(diag_display_value[15:12]), .seg_data(s
 seg_decoder seg_decoder_diag_underflow(.bin_data(4'hb), .seg_data(seg_diag_underflow));
 seg_decoder seg_decoder_diag_mismatch(.bin_data(4'hd), .seg_data(seg_diag_mismatch));
 seg_decoder seg_decoder_diag_source(.bin_data(4'hf), .seg_data(seg_diag_source));
+seg_decoder seg_decoder_diag_memory(.bin_data(4'hc), .seg_data(seg_diag_memory));
 seg_decoder seg_decoder_diag_axis(.bin_data(4'ha), .seg_data(seg_diag_axis_stall));
 
 // Show 0 while SD initialization is pending; hiding it as 1 made a dead SD
@@ -371,6 +378,10 @@ always @(posedge clk or posedge rst_clk) begin
         source_mismatch_sync <= 16'd0;
         source_mismatch_previous <= 16'd0;
         source_mismatch_display <= 16'd0;
+        memory_mismatch_meta <= 16'd0;
+        memory_mismatch_sync <= 16'd0;
+        memory_mismatch_previous <= 16'd0;
+        memory_mismatch_display <= 16'd0;
         axis_backpressure_meta <= 16'd0;
         axis_backpressure_sync <= 16'd0;
         axis_backpressure_previous <= 16'd0;
@@ -404,6 +415,11 @@ always @(posedge clk or posedge rst_clk) begin
         source_mismatch_previous <= source_mismatch_sync;
         if (source_mismatch_sync == source_mismatch_previous)
             source_mismatch_display <= source_mismatch_sync;
+        memory_mismatch_meta <= sdram_return_mismatch_count;
+        memory_mismatch_sync <= memory_mismatch_meta;
+        memory_mismatch_previous <= memory_mismatch_sync;
+        if (memory_mismatch_sync == memory_mismatch_previous)
+            memory_mismatch_display <= memory_mismatch_sync;
         axis_backpressure_meta <= axis_backpressure_count;
         axis_backpressure_sync <= axis_backpressure_meta;
         axis_backpressure_previous <= axis_backpressure_sync;
@@ -412,7 +428,7 @@ always @(posedge clk or posedge rst_clk) begin
 
         if (diag_page_count == 27'd99_999_999) begin
             diag_page_count <= 27'd0;
-            if (diag_page == 3'd4)
+            if (diag_page == 3'd5)
                 diag_page <= 3'd0;
             else
                 diag_page <= diag_page + 1'b1;
@@ -428,7 +444,7 @@ seg_scan seg_scan_m0(
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
     // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、最终 RGB 帧变化(d)、
-    // FIFO 输出帧变化(F)、HDMI AXIS 反压计数(A)。
+    // FIFO 输出帧变化(F)、SDRAM 返回帧变化(C)、HDMI AXIS 反压计数(A)。
     .seg_data_0        ({1'b1,seg_diag_3}),
     .seg_data_1        ({1'b1,seg_diag_2}),
     .seg_data_2        ({1'b1,seg_diag_1}),
@@ -436,12 +452,14 @@ seg_scan seg_scan_m0(
     .seg_data_4        ({(diag_page == 3'd1) ? (underflow_count_display == 16'd0) :
                          (diag_page == 3'd2) ? (mismatch_count_display == 16'd0) :
                          (diag_page == 3'd3) ? (source_mismatch_display == 16'd0) :
-                         (diag_page == 3'd4) ? (axis_backpressure_display == 16'd0) : 1'b1,
+                         (diag_page == 3'd4) ? (memory_mismatch_display == 16'd0) :
+                         (diag_page == 3'd5) ? (axis_backpressure_display == 16'd0) : 1'b1,
                               (diag_page == 3'd0) ?
                                    (refresh_fault_sync ? seg_refresh_fault : 7'b1111_111) :
                                (diag_page == 3'd1) ? seg_diag_underflow :
                                (diag_page == 3'd2) ? seg_diag_mismatch :
-                               (diag_page == 3'd3) ? seg_diag_source : seg_diag_axis_stall}),
+                               (diag_page == 3'd3) ? seg_diag_source :
+                               (diag_page == 3'd4) ? seg_diag_memory : seg_diag_axis_stall}),
     // Decimal point lights while automatic playback is enabled (active-low DP).
     .seg_data_5        ({~auto_play_display,seg_data_0})
 );
@@ -507,7 +525,7 @@ frame_read_write #(
     .read_clk          (video_clk),
     .read_req          (video_read_req),
     .read_req_ack      (video_read_req_ack),
-    .read_finish       (),
+    .read_finish       (video_read_finish_mem),
     .read_addr_0       (BUF0_ADDR),
     .read_addr_1       (BUF1_ADDR),
     .read_addr_2       (BUF2_ADDR),
@@ -558,6 +576,17 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
     .underflow_sticky   (video_underflow_sticky),
     .mismatch_count     (video_mismatch_count),
     .mismatch_sticky    (video_mismatch_sticky)
+);
+
+sdram_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_sdram_read_monitor (
+    .clk                (ext_mem_clk),
+    .rst                (rst_mem),
+    .frame_start        (video_read_req_ack),
+    .frame_finish       (video_read_finish_mem),
+    .data_valid         (Sdr_rd_en),
+    .data               (Sdr_rd_dout),
+    .mismatch_count     (sdram_return_mismatch_count),
+    .mismatch_sticky    (sdram_return_mismatch_sticky)
 );
 
 // 直接校验 video_delay 送往 HDMI 的 RGB，而不是仅校验 FIFO 输出。
@@ -798,5 +827,70 @@ hdmi_phy_wrapper #(
     .O_tmds_ch2_p       (HDMI_D2_P),
     .O_tmds_clk_p       (HDMI_CLK_P)
 );
+
+endmodule
+
+// 在 SDRAM 返回口处逐帧签名。用于区分控制器返回数据变化与后级异步 FIFO 问题。
+module sdram_read_monitor #(
+    parameter integer FRAME_PIXELS = 307200
+) (
+    input  wire        clk,
+    input  wire        rst,
+    input  wire        frame_start,
+    input  wire        frame_finish,
+    input  wire        data_valid,
+    input  wire [31:0] data,
+    output reg  [15:0] mismatch_count,
+    output reg         mismatch_sticky
+);
+
+localparam [18:0] EXPECTED_WORDS = FRAME_PIXELS;
+
+reg        active;
+reg [18:0] word_count;
+reg [31:0] frame_signature;
+reg [31:0] baseline_signature;
+reg        baseline_valid;
+
+wire [31:0] signature_next = {frame_signature[30:0], frame_signature[31]} ^
+                             data ^ {13'd0, word_count};
+
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        active             <= 1'b0;
+        word_count         <= 19'd0;
+        frame_signature    <= 32'd0;
+        baseline_signature <= 32'd0;
+        baseline_valid     <= 1'b0;
+        mismatch_count     <= 16'd0;
+        mismatch_sticky    <= 1'b0;
+    end else if (frame_start) begin
+        active          <= 1'b1;
+        word_count      <= 19'd0;
+        frame_signature <= 32'd0;
+    end else begin
+        if (active && data_valid) begin
+            frame_signature <= signature_next;
+            if (word_count != 19'h7ffff)
+                word_count <= word_count + 1'b1;
+        end
+
+        if (frame_finish && active) begin
+            active <= 1'b0;
+            if (word_count != EXPECTED_WORDS) begin
+                mismatch_sticky <= 1'b1;
+                if (mismatch_count != 16'hffff)
+                    mismatch_count <= mismatch_count + 1'b1;
+            end else if (!baseline_valid) begin
+                baseline_signature <= frame_signature;
+                baseline_valid <= 1'b1;
+            end else if (frame_signature != baseline_signature) begin
+                mismatch_sticky <= 1'b1;
+                if (mismatch_count != 16'hffff)
+                    mismatch_count <= mismatch_count + 1'b1;
+            end
+        end
+    end
+end
 
 endmodule
