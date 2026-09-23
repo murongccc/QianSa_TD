@@ -1,4 +1,4 @@
-// 以屏幕中心为圆心的 32 段径向音柱。角度和半径只使用比较、移位与加法。
+// 以屏幕中心为圆心的 32 段径向音柱。距离平方使内外边界保持圆形。
 module ring_spectrum_renderer #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer ACTIVE_HEIGHT = 480
@@ -21,11 +21,12 @@ wire x_right = pixel_x >= CENTER_X;
 wire y_down = pixel_y >= CENTER_Y;
 wire [10:0] major = (abs_x >= abs_y) ? abs_x : abs_y;
 wire [10:0] minor = (abs_x >= abs_y) ? abs_y : abs_x;
-// 两段折线逼近欧氏半径，最大误差约 3%，避免逐像素平方和开方。
-wire [11:0] radius = (minor <= (major >> 1)) ?
-                     ({1'b0,major} + ({1'b0,minor} >> 2)) :
-                     ({1'b0,major} + ({1'b0,minor} >> 1) -
-                      ({1'b0,major} >> 3));
+// 可显示半径不超过 168 像素，先限定范围以缩小平方运算位宽。
+wire in_circle_bounds = (abs_x <= 11'd168) && (abs_y <= 11'd168);
+wire [7:0] local_x = abs_x[7:0];
+wire [7:0] local_y = abs_y[7:0];
+// 比较距离平方，避免开方与折线近似造成的棱角。
+wire [16:0] distance_sq = (local_x * local_x) + (local_y * local_y);
 wire [14:0] minor16 = {minor,4'b0000};
 wire [14:0] bound0 = {4'd0,major} + ({4'd0,major} >> 1);
 wire [14:0] bound1 = ({4'd0,major} << 2) + {4'd0,major};
@@ -64,12 +65,14 @@ always @* begin
 end
 wire [7:0] level = bands[sector*8 +: 8];
 wire [7:0] bar_length = {2'd0,level[7:2]} + {4'd0,level[7:4]};
-wire baseline = (radius >= 12'd89) && (radius <= 12'd90);
-wire bar = (radius > 12'd90) &&
-           (radius <= (12'd90 + {4'd0,bar_length})) &&
+wire [8:0] outer_radius = 9'd90 + {1'b0,bar_length};
+wire [17:0] outer_radius_sq = outer_radius * outer_radius;
+wire bar = in_circle_bounds &&
+           (distance_sq > 17'd8100) &&
+           ({1'b0,distance_sq} <= outer_radius_sq) &&
            !angular_gap;
-assign pixel_on = baseline || bar;
-assign pixel_rgb = baseline ? 24'h304050 : rainbow(sector);
+assign pixel_on = bar;
+assign pixel_rgb = rainbow(sector);
 
 function [23:0] rainbow;
     input [4:0] index;

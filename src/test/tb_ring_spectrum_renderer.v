@@ -23,26 +23,35 @@ endtask
 
 initial begin
     expect_pixel(10'd320,10'd240,1'b0);
-    expect_pixel(10'd320,10'd150,1'b1);
-    expect_pixel(10'd410,10'd240,1'b1);
-    expect_pixel(10'd320,10'd330,1'b1);
-    expect_pixel(10'd230,10'd240,1'b1);
+    expect_pixel(10'd320,10'd150,1'b0);
+    expect_pixel(10'd410,10'd240,1'b0);
+    expect_pixel(10'd320,10'd330,1'b0);
+    expect_pixel(10'd230,10'd240,1'b0);
     expect_pixel(10'd320,10'd149,1'b0);
+    expect_pixel(10'd438,10'd122,1'b0);
     bands[0*8 +: 8]=8'hff;
     bands[8*8 +: 8]=8'hff;
     bands[16*8 +: 8]=8'hff;
     bands[24*8 +: 8]=8'hff;
     bands[4*8 +: 8]=8'hff;
+    expect_pixel(10'd320,10'd150,1'b0);
+    expect_pixel(10'd410,10'd240,1'b0);
+    expect_pixel(10'd320,10'd330,1'b0);
+    expect_pixel(10'd230,10'd240,1'b0);
+    expect_pixel(10'd320,10'd149,1'b1);
     expect_pixel(10'd320,10'd72,1'b1);
     top_color=pixel_rgb;
     expect_pixel(10'd488,10'd240,1'b1);
     if (pixel_rgb == top_color) $fatal(1,"rainbow has identical quadrant colors");
     expect_pixel(10'd320,10'd408,1'b1);
     expect_pixel(10'd152,10'd240,1'b1);
-    expect_pixel(10'd440,10'd120,1'b1);
+    expect_pixel(10'd438,10'd122,1'b1);
+    expect_pixel(10'd439,10'd121,1'b0);
+    expect_pixel(10'd440,10'd120,1'b0);
     expect_pixel(10'd320,10'd71,1'b0);
     expect_pixel(10'd320,10'd430,1'b0);
-    $display("PASS ring renderer: center, four axes, diagonal, baseline, radial limit, color");
+    expect_pixel(10'd576,10'd240,1'b0);
+    $display("PASS ring renderer: silence, no baseline, round edge, radial limit, color");
     $finish;
 end
 endmodule
