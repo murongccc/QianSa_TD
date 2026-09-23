@@ -152,7 +152,7 @@ wire de_0;
 wire        audio_valid;
 wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
-wire [63:0] audio_spectrum_bands;
+wire [255:0] audio_spectrum_bands;
 wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
 wire [31:0] audio_fifo_din, audio_fifo_dout;
 wire audio_reader_busy, audio_reader_done, audio_underrun;
@@ -654,11 +654,12 @@ always @(posedge video_clk or posedge rst_video) begin
         audio_read_toggle <= ~audio_read_toggle;
 end
 
-audio_spectrum_analyzer u_audio_spectrum_analyzer (
+audio_fft_spectrum #(.FFT_POINTS(512)) u_audio_fft_spectrum (
     .clk         (video_clk),
     .rst         (rst_video),
     .sample_valid(audio_valid),
     .sample_pcm  (audio_left_data),
+    .frame_start (vs),
     .bands       (audio_spectrum_bands)
 );
 

@@ -1,4 +1,4 @@
-// Video presentation: brightness control, level bars, and a two-layer OSD.
+// Video presentation: image controls, circular audio spectrum, and two-layer OSD.
 // The subtitle overlay stays entirely in the video_clk domain.  It uses a
 // translucent banner as layer 1 and a 5x7 scrolling text layer as layer 2,
 // so the TF/SDRAM frame-read path and HDMI timing remain unchanged.
@@ -21,7 +21,7 @@ module video_presentation #(
     input wire [1:0] image_selected_async,
     input wire image_select_toggle_async,
     input wire image_adjust_toggle_async,
-    input wire [63:0] spectrum_bands,
+    input wire [255:0] spectrum_bands,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
 );
@@ -40,7 +40,6 @@ reg [6:0] image_sharpness_meta, image_sharpness_sync;
 reg [1:0] image_selected_meta, image_selected_sync;
 reg image_select_toggle_meta, image_select_toggle_sync, image_select_toggle_seen;
 reg image_adjust_toggle_meta, image_adjust_toggle_sync, image_adjust_toggle_seen;
-reg [63:0] spectrum_meta, spectrum_sync;
 reg [6:0] image_value_seen;
 reg [1:0] image_selected_seen;
 reg [26:0] osd_count;
@@ -375,34 +374,14 @@ wire [4:0] param_osd_glyph_row = param_font_row(parameter_osd_char(param_osd_ind
 wire param_osd_pixel = param_osd_area && (param_osd_col < 3'd5) &&
                        param_osd_glyph_row[4-param_osd_col];
 
-// Compact audio spectrum in the upper-right corner.  Eight 16-pixel bars
-// share a 3-pixel gap and a common 80-pixel baseline, keeping the overlay
-// readable without consuming the central image area.
-wire spectrum_area = (render_x >= 10'd480) && (render_x < 10'd632) &&
-                     (pixel_y >= 10'd24) && (pixel_y < 10'd104);
-wire [9:0] spectrum_rel_x = (render_x < 10'd480) ? 10'd0 : (render_x - 10'd480);
-wire [2:0] spectrum_index = (spectrum_rel_x >= 10'd133) ? 3'd7 :
-                             (spectrum_rel_x >= 10'd114) ? 3'd6 :
-                             (spectrum_rel_x >= 10'd95)  ? 3'd5 :
-                             (spectrum_rel_x >= 10'd76)  ? 3'd4 :
-                             (spectrum_rel_x >= 10'd57)  ? 3'd3 :
-                             (spectrum_rel_x >= 10'd38)  ? 3'd2 :
-                             (spectrum_rel_x >= 10'd19)  ? 3'd1 : 3'd0;
-wire [4:0] spectrum_bar_x = (spectrum_rel_x >= 10'd133) ? spectrum_rel_x - 10'd133 :
-                             (spectrum_rel_x >= 10'd114) ? spectrum_rel_x - 10'd114 :
-                             (spectrum_rel_x >= 10'd95)  ? spectrum_rel_x - 10'd95  :
-                             (spectrum_rel_x >= 10'd76)  ? spectrum_rel_x - 10'd76  :
-                             (spectrum_rel_x >= 10'd57)  ? spectrum_rel_x - 10'd57  :
-                             (spectrum_rel_x >= 10'd38)  ? spectrum_rel_x - 10'd38  :
-                             (spectrum_rel_x >= 10'd19)  ? spectrum_rel_x - 10'd19  :
-                             spectrum_rel_x[4:0];
-wire spectrum_bar_column = spectrum_bar_x < 5'd16;
-wire [7:0] spectrum_level = spectrum_sync[spectrum_index*8 +: 8];
-wire [7:0] spectrum_height = spectrum_level[7:2];
-wire spectrum_on = spectrum_area && spectrum_bar_column &&
-                   ({1'b0,pixel_y} >= (10'd104 - {2'b00,spectrum_height}));
-wire [23:0] spectrum_rgb = (spectrum_index < 3'd3) ? 24'h00D8FF :
-                           (spectrum_index < 3'd6) ? 24'h40FF40 : 24'hFFB000;
+wire spectrum_on;
+wire [23:0] spectrum_rgb;
+ring_spectrum_renderer #(
+    .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
+) u_ring_spectrum_renderer (
+    .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
+    .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
+);
 
 // Subtitle alpha background: 25% black + the original pixel, then opaque
 // yellow text.  This gives a readable two-layer overlay without a multiplier.
@@ -461,7 +440,6 @@ always @(posedge clk or posedge rst) begin
         image_adjust_toggle_meta<=0; image_adjust_toggle_sync<=0; image_adjust_toggle_seen<=0;
         image_value_seen<=7'd50; image_selected_seen<=2'd0;
         osd_mode_adjust<=1'b0;
-        spectrum_meta <= 64'd0; spectrum_sync <= 64'd0;
         osd_count <= 27'd0;
         subtitle_tick_count <= 19'd0;
         subtitle_scroll_x <= 9'd0;
@@ -484,7 +462,6 @@ always @(posedge clk or posedge rst) begin
         image_selected_meta <= image_selected_async; image_selected_sync <= image_selected_meta;
         image_select_toggle_meta <= image_select_toggle_async; image_select_toggle_sync <= image_select_toggle_meta;
         image_adjust_toggle_meta <= image_adjust_toggle_async; image_adjust_toggle_sync <= image_adjust_toggle_meta;
-        spectrum_meta <= spectrum_bands; spectrum_sync <= spectrum_meta;
         if (image_adjust_toggle_sync != image_adjust_toggle_seen) begin
             image_adjust_toggle_seen <= image_adjust_toggle_sync;
             image_value_seen <= selected_value;

@@ -8,7 +8,7 @@ reg [2:0] brightness_level_async=3'd4;
 reg [6:0] image_brightness_async=7'd50, image_contrast_async=7'd50, image_sharpness_async=7'd50;
 reg [1:0] image_selected_async=0;
 reg image_select_toggle_async=0, image_adjust_toggle_async=0;
-reg [63:0] spectrum_bands=0;
+reg [255:0] spectrum_bands=0;
 reg de=0, vs=0;
 reg [23:0] rgb_in=24'h406080;
 wire display_slot_applied_toggle, display_active;
