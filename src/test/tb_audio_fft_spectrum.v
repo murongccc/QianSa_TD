@@ -13,6 +13,9 @@ integer weak_band;
 integer weak_first;
 integer weak_second;
 integer before_silence;
+integer sweep_low;
+integer sweep_mid;
+integer sweep_high;
 real angle;
 reg [255:0] old_bands;
 always #5 clk=~clk;
@@ -32,6 +35,21 @@ task feed_frame_level;
             angle=6.283185307179586*k/FFT_POINTS;
             val=$rtoi(amplitude*$sin(angle*tone_a));
             if (tone_b != 0) val=val+$rtoi(amplitude*$sin(angle*tone_b));
+            @(negedge clk); sample_pcm=val; sample_valid=1;
+            @(negedge clk); sample_valid=0;
+            repeat (78) @(negedge clk);
+        end
+    end
+endtask
+
+task feed_fractional_tone;
+    input real tone_bin;
+    input integer amplitude;
+    integer k;
+    begin
+        for (k=0;k<FFT_POINTS;k=k+1) begin
+            angle=6.283185307179586*k/FFT_POINTS;
+            val=$rtoi(amplitude*$sin(angle*tone_bin));
             @(negedge clk); sample_pcm=val; sample_valid=1;
             @(negedge clk); sample_valid=0;
             repeat (78) @(negedge clk);
@@ -105,7 +123,28 @@ initial begin
     rst=1;
     repeat (3) @(negedge clk);
     if (bands !== 256'd0) $fatal(1,"reset did not clear spectrum");
-    $display("PASS FFT spectrum: tones, weak highs, smoothed attack/release, buffering, reset");
+    rst=0;
+    feed_fractional_tone(8.25,500000);
+    publish_frame;
+    sweep_low=bands[8*8 +: 8]+bands[9*8 +: 8];
+    if (bands[3*8 +: 8] > 8'd5)
+        $fatal(1,"Hann window leaked into distant bin: %0d",bands[3*8 +: 8]);
+    rst=1; repeat (3) @(negedge clk); rst=0;
+    feed_fractional_tone(8.50,500000);
+    publish_frame;
+    sweep_mid=bands[8*8 +: 8]+bands[9*8 +: 8];
+    if (bands[3*8 +: 8] > 8'd5)
+        $fatal(1,"Hann window leaked at half bin: %0d",bands[3*8 +: 8]);
+    rst=1; repeat (3) @(negedge clk); rst=0;
+    feed_fractional_tone(8.75,500000);
+    publish_frame;
+    sweep_high=bands[8*8 +: 8]+bands[9*8 +: 8];
+    if (sweep_low < 8'd20 || sweep_mid < 8'd20 || sweep_high < 8'd20 ||
+        sweep_mid*2 < sweep_low || sweep_mid*2 < sweep_high)
+        $fatal(1,"frequency sweep has a deep gap: %0d %0d %0d",
+               sweep_low,sweep_mid,sweep_high);
+    $display("PASS FFT spectrum: Hann sweep %0d/%0d/%0d, aggregation, buffering, silence",
+             sweep_low,sweep_mid,sweep_high);
     $finish;
 end
 

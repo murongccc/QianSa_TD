@@ -654,7 +654,7 @@ always @(posedge video_clk or posedge rst_video) begin
         audio_read_toggle <= ~audio_read_toggle;
 end
 
-audio_fft_spectrum #(.FFT_POINTS(512)) u_audio_fft_spectrum (
+audio_fft_spectrum #(.FFT_POINTS(256)) u_audio_fft_spectrum (
     .clk         (video_clk),
     .rst         (rst_video),
     .sample_valid(audio_valid),

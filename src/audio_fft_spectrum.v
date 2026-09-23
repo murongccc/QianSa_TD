@@ -17,7 +17,8 @@ localparam [3:0] ST_IDLE=4'd0, ST_RD_A=4'd1, ST_LATCH_A=4'd2,
                  ST_RD_B=4'd3, ST_LATCH_B=4'd4, ST_M0=4'd5,
                  ST_M1=4'd6, ST_M2=4'd7, ST_M3=4'd8,
                  ST_CALC=4'd9, ST_WR_A=4'd10, ST_WR_B=4'd11,
-                 ST_SCAN_RD=4'd12, ST_SCAN_EVAL=4'd13;
+                 ST_SCAN_RD=4'd12, ST_SCAN_EVAL=4'd13,
+                 ST_BAND_COMMIT=4'd14;
 reg [3:0] state;
 reg capture_bank, process_bank;
 reg [ADDR_W-1:0] sample_count;
@@ -26,6 +27,7 @@ reg [3:0] stage;
 reg [ADDR_W-1:0] scan_bin;
 reg [4:0] band_index;
 reg [7:0] band_peak;
+reg [13:0] band_sum;
 reg [31:0] a_data, b_data, twiddle_word;
 wire [31:0] read_data, bank0_q, bank1_q;
 reg signed [31:0] p0, p1, p2, p3;
@@ -43,6 +45,21 @@ wire [ADDR_W-1:0] read_addr = (state == ST_RD_A) ? a_addr :
 wire [ADDR_W-1:0] write_addr = (state == ST_WR_A) ? a_addr : b_addr;
 wire [31:0] write_data = (state == ST_WR_A) ? result_a : result_b;
 wire [ADDR_W-1:0] capture_addr;
+wire [8:0] window_phase = (FFT_POINTS == 512) ? sample_count :
+                          {sample_count,1'b0};
+wire [8:0] window_fold = (window_phase > 9'd256) ?
+                         (9'd512 - window_phase) : window_phase;
+wire [7:0] window_address = (window_fold > 9'd128) ?
+                            (9'd256 - window_fold) : window_fold[7:0];
+wire [7:0] window_quarter = hann_quarter(window_address[7:1]);
+wire [8:0] window_gain = (window_fold > 9'd128) ?
+                         (9'd256 - {1'b0,window_quarter}) :
+                         {1'b0,window_quarter};
+wire signed [15:0] pcm16 = sample_pcm[23:8];
+wire signed [9:0] window_gain_signed = $signed({1'b0,window_gain});
+wire signed [25:0] window_product = pcm16 * window_gain_signed;
+wire signed [25:0] window_shifted = window_product >>> 8;
+wire [15:0] windowed_pcm = window_shifted[15:0];
 wire [7:0] twiddle_index = pair_index << (8-stage);
 wire signed [15:0] mul_a = ((state == ST_M0) || (state == ST_M2)) ?
                            b_data[31:16] : b_data[15:0];
@@ -59,41 +76,53 @@ wire [15:0] scan_real_abs = read_data[31] ? -read_data[31:16] : read_data[31:16]
 wire [15:0] scan_imag_abs = read_data[15] ? -read_data[15:0] : read_data[15:0];
 wire [16:0] scan_magnitude = {1'b0,scan_real_abs} + {1'b0,scan_imag_abs};
 // 音乐的高频能量通常较低，分段补偿后用分段曲线提升弱信号的可见度。
-wire [18:0] weighted_magnitude = (band_index >= 5'd24) ?
-                                  {scan_magnitude,2'b00} :
+// Hann 窗的相干增益约为 1/2，在显示映射前恢复约 6 dB。
+wire [17:0] calibrated_magnitude = {scan_magnitude,1'b0};
+wire [19:0] weighted_magnitude = (band_index >= 5'd24) ?
+                                  {calibrated_magnitude,2'b00} :
                                   (band_index >= 5'd16) ?
-                                  {1'b0,scan_magnitude,1'b0} :
-                                  {2'b00,scan_magnitude};
-wire [18:0] middle_level = 19'd128 +
-                           ((weighted_magnitude - 19'd1024) >> 5);
-wire [18:0] high_level = 19'd224 +
-                         ((weighted_magnitude - 19'd4096) >> 7);
-wire [7:0] scan_level = (scan_magnitude < 17'd64) ? 8'd0 :
-                        (weighted_magnitude >= 19'd8192) ? 8'hff :
-                        (weighted_magnitude < 19'd1024) ?
+                                  {1'b0,calibrated_magnitude,1'b0} :
+                                  {2'b00,calibrated_magnitude};
+wire [19:0] middle_level = 20'd128 +
+                           ((weighted_magnitude - 20'd1024) >> 5);
+wire [19:0] high_level = 20'd224 +
+                         ((weighted_magnitude - 20'd4096) >> 7);
+wire [7:0] scan_level = (scan_magnitude < 17'd32) ? 8'd0 :
+                        (weighted_magnitude >= 20'd8192) ? 8'hff :
+                        (weighted_magnitude < 20'd1024) ?
                         weighted_magnitude[10:3] :
-                        (weighted_magnitude < 19'd4096) ?
+                        (weighted_magnitude < 20'd4096) ?
                         middle_level[7:0] : high_level[7:0];
 wire [7:0] next_peak = (scan_level > band_peak) ? scan_level : band_peak;
+wire [13:0] next_sum = band_sum + {6'd0,scan_level};
+wire [7:0] reciprocal = band_reciprocal(band_index);
+wire [21:0] mean_product = band_sum * reciprocal;
+wire [14:0] mean_scaled = (mean_product + 22'd64) >> 7;
+wire [7:0] band_mean = (mean_scaled > 15'd255) ? 8'hff : mean_scaled[7:0];
+// 峰值保持瞬态，均值抑制宽频段里单个 bin 的跳动。
+wire [9:0] combined_sum = {2'b00,band_peak} +
+                           {1'b0,band_peak,1'b0} +
+                           {2'b00,band_mean} + 10'd2;
+wire [7:0] band_level = combined_sum[9:2];
 wire [7:0] old_band = bands_history[band_index*8 +: 8];
-wire [7:0] rise_delta = next_peak - old_band;
-wire [7:0] fall_delta = old_band - next_peak;
+wire [7:0] rise_delta = band_level - old_band;
+wire [7:0] fall_delta = old_band - band_level;
 wire [9:0] rise_step = ({2'b00,rise_delta} + 10'd3) >> 2;
 wire [10:0] fall_step = ({3'b000,fall_delta} + 11'd7) >> 3;
 // 上升约四分之一差值、回落约八分之一；2 级死区过滤帧间小抖动。
-wire [7:0] smoothed_band = (next_peak > old_band) ?
+wire [7:0] smoothed_band = (band_level > old_band) ?
                            ((rise_delta > 8'd2) ?
                             old_band + rise_step[7:0] : old_band) :
-                           (((fall_delta > 8'd2) || (next_peak == 8'd0)) ?
+                           (((fall_delta > 8'd2) || (band_level == 8'd0)) ?
                             old_band - fall_step[7:0] : old_band);
 wire bank0_we = (capture_we && !capture_bank) || (process_we && !process_bank);
 wire bank1_we = (capture_we && capture_bank) || (process_we && process_bank);
 wire [ADDR_W-1:0] bank0_addr = (process_we && !process_bank) ? write_addr : capture_addr;
 wire [ADDR_W-1:0] bank1_addr = (process_we && process_bank) ? write_addr : capture_addr;
 wire [31:0] bank0_data = (process_we && !process_bank) ? write_data :
-                         {sample_pcm[23:8],16'd0};
+                         {windowed_pcm,16'd0};
 wire [31:0] bank1_data = (process_we && process_bank) ? write_data :
-                         {sample_pcm[23:8],16'd0};
+                         {windowed_pcm,16'd0};
 
 // 输入按位反转地址写入，DIT 运算结束后频谱按自然序读出。
 function [ADDR_W-1:0] bit_reverse;
@@ -193,6 +222,131 @@ function [8:0] band_last;
         end
     end
 endfunction
+
+// 周期 Hann 窗的四分之一周期表，每项跨两个采样，Q0.8 精度。
+function [7:0] hann_quarter;
+    input [6:0] index;
+    begin
+        case (index)
+            7'd0: hann_quarter = 8'd0;
+            7'd1: hann_quarter = 8'd0;
+            7'd2: hann_quarter = 8'd0;
+            7'd3: hann_quarter = 8'd0;
+            7'd4: hann_quarter = 8'd1;
+            7'd5: hann_quarter = 8'd1;
+            7'd6: hann_quarter = 8'd1;
+            7'd7: hann_quarter = 8'd2;
+            7'd8: hann_quarter = 8'd2;
+            7'd9: hann_quarter = 8'd3;
+            7'd10: hann_quarter = 8'd4;
+            7'd11: hann_quarter = 8'd5;
+            7'd12: hann_quarter = 8'd6;
+            7'd13: hann_quarter = 8'd6;
+            7'd14: hann_quarter = 8'd7;
+            7'd15: hann_quarter = 8'd9;
+            7'd16: hann_quarter = 8'd10;
+            7'd17: hann_quarter = 8'd11;
+            7'd18: hann_quarter = 8'd12;
+            7'd19: hann_quarter = 8'd14;
+            7'd20: hann_quarter = 8'd15;
+            7'd21: hann_quarter = 8'd17;
+            7'd22: hann_quarter = 8'd18;
+            7'd23: hann_quarter = 8'd20;
+            7'd24: hann_quarter = 8'd22;
+            7'd25: hann_quarter = 8'd23;
+            7'd26: hann_quarter = 8'd25;
+            7'd27: hann_quarter = 8'd27;
+            7'd28: hann_quarter = 8'd29;
+            7'd29: hann_quarter = 8'd31;
+            7'd30: hann_quarter = 8'd33;
+            7'd31: hann_quarter = 8'd35;
+            7'd32: hann_quarter = 8'd37;
+            7'd33: hann_quarter = 8'd40;
+            7'd34: hann_quarter = 8'd42;
+            7'd35: hann_quarter = 8'd44;
+            7'd36: hann_quarter = 8'd47;
+            7'd37: hann_quarter = 8'd49;
+            7'd38: hann_quarter = 8'd52;
+            7'd39: hann_quarter = 8'd54;
+            7'd40: hann_quarter = 8'd57;
+            7'd41: hann_quarter = 8'd60;
+            7'd42: hann_quarter = 8'd62;
+            7'd43: hann_quarter = 8'd65;
+            7'd44: hann_quarter = 8'd68;
+            7'd45: hann_quarter = 8'd70;
+            7'd46: hann_quarter = 8'd73;
+            7'd47: hann_quarter = 8'd76;
+            7'd48: hann_quarter = 8'd79;
+            7'd49: hann_quarter = 8'd82;
+            7'd50: hann_quarter = 8'd85;
+            7'd51: hann_quarter = 8'd88;
+            7'd52: hann_quarter = 8'd91;
+            7'd53: hann_quarter = 8'd94;
+            7'd54: hann_quarter = 8'd97;
+            7'd55: hann_quarter = 8'd100;
+            7'd56: hann_quarter = 8'd103;
+            7'd57: hann_quarter = 8'd106;
+            7'd58: hann_quarter = 8'd109;
+            7'd59: hann_quarter = 8'd112;
+            7'd60: hann_quarter = 8'd115;
+            7'd61: hann_quarter = 8'd119;
+            7'd62: hann_quarter = 8'd122;
+            7'd63: hann_quarter = 8'd125;
+            7'd64: hann_quarter = 8'd128;
+            default: hann_quarter = 8'd128;
+        endcase
+    end
+endfunction
+
+// 每段 bin 数的 Q0.7 倒数，均值误差只占混合幅度的四分之一。
+function [7:0] band_reciprocal;
+    input [4:0] index;
+    begin
+        band_reciprocal = 8'd128;
+        if (FFT_POINTS == 512) begin
+            case (index)
+                5'd16: band_reciprocal = 8'd64;
+                5'd17: band_reciprocal = 8'd32;
+                5'd18: band_reciprocal = 8'd32;
+                5'd19: band_reciprocal = 8'd26;
+                5'd20: band_reciprocal = 8'd21;
+                5'd21: band_reciprocal = 8'd18;
+                5'd22: band_reciprocal = 8'd14;
+                5'd23: band_reciprocal = 8'd13;
+                5'd24: band_reciprocal = 8'd11;
+                5'd25: band_reciprocal = 8'd9;
+                5'd26: band_reciprocal = 8'd8;
+                5'd27: band_reciprocal = 8'd6;
+                5'd28: band_reciprocal = 8'd5;
+                5'd29: band_reciprocal = 8'd4;
+                5'd30: band_reciprocal = 8'd4;
+                5'd31: band_reciprocal = 8'd3;
+                default: band_reciprocal = 8'd128;
+            endcase
+        end else begin
+            case (index)
+                5'd16: band_reciprocal = 8'd128;
+                5'd17: band_reciprocal = 8'd128;
+                5'd18: band_reciprocal = 8'd128;
+                5'd19: band_reciprocal = 8'd128;
+                5'd20: band_reciprocal = 8'd43;
+                5'd21: band_reciprocal = 8'd32;
+                5'd22: band_reciprocal = 8'd26;
+                5'd23: band_reciprocal = 8'd26;
+                5'd24: band_reciprocal = 8'd18;
+                5'd25: band_reciprocal = 8'd18;
+                5'd26: band_reciprocal = 8'd16;
+                5'd27: band_reciprocal = 8'd13;
+                5'd28: band_reciprocal = 8'd11;
+                5'd29: band_reciprocal = 8'd10;
+                5'd30: band_reciprocal = 8'd8;
+                5'd31: band_reciprocal = 8'd7;
+                default: band_reciprocal = 8'd128;
+            endcase
+        end
+    end
+endfunction
+
 
 // Q1.15 的 e^(-j2πk/512)。256 点模式使用偶数地址。
 function [31:0] twiddle;
@@ -476,7 +630,7 @@ always @(posedge clk or posedge rst) begin
         state<=ST_IDLE; capture_bank<=1'b0; process_bank<=1'b0;
         sample_count<={ADDR_W{1'b0}}; group_base<={ADDR_W{1'b0}};
         pair_index<={ADDR_W{1'b0}}; step<=1; stage<=0;
-        scan_bin<=1; band_index<=0; band_peak<=0;
+        scan_bin<=1; band_index<=0; band_peak<=0; band_sum<=0;
         a_data<=0; b_data<=0; twiddle_word<=0;
         p0<=0; p1<=0; p2<=0; p3<=0; result_a<=0; result_b<=0;
         bands<=0; bands_history<=0; bands_build<=0; bands_pending<=0;
@@ -532,7 +686,8 @@ always @(posedge clk or posedge rst) begin
                         step <= step << 1;
                         stage <= stage + 1'b1;
                         if (stage == ADDR_W-1) begin
-                            scan_bin <= 1; band_index <= 0; band_peak <= 0;
+                            scan_bin <= 1; band_index <= 0;
+                            band_peak <= 0; band_sum <= 0;
                             state <= ST_SCAN_RD;
                         end
                     end
@@ -544,20 +699,24 @@ always @(posedge clk or posedge rst) begin
             end
             ST_SCAN_RD: state <= ST_SCAN_EVAL;
             ST_SCAN_EVAL: begin
-                if ({1'b0,scan_bin} == band_last(band_index)) begin
-                    bands_history[band_index*8 +: 8] <= smoothed_band;
-                    bands_build[band_index*8 +: 8] <= smoothed_band;
-                    band_index <= band_index + 1'b1;
-                    band_peak <= 0;
-                end else band_peak <= next_peak;
-                if (scan_bin == LAST_BIN) begin
+                band_peak <= next_peak;
+                band_sum <= next_sum;
+                if (scan_bin != LAST_BIN) scan_bin <= scan_bin + 1'b1;
+                if ({1'b0,scan_bin} == band_last(band_index))
+                    state <= ST_BAND_COMMIT;
+                else state <= ST_SCAN_RD;
+            end
+            ST_BAND_COMMIT: begin
+                bands_history[band_index*8 +: 8] <= smoothed_band;
+                bands_build[band_index*8 +: 8] <= smoothed_band;
+                band_index <= band_index + 1'b1;
+                band_peak <= 0;
+                band_sum <= 0;
+                if (band_index == 5'd31) begin
                     bands_pending <= {smoothed_band,bands_build[247:0]};
                     pending_valid <= 1'b1;
                     state <= ST_IDLE;
-                end else begin
-                    scan_bin <= scan_bin + 1'b1;
-                    state <= ST_SCAN_RD;
-                end
+                end else state <= ST_SCAN_RD;
             end
             default: state <= ST_IDLE;
         endcase
