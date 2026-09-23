@@ -180,7 +180,9 @@ always @(posedge clk or posedge rst) begin
     if(linebuf_write) begin
      if(src_last||fill_col+1'b1>=sw) begin
       fill_col<=0;next_row<=next_row+1'b1;
-      if(next_row>=sy1) state<=ST_READ0;
+      // 行尾先退出写入状态，再用已寄存的 required_row 判断是否可以读。
+      // 避免 sh -> sy1 -> 行尾比较 -> state 跨越一个 100 MHz 周期。
+      state<=ST_CHECK;
      end else fill_col<=fill_col+1'b1;
     end
    end
