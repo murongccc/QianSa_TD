@@ -20,7 +20,10 @@ localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            ST_WAIT_CANDIDATE=4'd7, ST_HOLD=4'd8,
            ST_DIR_OFFSET=4'd9, ST_DIR_ADDR=4'd10,
            ST_DIR_FAT_CHECK=4'd11, ST_DIR_FAT_ADDR=4'd12,
-           ST_EMIT_CANDIDATE=4'd13, ST_NEXT_CANDIDATE=4'd14;
+           ST_EMIT_CANDIDATE=4'd13, ST_NEXT_CANDIDATE=4'd14,
+           // 将引导扇区结束与字段有效性判断拆开，避免 BPB 寄存器的
+           // 组合判断直接驱动下一扇区地址寄存器的写使能。
+           ST_VALIDATE_BPB=4'd15;
 reg [3:0] state;
 reg [9:0] pos;
 reg [7:0] ent [0:31];
@@ -30,6 +33,9 @@ reg [7:0] fat_count;
 reg [31:0] sectors_per_fat, root_cluster, volume_base;
 reg [31:0] mbr_partition_lba;
 reg mbr_entry_is_fat, mbr_found_partition, mbr_writing_lba;
+// 0：刚读完 LBA0，可在 BPB 无效时回退到 MBR 分区；
+// 1：刚读完 MBR 指向的 BPB，校验失败即结束扫描。
+reg validate_from_mbr;
 reg [31:0] dir_cluster, dir_sector;
 reg [31:0] dir_cluster_offset, dir_data_sector_offset, dir_fat_sector_offset;
 reg [7:0] dir_sector_in_cluster;
@@ -79,6 +85,7 @@ always @(posedge clk or posedge rst) begin
         scan_done<=0; volume_valid<=0; bytes_per_sector<=0; reserved_sector_count<=0;
         fat_count<=0; sectors_per_fat<=0; root_cluster<=0; volume_base<=0;
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
+        validate_from_mbr<=1'b0;
         dir_cluster<=0; dir_sector<=0; dir_cluster_offset<=0;
         dir_data_sector_offset<=0; dir_fat_sector_offset<=0;
         dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
@@ -133,14 +140,8 @@ always @(posedge clk or posedge rst) begin
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; pos<=0;
-                    if (bpb_looks_valid) begin
-                        volume_base<=0; state<=ST_SETUP;
-                    end else if (mbr_found_partition) begin
-                        volume_base<=mbr_partition_lba; sd_sec_read_addr<=mbr_partition_lba;
-                        sd_sec_read<=1'b1; state<=ST_BPB;
-                    end else begin
-                        scan_done<=1'b1; state<=ST_HOLD;
-                    end
+                    validate_from_mbr<=1'b0;
+                    state<=ST_VALIDATE_BPB;
                 end
             end
             ST_BPB: begin
@@ -157,8 +158,25 @@ always @(posedge clk or posedge rst) begin
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; pos<=0;
-                    if (bpb_looks_valid) state<=ST_SETUP;
-                    else begin scan_done<=1'b1; state<=ST_HOLD; end
+                    validate_from_mbr<=1'b1;
+                    state<=ST_VALIDATE_BPB;
+                end
+            end
+            // BPB 字段在前一拍已全部稳定。本拍再决定是否把 LBA0 当作
+            // 直接 FAT32 引导扇区，或读取 MBR 所指向的分区引导扇区。
+            ST_VALIDATE_BPB: begin
+                if (bpb_looks_valid) begin
+                    if (!validate_from_mbr)
+                        volume_base<=32'd0;
+                    state<=ST_SETUP;
+                end else if (!validate_from_mbr && mbr_found_partition) begin
+                    volume_base<=mbr_partition_lba;
+                    sd_sec_read_addr<=mbr_partition_lba;
+                    sd_sec_read<=1'b1;
+                    state<=ST_BPB;
+                end else begin
+                    scan_done<=1'b1;
+                    state<=ST_HOLD;
                 end
             end
             ST_SETUP: begin
