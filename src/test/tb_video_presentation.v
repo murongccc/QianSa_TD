@@ -10,6 +10,7 @@ reg display_valid = 1'b1;
 reg [2:0] display_slot_async = 3'd0;
 reg display_switch_toggle_async = 1'b0;
 wire display_slot_applied_toggle;
+wire display_active;
 reg [2:0] brightness_level_async = 3'd4;
 reg [6:0] image_brightness_async = 7'd50;
 reg [6:0] image_contrast_async = 7'd50;
@@ -38,6 +39,7 @@ video_presentation #(
     .display_slot_async(display_slot_async),
     .display_switch_toggle_async(display_switch_toggle_async),
     .display_slot_applied_toggle(display_slot_applied_toggle),
+    .display_active(display_active),
     .brightness_level_async(brightness_level_async),
     .de(de), .vs(vs),
     .image_brightness_async(image_brightness_async),
@@ -76,6 +78,8 @@ endtask
 initial begin
     repeat (3) @(posedge clk);
     rst = 1'b0;
+    // display_valid 经过两级同步后，首个帧边界才允许 display_active 置位。
+    repeat (3) @(posedge clk);
     next_frame;
     for (line = 0; line < 480; line = line + 1)
         active_line(line);

@@ -1,7 +1,3 @@
-// 临时板级定位：保留帧读、时序、HDMI AXIS 与 PHY，仅绕过图像呈现链。
-// 结束定位后应移除此定义，恢复 OSD、频谱及图像参数处理。
-`define IMAGE_RAW_BYPASS
-
 module top(
     input                       clk,
     input                       rst_n,
@@ -703,15 +699,10 @@ video_presentation #(
     .rgb_out            (vout_data_processed)
 );
 
-`ifdef IMAGE_RAW_BYPASS
-assign vout_data = vout_data_raw;
-assign axis_input_de = de;
-assign axis_input_vs = vs;
-`else
+// 恢复完整的图像呈现链：RGB、DE 和 VS 同步经过两拍处理后送入 HDMI AXIS。
 assign vout_data = vout_data_processed;
 assign axis_input_de = presentation_de_d2;
 assign axis_input_vs = presentation_vs_d2;
-`endif
 
 image_controls u_image_controls (
     .clk(clk), .rst(rst_clk), .key_inc_n(key3), .key_dec_n(key4),
