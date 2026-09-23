@@ -58,12 +58,34 @@ wire signed [17:0] ai = $signed({{2{a_data[15]}},a_data[15:0]});
 wire [15:0] scan_real_abs = read_data[31] ? -read_data[31:16] : read_data[31:16];
 wire [15:0] scan_imag_abs = read_data[15] ? -read_data[15:0] : read_data[15:0];
 wire [16:0] scan_magnitude = {1'b0,scan_real_abs} + {1'b0,scan_imag_abs};
-wire [7:0] scan_level = (scan_magnitude > 17'd16320) ? 8'hff :
-                        scan_magnitude[13:6];
+// 音乐的高频能量通常较低，分段补偿后用分段曲线提升弱信号的可见度。
+wire [18:0] weighted_magnitude = (band_index >= 5'd24) ?
+                                  {scan_magnitude,2'b00} :
+                                  (band_index >= 5'd16) ?
+                                  {1'b0,scan_magnitude,1'b0} :
+                                  {2'b00,scan_magnitude};
+wire [18:0] middle_level = 19'd128 +
+                           ((weighted_magnitude - 19'd1024) >> 5);
+wire [18:0] high_level = 19'd224 +
+                         ((weighted_magnitude - 19'd4096) >> 7);
+wire [7:0] scan_level = (scan_magnitude < 17'd64) ? 8'd0 :
+                        (weighted_magnitude >= 19'd8192) ? 8'hff :
+                        (weighted_magnitude < 19'd1024) ?
+                        weighted_magnitude[10:3] :
+                        (weighted_magnitude < 19'd4096) ?
+                        middle_level[7:0] : high_level[7:0];
 wire [7:0] next_peak = (scan_level > band_peak) ? scan_level : band_peak;
 wire [7:0] old_band = bands_history[band_index*8 +: 8];
-wire [8:0] decay_sum = {1'b0,old_band} + {1'b0,next_peak};
-wire [7:0] smoothed_band = (next_peak >= old_band) ? next_peak : decay_sum[8:1];
+wire [7:0] rise_delta = next_peak - old_band;
+wire [7:0] fall_delta = old_band - next_peak;
+wire [9:0] rise_step = ({2'b00,rise_delta} + 10'd3) >> 2;
+wire [10:0] fall_step = ({3'b000,fall_delta} + 11'd7) >> 3;
+// 上升约四分之一差值、回落约八分之一；2 级死区过滤帧间小抖动。
+wire [7:0] smoothed_band = (next_peak > old_band) ?
+                           ((rise_delta > 8'd2) ?
+                            old_band + rise_step[7:0] : old_band) :
+                           (((fall_delta > 8'd2) || (next_peak == 8'd0)) ?
+                            old_band - fall_step[7:0] : old_band);
 wire bank0_we = (capture_we && !capture_bank) || (process_we && !process_bank);
 wire bank1_we = (capture_we && capture_bank) || (process_we && process_bank);
 wire [ADDR_W-1:0] bank0_addr = (process_we && !process_bank) ? write_addr : capture_addr;
