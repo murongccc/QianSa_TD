@@ -17,6 +17,18 @@ module fat32_wav_reader #(
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
             CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
+ // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
+ function integer fifo_count_width;
+  input integer max_count;
+  integer remaining;
+  begin
+   remaining=max_count; fifo_count_width=0;
+   while(remaining>0)begin remaining=remaining>>1;fifo_count_width=fifo_count_width+1;end
+   if(fifo_count_width<1)fifo_count_width=1;
+  end
+ endfunction
+ localparam integer FIFO_LEVEL_WIDTH=fifo_count_width(FIFO_SAFE_LEVEL+128);
+ localparam [FIFO_LEVEL_WIDTH-1:0] FIFO_SAFE_COUNT=FIFO_SAFE_LEVEL;
  reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] ent[0:31]; integer i;
  reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
  reg [7:0] boot_fat0,boot_fat1,boot_fat2,boot_fat3,boot_fat4;
@@ -25,7 +37,7 @@ module fat32_wav_reader #(
  reg [31:0] fat_sectors,cluster_offset;
  reg [1:0] calc_action;
  reg [15:0] reserved; reg [7:0] spc,fats,sector_in_cluster;
- reg [31:0] fifo_level; reg read_meta,read_sync,read_seen;
+ reg [FIFO_LEVEL_WIDTH-1:0] fifo_level; reg read_meta,read_sync,read_seen;
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2; reg [31:0] wav_data_remaining;
  reg [7:0] h[0:43]; reg [5:0] header_pos;
  reg [7:0] chunk_id0,chunk_id1,chunk_id2,chunk_id3;
@@ -40,9 +52,12 @@ module fat32_wav_reader #(
                     h[24]==8'h80&&h[25]==8'hbb&&h[26]==0&&h[27]==0&&
                     h[34]==8'd16&&h[35]==0);
  wire read_event=read_sync!=read_seen;
- wire fifo_room=(fifo_level<=FIFO_SAFE_LEVEL)&&!fifo_full;
+ // 同一个加法器实现 +1/-1；减一用计数位宽内的全一补码。
+ wire [FIFO_LEVEL_WIDTH-1:0] fifo_count_delta={{(FIFO_LEVEL_WIDTH-1){!fifo_we}},1'b1};
+ wire fifo_room=(fifo_level<=FIFO_SAFE_COUNT)&&!fifo_full;
  wire [31:0] entry_cluster={ent[21],ent[20],ent[27],ent[26]};
  wire [31:0] entry_size={sd_data,ent[30],ent[29],ent[28]};
+ // 保留外部 32 位接口，内部无符号计数自动零扩展。
  assign audio_fifo_level = fifo_level;
 
  // Cross the read event into the SD clock domain and conservatively account
@@ -53,8 +68,7 @@ module fat32_wav_reader #(
    read_meta<=audio_read_toggle; read_sync<=read_meta;
    if(read_event) read_seen<=read_sync;
    case({fifo_we,read_event})
-    2'b10:fifo_level<=fifo_level+1'b1;
-    2'b01:if(fifo_level!=0)fifo_level<=fifo_level-1'b1;
+    2'b10,2'b01:if(fifo_we || fifo_level!=0)fifo_level<=fifo_level+fifo_count_delta;
     default:fifo_level<=fifo_level;
    endcase
   end
