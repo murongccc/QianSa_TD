@@ -78,11 +78,14 @@ wire [16:0] scan_magnitude = {1'b0,scan_real_abs} + {1'b0,scan_imag_abs};
 // 音乐的高频能量通常较低，分段补偿后用分段曲线提升弱信号的可见度。
 // Hann 窗的相干增益约为 1/2，在显示映射前恢复约 6 dB。
 wire [17:0] calibrated_magnitude = {scan_magnitude,1'b0};
-wire [19:0] weighted_magnitude = (band_index >= 5'd24) ?
+wire [19:0] boosted_magnitude = (band_index >= 5'd24) ?
                                   {calibrated_magnitude,2'b00} :
                                   (band_index >= 5'd16) ?
                                   {1'b0,calibrated_magnitude,1'b0} :
                                   {2'b00,calibrated_magnitude};
+// 显示曲线前保留 25% 的幅度余量，减轻高潮时的压缩和饱和。
+wire [19:0] weighted_magnitude = boosted_magnitude -
+                                  (boosted_magnitude >> 2);
 wire [19:0] middle_level = 20'd128 +
                            ((weighted_magnitude - 20'd1024) >> 5);
 wire [19:0] high_level = 20'd224 +

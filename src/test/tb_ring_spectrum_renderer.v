@@ -72,10 +72,10 @@ initial begin
     if (dut.sector !== 6'd1 || dut.level !== 8'd120)
         $fatal(1,"adjacent band interpolation failed");
     if (pixel_rgb !== 24'h2ed2ff) $fatal(1,"interpolated color failed");
-    expect_pixel(10'd308,10'd120,1'b1);
-    if (dut.sector !== 6'd63 || dut.level !== 8'd140)
-        $fatal(1,"last band wrap interpolation failed");
-    $display("PASS ring renderer: 64 centers, interpolation, wrap, gaps, silence, round edge, color");
+    expect_pixel(10'd308,10'd120,1'b0);
+    if (dut.sector !== 6'd63 || dut.level !== 8'd80)
+        $fatal(1,"last bar must retain highest band without wrapping");
+    $display("PASS ring renderer: 64 centers, interpolation, no frequency wrap, gaps, silence, round edge, color");
     $finish;
 end
 endmodule

@@ -74,9 +74,11 @@ always @* begin
         else sector = 6'd0 - {2'b00,octant_position};
     end
 end
-// 偶数柱使用原频段，奇数柱使用相邻频段平均值；末柱环绕到频段 0。
+// 偶数柱使用原频段，奇数柱使用相邻频段平均值。
+// 最高频与最低频不相邻，末柱沿用最高频段，避免人为产生半高台阶。
 wire [4:0] band_index = sector[5:1];
-wire [4:0] next_band_index = band_index + 5'd1;
+wire [4:0] next_band_index = (band_index == 5'd31) ?
+                             5'd31 : band_index + 5'd1;
 wire [7:0] direct_level = bands[band_index*8 +: 8];
 wire [7:0] next_level = bands[next_band_index*8 +: 8];
 wire [8:0] level_sum = {1'b0,direct_level} + {1'b0,next_level};
