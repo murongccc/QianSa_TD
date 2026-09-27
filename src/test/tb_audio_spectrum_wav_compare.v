@@ -14,15 +14,15 @@ integer detail_file, raw_peak=0, raw_sum=0;
 always #5 clk=~clk;
 audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
-    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands)
+    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars()
 );
 always @(posedge clk) begin
     if (rst) begin raw_peak=0; raw_sum=0; end
-    else if (dut.state==13) begin
-        if (dut.scan_magnitude>raw_peak) raw_peak=dut.scan_magnitude;
-        raw_sum=raw_sum+dut.scan_magnitude;
-    end else if (dut.state==((PIPELINED!=0) ? 18 : 14)) begin
-        $fwrite(detail_file,"%0d,%0d,%0d,%0d,%0d\n",sample_index+1,dut.band_index,raw_peak,raw_sum,dut.band_level);
+    else if (dut.g_legacy.u_legacy.state==13) begin
+        if (dut.g_legacy.u_legacy.scan_magnitude>raw_peak) raw_peak=dut.g_legacy.u_legacy.scan_magnitude;
+        raw_sum=raw_sum+dut.g_legacy.u_legacy.scan_magnitude;
+    end else if (dut.g_legacy.u_legacy.state==((PIPELINED!=0) ? 18 : 14)) begin
+        $fwrite(detail_file,"%0d,%0d,%0d,%0d,%0d\n",sample_index+1,dut.g_legacy.u_legacy.band_index,raw_peak,raw_sum,dut.g_legacy.u_legacy.band_level);
         raw_peak=0; raw_sum=0;
     end
 end

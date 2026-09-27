@@ -1,7 +1,8 @@
-// 32 个分析频段映射为 80 根细圆帽柱；视觉模式对应 512 点、48 kHz、7.03 kHz。
-// 起点位于右侧，频率顺时针增加；低端引入虚拟零幅度，高端收尾以平滑闭合。
+// 参考模式直接显示 80 柱；兼容模式保留 32 段重采样。
+// 起点位于右侧，频率顺时针增加；兼容模式保留旧首尾渐变，参考模式直接取柱。
 module ring_spectrum_renderer #(
     parameter integer ACTIVE_WIDTH = 640,
+    parameter integer REFERENCE_MODE = 0,
     parameter integer ACTIVE_HEIGHT = 480
 )(
     input wire clk,
@@ -9,6 +10,7 @@ module ring_spectrum_renderer #(
     input wire [9:0] pixel_x,
     input wire [9:0] pixel_y,
     input wire [255:0] bands,
+    input wire [639:0] bars,
     output wire pixel_on,
     output wire [23:0] pixel_rgb
 );
@@ -161,7 +163,7 @@ always @* begin
 end
 // 第一级锁存幅度与同像素的几何条件；输出供视频呈现第二级使用。
 // 不增加整个视频通路的两拍延迟，避免频段选择与半径平方串成超长路径。
-wire spectrum_active = |bands;
+wire spectrum_active = REFERENCE_MODE ? (|bars) : (|bands);
 wire [17:0] cross_error = (minor256 >= axis_product) ?
     minor256 - axis_product : axis_product - minor256;
 wire [8:0] side_limit = (octant_position >= 4'd8) ? 9'd480 :
@@ -173,7 +175,7 @@ reg active_stage, inside_side_stage, narrow_center_stage;
 reg [23:0] color_stage;
 // 数据寄存器每拍覆盖，复位仅清有效标志，减小全局复位网络负担。
 always @(posedge clk) begin
-    level_stage <= level;
+    level_stage <= REFERENCE_MODE ? bars[display_index*8 +:8] : level;
     distance_sq_stage <= distance_sq;
     inside_side_stage <= cross_error <= {9'd0,side_limit};
     narrow_center_stage <= cross_error <= {9'd0,cap_limit};

@@ -25,7 +25,7 @@ always #5 clk=~clk;
 
 audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
-    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands)
+    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars()
 );
 
 function integer band_of_bin;
@@ -34,7 +34,7 @@ function integer band_of_bin;
     begin
         band_of_bin=31;
         for (j=31;j>=0;j=j-1)
-            if (bin_number <= dut.band_last(j)) band_of_bin=j;
+            if (bin_number <= dut.g_legacy.u_legacy.band_last(j)) band_of_bin=j;
     end
 endfunction
 
@@ -86,7 +86,7 @@ endtask
 
 task publish_frame;
     begin
-        wait(dut.pending_valid);
+        wait(dut.g_legacy.u_legacy.pending_valid);
         old_bands=bands;
         repeat (3) @(negedge clk);
         if (bands !== old_bands) $fatal(1,"bands changed before video frame");
@@ -115,13 +115,13 @@ initial begin
         $fatal(1,"dual tone missing");
 
     // 高频弱音应有可见幅度，但连续帧上升不能一次跳到目标值。
-    weak_band=band_of_bin(dut.LAST_BIN-5);
-    feed_frame_level(dut.LAST_BIN-5,0,200000);
+    weak_band=band_of_bin(dut.g_legacy.u_legacy.LAST_BIN-5);
+    feed_frame_level(dut.g_legacy.u_legacy.LAST_BIN-5,0,200000);
     publish_frame;
     weak_first=bands[weak_band*8 +: 8];
     if (weak_first < 8'd24 || weak_first > 8'd100)
         $fatal(1,"weak high tone visibility/attack mismatch: %0d",weak_first);
-    feed_frame_level(dut.LAST_BIN-5,0,200000);
+    feed_frame_level(dut.g_legacy.u_legacy.LAST_BIN-5,0,200000);
     publish_frame;
     weak_second=bands[weak_band*8 +: 8];
     if (weak_second <= weak_first || weak_second > 8'd150)
@@ -165,17 +165,17 @@ initial begin
              sweep_low,sweep_mid,sweep_high);
     // 扫描所有非空频段，验证最高段及采样缓冲复用。
     for (n=0;n<32;n=n+1) begin
-        if (dut.band_last(n) <= ((n==0) ? 0 : dut.band_last(n-1)))
+        if (dut.g_legacy.u_legacy.band_last(n) <= ((n==0) ? 0 : dut.g_legacy.u_legacy.band_last(n-1)))
             $fatal(1,"empty band %0d",n);
-        boundary=(n==0) ? 1 : dut.band_last(n-1)+1;
-        tone_index=(boundary+dut.band_last(n))/2;
+        boundary=(n==0) ? 1 : dut.g_legacy.u_legacy.band_last(n-1)+1;
+        tone_index=(boundary+dut.g_legacy.u_legacy.band_last(n))/2;
         reset_analyzer;
         feed_frame_level(tone_index,0,2000000); publish_frame;
         if (bands[n*8 +: 8] < 8'd40) $fatal(1,"sweep missing band %0d",n);
     end
-    if (dut.band_last(31) != ((FFT_POINTS==512) ? 75 : 85)) $fatal(1,"last band mismatch");
+    if (dut.g_legacy.u_legacy.band_last(31) != ((FFT_POINTS==512) ? 75 : 85)) $fatal(1,"last band mismatch");
     if (FFT_POINTS==512) begin
-        if (dut.band_last(0)!=1) $fatal(1,"512 low frequency resolution lost");
+        if (dut.g_legacy.u_legacy.band_last(0)!=1) $fatal(1,"512 low frequency resolution lost");
         reset_analyzer;
         feed_frame_level(110,0,3000000); publish_frame;
         if (bands!==256'd0) $fatal(1,"out-of-range tone displayed");
@@ -183,7 +183,7 @@ initial begin
     // 对数曲线全域单调；未饱和区与解析曲线误差不超过 3 级。
     previous_map=0;
     for (n=0;n<524288;n=n+1) begin
-        mapped=dut.magnitude_to_level(n);
+        mapped=dut.g_legacy.u_legacy.magnitude_to_level(n);
         if (mapped < previous_map) $fatal(1,"nonmonotonic map at %0d",n);
         if (n>32 && n<50000) begin
             exact_map=24.0*$ln(n/32.0)/$ln(2.0);
@@ -194,7 +194,7 @@ initial begin
     end
     // 低、中、高频 -24/-18/-12/-6 dBFS：稳定等级必须递增且不能封顶。
     for (n=0;n<3;n=n+1) begin
-        tone_index=(n==0) ? 3 : ((n==1) ? dut.LAST_BIN/2 : dut.LAST_BIN-5);
+        tone_index=(n==0) ? 3 : ((n==1) ? dut.g_legacy.u_legacy.LAST_BIN/2 : dut.g_legacy.u_legacy.LAST_BIN-5);
         expected_band=band_of_bin(tone_index);
         previous_level=0;
         for (strength=0;strength<4;strength=strength+1) begin
@@ -224,9 +224,9 @@ initial begin
     for (strength=14;strength<=18;strength=strength+1) begin
         reset_analyzer;
         feed_frame_level(8,0,2000000);
-        wait(dut.state==strength);
+        wait(dut.g_legacy.u_legacy.state==strength);
         reset_analyzer;
-        if (bands!==256'd0 || dut.pending_valid!==1'b0)
+        if (bands!==256'd0 || dut.g_legacy.u_legacy.pending_valid!==1'b0)
             $fatal(1,"mid-pipeline reset leaked output");
         feed_frame_level(8,0,2000000); publish_frame;
         if (bands[band_of_bin(8)*8 +: 8]<8'd40)

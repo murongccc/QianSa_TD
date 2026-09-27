@@ -153,6 +153,7 @@ wire        audio_valid;
 wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
 wire [255:0] audio_spectrum_bands;
+wire [639:0] audio_spectrum_bars;
 wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
 wire [31:0] audio_fifo_din, audio_fifo_dout;
 wire audio_reader_busy, audio_reader_done, audio_underrun;
@@ -654,13 +655,14 @@ always @(posedge video_clk or posedge rst_video) begin
         audio_read_toggle <= ~audio_read_toggle;
 end
 
-// 512 点将最低非直流频点降至 93.75 Hz，改善圆环低音区的细节。
-audio_fft_spectrum #(.FFT_POINTS(512)) u_audio_fft_spectrum (
+// 1024 点候选超出 80% LUT 限制，保持 512 点；直接 FFT 插值显示至约 6.39 kHz。
+audio_fft_spectrum #(.FFT_POINTS(512), .REFERENCE_MODE(1)) u_audio_fft_spectrum (
     .clk         (video_clk),
     .rst         (rst_video),
     .sample_valid(audio_valid),
     .sample_pcm  (audio_left_data),
     .frame_start (vs),
+    .bars        (audio_spectrum_bars),
     .bands       (audio_spectrum_bands)
 );
 
@@ -677,6 +679,7 @@ audio_arc_calculate #(
 
 // ===================== Presentation layer and RGB/DE to AXIS =====================
 video_presentation #(
+    .REFERENCE_SPECTRUM(1),
     .ACTIVE_WIDTH  (640),
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
@@ -694,6 +697,7 @@ video_presentation #(
     .image_selected_async(image_selected),
     .image_select_toggle_async(image_select_toggle),
     .image_adjust_toggle_async(image_adjust_toggle),
+    .spectrum_bars      (audio_spectrum_bars),
     .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
     .vs                 (vs),

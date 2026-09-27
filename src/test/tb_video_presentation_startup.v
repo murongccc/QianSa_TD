@@ -29,7 +29,7 @@ video_presentation #(
     .image_brightness_async(image_brightness_async), .image_contrast_async(image_contrast_async),
     .image_sharpness_async(image_sharpness_async), .image_selected_async(image_selected_async),
     .image_select_toggle_async(image_select_toggle_async), .image_adjust_toggle_async(image_adjust_toggle_async),
-    .spectrum_bands(spectrum_bands), .de(de), .vs(vs), .rgb_in(rgb_in), .rgb_out(rgb_out)
+    .spectrum_bands(spectrum_bands), .spectrum_bars(640'd0), .de(de), .vs(vs), .rgb_in(rgb_in), .rgb_out(rgb_out)
 );
 
 task frame_start;

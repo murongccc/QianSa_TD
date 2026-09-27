@@ -34,17 +34,22 @@ def main():
         print(f"PASS {name}")
 
     run("tables", [sys.executable, "src/test/generate_ring_visual_tables.py", "--check"], True)
+    run("reference_tables", [sys.executable, "src/test/generate_reference_fft_tables.py", "--check"], True)
     if not (output / "work").exists():
         run("library", [binaries["vlib"], library])
     sources = ["src/audio_fft_spectrum.v", "src/ring_spectrum_renderer.v",
                "src/video_presentation.v", "src/test/tb_audio_fft_spectrum.v",
                "src/test/tb_ring_spectrum_renderer.v", "src/test/tb_video_presentation.v",
-               "src/test/tb_video_presentation_startup.v"]
+               "src/test/tb_video_presentation_startup.v", "src/test/tb_reference_fft_spectrum.v",
+               "src/test/tb_reference_ring.v"]
     run("compile", [binaries["vlog"], "-work", library, *sources])
     tests = [("fft256", "tb_audio_fft_spectrum", ["-gFFT_POINTS=256"]),
              ("fft512", "tb_audio_fft_spectrum", ["-gFFT_POINTS=512"]),
+             ("reference512", "tb_reference_fft_spectrum", ["-gFFT_POINTS=512"]),
+             ("reference_ring", "tb_reference_ring", []),
              ("ring", "tb_ring_spectrum_renderer", []),
              ("video", "tb_video_presentation", []),
+             ("reference_video", "tb_video_presentation", ["-gREFERENCE_SPECTRUM=1"]),
              ("startup", "tb_video_presentation_startup", [])]
     for name, module, parameters in tests:
         run(name, [binaries["vsim"], "-c", "-lib", library, module, *parameters,

@@ -4,6 +4,7 @@
 // so the TF/SDRAM frame-read path and HDMI timing remain unchanged.
 module video_presentation #(
     parameter integer ACTIVE_WIDTH = 640,
+    parameter integer REFERENCE_SPECTRUM = 0,
     parameter integer ACTIVE_HEIGHT = 480,
     parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
@@ -22,6 +23,7 @@ module video_presentation #(
     input wire image_select_toggle_async,
     input wire image_adjust_toggle_async,
     input wire [255:0] spectrum_bands,
+    input wire [639:0] spectrum_bars,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
 );
@@ -377,10 +379,11 @@ wire param_osd_pixel = param_osd_area && (param_osd_col < 3'd5) &&
 wire spectrum_on;
 wire [23:0] spectrum_rgb;
 ring_spectrum_renderer #(
+    .REFERENCE_MODE(REFERENCE_SPECTRUM),
     .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
 ) u_ring_spectrum_renderer (
     .clk(clk), .rst(rst),
-    .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
+    .bars(spectrum_bars), .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );
 

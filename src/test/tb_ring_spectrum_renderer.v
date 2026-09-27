@@ -14,7 +14,7 @@ reg [23:0] first_color;
 real angle,dx,dy;
 ring_spectrum_renderer dut (
     .clk(clk),.rst(rst),
-    .pixel_x(pixel_x),.pixel_y(pixel_y),.bands(bands),
+    .pixel_x(pixel_x),.pixel_y(pixel_y),.bands(bands), .bars(640'd0),
     .pixel_on(pixel_on),.pixel_rgb(pixel_rgb)
 );
 task point;

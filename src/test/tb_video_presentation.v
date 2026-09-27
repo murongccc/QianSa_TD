@@ -4,6 +4,7 @@
 // The subtitle coordinates retain their production y positions, while the
 // smaller width makes the test quick and sufficient for the overlay logic.
 module tb_video_presentation;
+parameter integer REFERENCE_SPECTRUM=0;
 reg clk = 1'b0;
 reg rst = 1'b1;
 reg display_valid = 1'b1;
@@ -19,6 +20,7 @@ reg [1:0] image_selected_async = 2'd0;
 reg image_select_toggle_async = 1'b0;
 reg image_adjust_toggle_async = 1'b0;
 reg [255:0] spectrum_bands = 256'd0;
+wire [639:0] spectrum_bars=(|spectrum_bands)?{80{8'd120}}:640'd0;
 reg de = 1'b0;
 reg vs = 1'b0;
 reg [23:0] rgb_in = 24'h808080;
@@ -34,6 +36,7 @@ reg [7:0] previous_control_value;
 always #20 clk = ~clk;
 
 video_presentation #(
+    .REFERENCE_SPECTRUM(REFERENCE_SPECTRUM),
     .ACTIVE_WIDTH(64), .ACTIVE_HEIGHT(480), .OSD_DISPLAY_CYCLES(5000),
     .INITIAL_WARMUP_FRAMES(0)
 ) dut (
@@ -51,6 +54,7 @@ video_presentation #(
     .image_select_toggle_async(image_select_toggle_async),
     .image_adjust_toggle_async(image_adjust_toggle_async),
     .spectrum_bands(spectrum_bands),
+    .spectrum_bars(spectrum_bars),
     .rgb_in(rgb_in), .rgb_out(rgb_out)
 );
 

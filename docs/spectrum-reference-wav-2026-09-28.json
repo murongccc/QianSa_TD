@@ -1,0 +1,37 @@
+{
+  "input": "src/python/1.wav, 48 kHz 24-bit stereo, left channel raw volume",
+  "fft_points": 512,
+  "sample_rate": 48000,
+  "frequency_spacing_hz": 93.75,
+  "highest_bar_target_hz": 6389.739363991631,
+  "before": {
+    "frames": 645,
+    "mean_frame_change_px": 1.0328027950310559,
+    "mean_adjacent_difference_px": 1.7525267392797566,
+    "mean_seam_difference_px": 0.0,
+    "maximum_bar_length_px": 47
+  },
+  "after": {
+    "frames": 645,
+    "mean_frame_change_px": 1.1351708074534161,
+    "mean_adjacent_difference_px": 1.9970169757629281,
+    "mean_seam_difference_px": 0.4248062015503876,
+    "maximum_bar_length_px": 55,
+    "clipped_bar_ratio": 0.0
+  },
+  "preview_frames": [
+    {
+      "sample": 80800,
+      "seconds": 1.6833333333333333,
+      "before_bands": "1f2c293a32535c534d415e5663776d56746158625c699ca18b8f7f82a5ab918d",
+      "after_bars": "0509050a0f1414120a1009081a101e1b163521193425202321347e94947163655e545456658298a5aaaeb2aea69d948d868684838280807f7d777069645e57514b45413b35302b25201b16110d080300"
+    },
+    {
+      "sample": 331200,
+      "seconds": 6.9,
+      "before_bands": "353c403e57799280877b6a728a8c9699847b8e8373aaaf9198a08a9e9ca09c91",
+      "after_bars": "060a1415242e452b403c302226243336603c5e774f485f4a4a9aa6906b808d9586727b8b9393939391919090908e8e8e8d8b8a88868583828079736c66605a544e48423d37322c26211c16110d090300"
+    }
+  ],
+  "note": "Same source samples; reference-mode compression changes scale. No board-level audio/volume simulation."
+}
