@@ -12,7 +12,7 @@ module audio_fft_spectrum #(
 );
 localparam integer ADDR_W = (FFT_POINTS == 512) ? 9 : 8;
 localparam [ADDR_W-1:0] LAST_SAMPLE = FFT_POINTS - 1;
-localparam [ADDR_W-1:0] LAST_BIN = (FFT_POINTS == 512) ? 170 : 85;
+localparam [ADDR_W-1:0] LAST_BIN = (FFT_POINTS == 512) ? 75 : 85;
 localparam [4:0] ST_IDLE=5'd0, ST_RD_A=5'd1, ST_LATCH_A=5'd2,
                  ST_RD_B=5'd3, ST_LATCH_B=5'd4, ST_M0=5'd5,
                  ST_M1=5'd6, ST_M2=5'd7, ST_M3=5'd8,
@@ -28,7 +28,7 @@ reg [ADDR_W-1:0] group_base, pair_index, step;
 reg [3:0] stage;
 reg [ADDR_W-1:0] scan_bin;
 reg [4:0] band_index;
-// 原始 L1 幅度最多 65536；最大频段 18 个 bin，累加保留保护位。
+// 原始 L1 幅度最多 65536；两种配置的累加均保留保护位。
 reg [16:0] band_peak;
 reg [21:0] band_sum;
 // 以下仅为分拍中间值，进入发布状态前全部被覆盖，无需异步复位。
@@ -134,47 +134,86 @@ function [15:0] sat16;
     end
 endfunction
 
-// 48 kHz 下末端约 15.94 kHz；512 点按相同频率边界加倍。
+// 512 点视觉模式独立分析 bin1，末端 bin75 = 7031.25 Hz。
+// 256 点保留旧频段作为兼容模式；板级使用 512 点。
 function [8:0] band_last;
     input [4:0] index;
     reg [7:0] last_256;
     begin
-        case (index)
-            5'd0: last_256 = 8'd1;
-            5'd1: last_256 = 8'd2;
-            5'd2: last_256 = 8'd3;
-            5'd3: last_256 = 8'd4;
-            5'd4: last_256 = 8'd5;
-            5'd5: last_256 = 8'd6;
-            5'd6: last_256 = 8'd7;
-            5'd7: last_256 = 8'd8;
-            5'd8: last_256 = 8'd9;
-            5'd9: last_256 = 8'd10;
-            5'd10: last_256 = 8'd11;
-            5'd11: last_256 = 8'd12;
-            5'd12: last_256 = 8'd13;
-            5'd13: last_256 = 8'd14;
-            5'd14: last_256 = 8'd15;
-            5'd15: last_256 = 8'd16;
-            5'd16: last_256 = 8'd17;
-            5'd17: last_256 = 8'd18;
-            5'd18: last_256 = 8'd19;
-            5'd19: last_256 = 8'd20;
-            5'd20: last_256 = 8'd22;
-            5'd21: last_256 = 8'd25;
-            5'd22: last_256 = 8'd28;
-            5'd23: last_256 = 8'd32;
-            5'd24: last_256 = 8'd36;
-            5'd25: last_256 = 8'd41;
-            5'd26: last_256 = 8'd47;
-            5'd27: last_256 = 8'd53;
-            5'd28: last_256 = 8'd60;
-            5'd29: last_256 = 8'd67;
-            5'd30: last_256 = 8'd76;
-            5'd31: last_256 = 8'd85;
-            default: last_256 = 8'd85;
-        endcase
-        band_last = (FFT_POINTS == 512) ? {last_256,1'b0} : {1'b0,last_256};
+        if (FFT_POINTS == 512) begin
+            case (index)
+                5'd0: band_last = 9'd1;
+                5'd1: band_last = 9'd2;
+                5'd2: band_last = 9'd3;
+                5'd3: band_last = 9'd4;
+                5'd4: band_last = 9'd5;
+                5'd5: band_last = 9'd6;
+                5'd6: band_last = 9'd7;
+                5'd7: band_last = 9'd8;
+                5'd8: band_last = 9'd9;
+                5'd9: band_last = 9'd10;
+                5'd10: band_last = 9'd11;
+                5'd11: band_last = 9'd12;
+                5'd12: band_last = 9'd13;
+                5'd13: band_last = 9'd14;
+                5'd14: band_last = 9'd15;
+                5'd15: band_last = 9'd16;
+                5'd16: band_last = 9'd17;
+                5'd17: band_last = 9'd19;
+                5'd18: band_last = 9'd21;
+                5'd19: band_last = 9'd24;
+                5'd20: band_last = 9'd27;
+                5'd21: band_last = 9'd30;
+                5'd22: band_last = 9'd34;
+                5'd23: band_last = 9'd38;
+                5'd24: band_last = 9'd43;
+                5'd25: band_last = 9'd48;
+                5'd26: band_last = 9'd54;
+                5'd27: band_last = 9'd60;
+                5'd28: band_last = 9'd66;
+                5'd29: band_last = 9'd70;
+                5'd30: band_last = 9'd73;
+                5'd31: band_last = 9'd75;
+                default: band_last = 9'd75;
+            endcase
+        end else begin
+            case (index)
+                5'd0: last_256 = 8'd1;
+                5'd1: last_256 = 8'd2;
+                5'd2: last_256 = 8'd3;
+                5'd3: last_256 = 8'd4;
+                5'd4: last_256 = 8'd5;
+                5'd5: last_256 = 8'd6;
+                5'd6: last_256 = 8'd7;
+                5'd7: last_256 = 8'd8;
+                5'd8: last_256 = 8'd9;
+                5'd9: last_256 = 8'd10;
+                5'd10: last_256 = 8'd11;
+                5'd11: last_256 = 8'd12;
+                5'd12: last_256 = 8'd13;
+                5'd13: last_256 = 8'd14;
+                5'd14: last_256 = 8'd15;
+                5'd15: last_256 = 8'd16;
+                5'd16: last_256 = 8'd17;
+                5'd17: last_256 = 8'd18;
+                5'd18: last_256 = 8'd19;
+                5'd19: last_256 = 8'd20;
+                5'd20: last_256 = 8'd22;
+                5'd21: last_256 = 8'd25;
+                5'd22: last_256 = 8'd28;
+                5'd23: last_256 = 8'd32;
+                5'd24: last_256 = 8'd36;
+                5'd25: last_256 = 8'd41;
+                5'd26: last_256 = 8'd47;
+                5'd27: last_256 = 8'd53;
+                5'd28: last_256 = 8'd60;
+                5'd29: last_256 = 8'd67;
+                5'd30: last_256 = 8'd76;
+                5'd31: last_256 = 8'd85;
+                default: last_256 = 8'd85;
+            endcase
+            band_last = {1'b0,last_256};
+        end
     end
 endfunction
 
@@ -259,39 +298,39 @@ function [7:0] band_reciprocal;
     begin
         if (FFT_POINTS == 512) begin
             case (index)
-                5'd0: band_reciprocal = 8'd64;
-                5'd1: band_reciprocal = 8'd64;
-                5'd2: band_reciprocal = 8'd64;
-                5'd3: band_reciprocal = 8'd64;
-                5'd4: band_reciprocal = 8'd64;
-                5'd5: band_reciprocal = 8'd64;
-                5'd6: band_reciprocal = 8'd64;
-                5'd7: band_reciprocal = 8'd64;
-                5'd8: band_reciprocal = 8'd64;
-                5'd9: band_reciprocal = 8'd64;
-                5'd10: band_reciprocal = 8'd64;
-                5'd11: band_reciprocal = 8'd64;
-                5'd12: band_reciprocal = 8'd64;
-                5'd13: band_reciprocal = 8'd64;
-                5'd14: band_reciprocal = 8'd64;
-                5'd15: band_reciprocal = 8'd64;
-                5'd16: band_reciprocal = 8'd64;
+                5'd0: band_reciprocal = 8'd128;
+                5'd1: band_reciprocal = 8'd128;
+                5'd2: band_reciprocal = 8'd128;
+                5'd3: band_reciprocal = 8'd128;
+                5'd4: band_reciprocal = 8'd128;
+                5'd5: band_reciprocal = 8'd128;
+                5'd6: band_reciprocal = 8'd128;
+                5'd7: band_reciprocal = 8'd128;
+                5'd8: band_reciprocal = 8'd128;
+                5'd9: band_reciprocal = 8'd128;
+                5'd10: band_reciprocal = 8'd128;
+                5'd11: band_reciprocal = 8'd128;
+                5'd12: band_reciprocal = 8'd128;
+                5'd13: band_reciprocal = 8'd128;
+                5'd14: band_reciprocal = 8'd128;
+                5'd15: band_reciprocal = 8'd128;
+                5'd16: band_reciprocal = 8'd128;
                 5'd17: band_reciprocal = 8'd64;
                 5'd18: band_reciprocal = 8'd64;
-                5'd19: band_reciprocal = 8'd64;
-                5'd20: band_reciprocal = 8'd32;
-                5'd21: band_reciprocal = 8'd21;
-                5'd22: band_reciprocal = 8'd21;
-                5'd23: band_reciprocal = 8'd16;
-                5'd24: band_reciprocal = 8'd16;
-                5'd25: band_reciprocal = 8'd13;
-                5'd26: band_reciprocal = 8'd11;
-                5'd27: band_reciprocal = 8'd11;
-                5'd28: band_reciprocal = 8'd9;
-                5'd29: band_reciprocal = 8'd9;
-                5'd30: band_reciprocal = 8'd7;
-                5'd31: band_reciprocal = 8'd7;
-                default: band_reciprocal = 8'd7;
+                5'd19: band_reciprocal = 8'd43;
+                5'd20: band_reciprocal = 8'd43;
+                5'd21: band_reciprocal = 8'd43;
+                5'd22: band_reciprocal = 8'd32;
+                5'd23: band_reciprocal = 8'd32;
+                5'd24: band_reciprocal = 8'd26;
+                5'd25: band_reciprocal = 8'd26;
+                5'd26: band_reciprocal = 8'd21;
+                5'd27: band_reciprocal = 8'd21;
+                5'd28: band_reciprocal = 8'd21;
+                5'd29: band_reciprocal = 8'd32;
+                5'd30: band_reciprocal = 8'd43;
+                5'd31: band_reciprocal = 8'd64;
+                default: band_reciprocal = 8'd64;
             endcase
         end else begin
             case (index)

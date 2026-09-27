@@ -1,8 +1,11 @@
-// 32 个频段插值成 64 根径向音柱。距离平方使内外边界保持圆形。
+// 32 个分析频段映射为 80 根细圆帽柱；视觉模式对应 512 点、48 kHz、7.03 kHz。
+// 起点位于右侧，频率顺时针增加；低端引入虚拟零幅度，高端收尾以平滑闭合。
 module ring_spectrum_renderer #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer ACTIVE_HEIGHT = 480
 )(
+    input wire clk,
+    input wire rst,
     input wire [9:0] pixel_x,
     input wire [9:0] pixel_y,
     input wire [255:0] bands,
@@ -12,42 +15,32 @@ module ring_spectrum_renderer #(
 localparam [9:0] CENTER_X = ACTIVE_WIDTH / 2;
 localparam [9:0] CENTER_Y = ACTIVE_HEIGHT / 2;
 wire [10:0] abs_x = (pixel_x >= CENTER_X) ?
-                    ({1'b0,pixel_x} - {1'b0,CENTER_X}) :
-                    ({1'b0,CENTER_X} - {1'b0,pixel_x});
+    ({1'b0,pixel_x} - {1'b0,CENTER_X}) : ({1'b0,CENTER_X} - {1'b0,pixel_x});
 wire [10:0] abs_y = (pixel_y >= CENTER_Y) ?
-                    ({1'b0,pixel_y} - {1'b0,CENTER_Y}) :
-                    ({1'b0,CENTER_Y} - {1'b0,pixel_y});
+    ({1'b0,pixel_y} - {1'b0,CENTER_Y}) : ({1'b0,CENTER_Y} - {1'b0,pixel_y});
 wire x_right = pixel_x >= CENTER_X;
 wire y_down = pixel_y >= CENTER_Y;
-wire [10:0] major = (abs_x >= abs_y) ? abs_x : abs_y;
-wire [10:0] minor = (abs_x >= abs_y) ? abs_y : abs_x;
-// 可显示半径不超过 168 像素，先限定范围以缩小平方运算位宽。
 wire in_circle_bounds = (abs_x <= 11'd168) && (abs_y <= 11'd168);
 wire [7:0] local_x = abs_x[7:0];
 wire [7:0] local_y = abs_y[7:0];
-// 比较距离平方，避免开方与折线近似造成的棱角。
 wire [16:0] distance_sq = (local_x * local_x) + (local_y * local_y);
-// 每个八分圆含 8 个柱中心；Q8 正切阈值采用移位加法。
-wire [18:0] minor256 = {minor,8'd0};
-wire [18:0] major_wide = {8'd0,major};
-wire [18:0] bound0 = (major_wide << 0) + (major_wide << 2) + (major_wide << 3);
-wire [18:0] bound1 = (major_wide << 1) + (major_wide << 2) + (major_wide << 5);
-wire [18:0] bound2 = (major_wide << 6);
-wire [18:0] bound3 = (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6);
-wire [18:0] bound4 = (major_wide << 0) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5) + (major_wide << 6);
-wire [18:0] bound5 = (major_wide << 0) + (major_wide << 3) + (major_wide << 4) + (major_wide << 7);
-wire [18:0] bound6 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5) + (major_wide << 7);
-wire [18:0] bound7 = (major_wide << 3) + (major_wide << 5) + (major_wide << 6) + (major_wide << 7);
-wire [18:0] gap_margin = major_wide << 1;
-wire near0 = (minor256 + gap_margin >= bound0) && (minor256 <= bound0 + gap_margin);
-wire near1 = (minor256 + gap_margin >= bound1) && (minor256 <= bound1 + gap_margin);
-wire near2 = (minor256 + gap_margin >= bound2) && (minor256 <= bound2 + gap_margin);
-wire near3 = (minor256 + gap_margin >= bound3) && (minor256 <= bound3 + gap_margin);
-wire near4 = (minor256 + gap_margin >= bound4) && (minor256 <= bound4 + gap_margin);
-wire near5 = (minor256 + gap_margin >= bound5) && (minor256 <= bound5 + gap_margin);
-wire near6 = (minor256 + gap_margin >= bound6) && (minor256 <= bound6 + gap_margin);
-wire near7 = (minor256 + gap_margin >= bound7) && (minor256 <= bound7 + gap_margin);
-wire angular_gap = near0 || near1 || near2 || near3 || near4 || near5 || near6 || near7;
+wire [7:0] major = (local_x >= local_y) ? local_x : local_y;
+wire [7:0] minor = (local_x >= local_y) ? local_y : local_x;
+wire [17:0] major_wide = {10'd0,major};
+wire [17:0] minor256 = {2'd0,minor,8'd0};
+// 每个八分圆分为 10 根柱，以常数乘法选择最近中心线，无浮点或除法。
+// BEGIN GENERATED TABLES
+// 此区由 src/test/generate_ring_visual_tables.py 生成；角度为 Q8 正切。
+wire [17:0] bound0 = (major_wide << 1) + (major_wide << 3);
+wire [17:0] bound1 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4);
+wire [17:0] bound2 = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 5);
+wire [17:0] bound3 = (major_wide << 3) + (major_wide << 6);
+wire [17:0] bound4 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6);
+wire [17:0] bound5 = (major_wide << 1) + (major_wide << 2) + (major_wide << 4) + (major_wide << 5) + (major_wide << 6);
+wire [17:0] bound6 = (major_wide << 0) + (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 7);
+wire [17:0] bound7 = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 7);
+wire [17:0] bound8 = (major_wide << 1) + (major_wide << 3) + (major_wide << 6) + (major_wide << 7);
+wire [17:0] bound9 = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6) + (major_wide << 7);
 wire [3:0] octant_position =
     (minor256 < bound0) ? 4'd0 :
     (minor256 < bound1) ? 4'd1 :
@@ -57,115 +50,150 @@ wire [3:0] octant_position =
     (minor256 < bound5) ? 4'd5 :
     (minor256 < bound6) ? 4'd6 :
     (minor256 < bound7) ? 4'd7 :
-    4'd8;
-reg [5:0] sector;
+    (minor256 < bound8) ? 4'd8 :
+    (minor256 < bound9) ? 4'd9 :
+    4'd10;
+reg [17:0] axis_product;
 always @* begin
-    if (x_right && !y_down) begin
-        if (abs_y >= abs_x) sector = {2'b00,octant_position};
-        else sector = 6'd16 - {2'b00,octant_position};
-    end else if (x_right && y_down) begin
-        if (abs_x >= abs_y) sector = 6'd16 + {2'b00,octant_position};
-        else sector = 6'd32 - {2'b00,octant_position};
-    end else if (!x_right && y_down) begin
-        if (abs_y >= abs_x) sector = 6'd32 + {2'b00,octant_position};
-        else sector = 6'd48 - {2'b00,octant_position};
-    end else begin
-        if (abs_x >= abs_y) sector = 6'd48 + {2'b00,octant_position};
-        else sector = 6'd0 - {2'b00,octant_position};
-    end
+    case (octant_position)
+        4'd0: axis_product = 18'd0;
+        4'd1: axis_product = (major_wide << 2) + (major_wide << 4);
+        4'd2: axis_product = (major_wide << 0) + (major_wide << 3) + (major_wide << 5);
+        4'd3: axis_product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5);
+        4'd4: axis_product = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 6);
+        4'd5: axis_product = (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6);
+        4'd6: axis_product = (major_wide << 1) + (major_wide << 7);
+        4'd7: axis_product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 7);
+        4'd8: axis_product = (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5) + (major_wide << 7);
+        4'd9: axis_product = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6) + (major_wide << 7);
+        4'd10: axis_product = (major_wide << 8);
+        default: axis_product = major_wide << 8;
+    endcase
 end
-// 偶数柱使用原频段，奇数柱使用相邻频段平均值。
-// 最高频与最低频不相邻，末柱沿用最高频段，避免人为产生半高台阶。
-wire [4:0] band_index = sector[5:1];
-wire [4:0] next_band_index = (band_index == 5'd31) ?
-                             5'd31 : band_index + 5'd1;
-wire [7:0] direct_level = bands[band_index*8 +: 8];
-wire [7:0] next_level = bands[next_band_index*8 +: 8];
-wire [8:0] level_sum = {1'b0,direct_level} + {1'b0,next_level};
-wire [7:0] level = sector[0] ? level_sum[8:1] : direct_level;
-wire [7:0] bar_length = {2'd0,level[7:2]} + {4'd0,level[7:4]};
-// 整组有声时保留独立短柱；在最终距离判断合并，避免增加平方前的选择链。
-wire spectrum_active = |bands;
-wire [8:0] outer_radius = 9'd90 + {1'b0,bar_length};
-wire [17:0] outer_radius_sq = outer_radius * outer_radius;
-wire bar = in_circle_bounds &&
-           (distance_sq > 17'd8100) &&
-           (({1'b0,distance_sq} <= outer_radius_sq) ||
-            (spectrum_active && distance_sq <= 17'd8464)) &&
-           !angular_gap;
-assign pixel_on = bar;
-assign pixel_rgb = rainbow(sector);
-
-function [23:0] rainbow;
-    input [5:0] index;
+function [7:0] visual_mapping;
+    input [6:0] index;
     begin
-        case (index)
-            6'd0: rainbow = 24'h2ee6ff;
-            6'd1: rainbow = 24'h2ed2ff;
-            6'd2: rainbow = 24'h2ebfff;
-            6'd3: rainbow = 24'h2eabff;
-            6'd4: rainbow = 24'h2e97ff;
-            6'd5: rainbow = 24'h2e83ff;
-            6'd6: rainbow = 24'h2e70ff;
-            6'd7: rainbow = 24'h2e5cff;
-            6'd8: rainbow = 24'h2e49ff;
-            6'd9: rainbow = 24'h343bff;
-            6'd10: rainbow = 24'h3a2eff;
-            6'd11: rainbow = 24'h4d2eff;
-            6'd12: rainbow = 24'h612eff;
-            6'd13: rainbow = 24'h742eff;
-            6'd14: rainbow = 24'h882eff;
-            6'd15: rainbow = 24'h9c2eff;
-            6'd16: rainbow = 24'hb02eff;
-            6'd17: rainbow = 24'hc32eff;
-            6'd18: rainbow = 24'hd72eff;
-            6'd19: rainbow = 24'hea2eff;
-            6'd20: rainbow = 24'hfe2eff;
-            6'd21: rainbow = 24'hfe2eec;
-            6'd22: rainbow = 24'hff2ed9;
-            6'd23: rainbow = 24'hff2ec5;
-            6'd24: rainbow = 24'hff2eb2;
-            6'd25: rainbow = 24'hff2e9e;
-            6'd26: rainbow = 24'hff2e8a;
-            6'd27: rainbow = 24'hff2e76;
-            6'd28: rainbow = 24'hff2e63;
-            6'd29: rainbow = 24'hff2e4f;
-            6'd30: rainbow = 24'hff2e3c;
-            6'd31: rainbow = 24'hff3a35;
-            6'd32: rainbow = 24'hff472e;
-            6'd33: rainbow = 24'hff5a2e;
-            6'd34: rainbow = 24'hff6e2e;
-            6'd35: rainbow = 24'hff812e;
-            6'd36: rainbow = 24'hff952e;
-            6'd37: rainbow = 24'hffa92e;
-            6'd38: rainbow = 24'hffbd2e;
-            6'd39: rainbow = 24'hffd02e;
-            6'd40: rainbow = 24'hffe42e;
-            6'd41: rainbow = 24'hf9f12e;
-            6'd42: rainbow = 24'hf3ff2e;
-            6'd43: rainbow = 24'hdfff2e;
-            6'd44: rainbow = 24'hccff2e;
-            6'd45: rainbow = 24'hb8ff2e;
-            6'd46: rainbow = 24'ha5ff2e;
-            6'd47: rainbow = 24'h91ff2e;
-            6'd48: rainbow = 24'h7dff2e;
-            6'd49: rainbow = 24'h69ff2e;
-            6'd50: rainbow = 24'h56ff2e;
-            6'd51: rainbow = 24'h42ff2e;
-            6'd52: rainbow = 24'h2fff2e;
-            6'd53: rainbow = 24'h2eff41;
-            6'd54: rainbow = 24'h2eff54;
-            6'd55: rainbow = 24'h2eff67;
-            6'd56: rainbow = 24'h2eff7b;
-            6'd57: rainbow = 24'h2eff8e;
-            6'd58: rainbow = 24'h2effa2;
-            6'd59: rainbow = 24'h2effb6;
-            6'd60: rainbow = 24'h2effca;
-            6'd61: rainbow = 24'h2effdd;
-            6'd62: rainbow = 24'h2efff1;
-            6'd63: rainbow = 24'h2ef2f8;
-            default: rainbow = 24'hffffff;
-        endcase
+        visual_mapping[0] = (80'h0dfff00e53f9aab6de38 >> index) & 1'b1;
+        visual_mapping[1] = (80'h0caaaaa1c952ccc71fc0 >> index) & 1'b1;
+        visual_mapping[2] = (80'hf93333356d9cf0f80000 >> index) & 1'b1;
+        visual_mapping[3] = (80'hf1c3c3c671e0ff000000 >> index) & 1'b1;
+        visual_mapping[4] = (80'hfe03fc0781ff00000000 >> index) & 1'b1;
+        visual_mapping[5] = (80'hfffc0007fe0000000000 >> index) & 1'b1;
+        visual_mapping[6] = (80'hfffffff8000000000000 >> index) & 1'b1;
+        visual_mapping[7] = (80'h00000000000000001fff >> index) & 1'b1;
     end
 endfunction
+function [23:0] rainbow;
+    input [6:0] index;
+    begin
+        rainbow[0] = (80'hf19dfffffff319ffffff >> index) & 1'b1;
+        rainbow[1] = (80'hc1e000000030f9ffffff >> index) & 1'b1;
+        rainbow[2] = (80'heb540000001aadffffff >> index) & 1'b1;
+        rainbow[3] = (80'hd8cdffffffdccfffffff >> index) & 1'b1;
+        rainbow[4] = (80'hed69ffffffca5bffffff >> index) & 1'b1;
+        rainbow[5] = (80'hf18e00000039c7ffffff >> index) & 1'b1;
+        rainbow[6] = (80'hfe0ffffffff83fffffff >> index) & 1'b1;
+        rainbow[7] = (80'hfff000000007ffffffff >> index) & 1'b1;
+        rainbow[8] = (80'h3ffffff6733ffffffe67 >> index) & 1'b1;
+        rainbow[9] = (80'h3ffffff87c0000000e1f >> index) & 1'b1;
+        rainbow[10] = (80'h7ffffffad540000004aa >> index) & 1'b1;
+        rainbow[11] = (80'h7ffffff9ccfffffff8cc >> index) & 1'b1;
+        rainbow[12] = (80'hfffffffd697ffffffa5a >> index) & 1'b1;
+        rainbow[13] = (80'hfffffffe718000000639 >> index) & 1'b1;
+        rainbow[14] = (80'hffffffff81fffffffe07 >> index) & 1'b1;
+        rainbow[15] = (80'hfffffffffe00000001ff >> index) & 1'b1;
+        rainbow[16] = (80'hffff9ccfffffffcc6fff >> index) & 1'b1;
+        rainbow[17] = (80'h000183cffffffe0f8000 >> index) & 1'b1;
+        rainbow[18] = (80'h00012a9ffffffea55000 >> index) & 1'b1;
+        rainbow[19] = (80'hffffccefffffff9ccfff >> index) & 1'b1;
+        rainbow[20] = (80'hffff5a5fffffff296fff >> index) & 1'b1;
+        rainbow[21] = (80'h0000c63fffffffce7000 >> index) & 1'b1;
+        rainbow[22] = (80'hffffc1fffffffff07fff >> index) & 1'b1;
+        rainbow[23] = (80'h00003fffffffffff8000 >> index) & 1'b1;
+    end
+endfunction
+// END GENERATED TABLES
+reg [6:0] sector;
+always @* begin
+    if (x_right && !y_down) begin
+        if (abs_y >= abs_x) sector = {3'd0,octant_position};
+        else sector = 7'd20 - {3'd0,octant_position};
+    end else if (x_right && y_down) begin
+        if (abs_x >= abs_y) sector = 7'd20 + {3'd0,octant_position};
+        else sector = 7'd40 - {3'd0,octant_position};
+    end else if (!x_right && y_down) begin
+        if (abs_y >= abs_x) sector = 7'd40 + {3'd0,octant_position};
+        else sector = 7'd60 - {3'd0,octant_position};
+    end else begin
+        if (abs_x >= abs_y) sector = 7'd60 + {3'd0,octant_position};
+        else if (octant_position == 4'd0) sector = 7'd0;
+        else sector = 7'd80 - {3'd0,octant_position};
+    end
+end
+// 频率起点旋转到三点钟。视觉查表对原频段作对数重采样，低频占更多柱。
+wire [6:0] display_index = (sector >= 7'd20) ? sector - 7'd20 : sector + 7'd60;
+wire [7:0] map_word = visual_mapping(display_index);
+wire [4:0] band_index = map_word[6:2];
+wire [4:0] next_band_index = (band_index == 5'd31) ? 5'd31 : band_index + 5'd1;
+wire [7:0] direct_level = map_word[7] ? 8'd0 : bands[band_index*8 +: 8];
+wire [7:0] next_level = map_word[7] ? bands[7:0] : bands[next_band_index*8 +: 8];
+wire [9:0] a_wide = {2'd0,direct_level};
+wire [9:0] b_wide = {2'd0,next_level};
+reg [9:0] blend_sum;
+always @* begin
+    case (map_word[1:0])
+        2'd0: blend_sum = a_wide << 2;
+        2'd1: blend_sum = (a_wide << 1) + a_wide + b_wide;
+        2'd2: blend_sum = (a_wide + b_wide) << 1;
+        default: blend_sum = a_wide + (b_wide << 1) + b_wide;
+    endcase
+end
+wire [7:0] interpolated_level = blend_sum[9:2];
+reg [7:0] level;
+always @* begin
+    case (display_index)
+        7'd76: level = (interpolated_level >> 1) + (interpolated_level >> 2);
+        7'd77: level = interpolated_level >> 1;
+        7'd78: level = interpolated_level >> 2;
+        7'd79: level = 8'd0;
+        default: level = interpolated_level;
+    endcase
+end
+// 第一级锁存幅度与同像素的几何条件；输出供视频呈现第二级使用。
+// 不增加整个视频通路的两拍延迟，避免频段选择与半径平方串成超长路径。
+wire spectrum_active = |bands;
+wire [17:0] cross_error = (minor256 >= axis_product) ?
+    minor256 - axis_product : axis_product - minor256;
+wire [8:0] side_limit = (octant_position >= 4'd8) ? 9'd480 :
+                       ((octant_position >= 4'd5) ? 9'd416 : 9'd384);
+wire [8:0] cap_limit = side_limit >> 1;
+reg [7:0] level_stage;
+reg [16:0] distance_sq_stage;
+reg active_stage, inside_side_stage, narrow_center_stage;
+reg [23:0] color_stage;
+// 数据寄存器每拍覆盖，复位仅清有效标志，减小全局复位网络负担。
+always @(posedge clk) begin
+    level_stage <= level;
+    distance_sq_stage <= distance_sq;
+    inside_side_stage <= cross_error <= {9'd0,side_limit};
+    narrow_center_stage <= cross_error <= {9'd0,cap_limit};
+    color_stage <= rainbow(display_index);
+end
+always @(posedge clk or posedge rst) begin
+    if (rst) active_stage <= 1'b0;
+    else active_stage <= spectrum_active && in_circle_bounds;
+end
+// 最大长度 63 像素；整组有声时零幅度柱仍长 2 像素，静音整圈消失。
+wire [5:0] scaled_length = level_stage[7:2];
+wire [5:0] bar_length = (scaled_length < 6'd2) ? 6'd2 : scaled_length;
+wire [7:0] outer_radius = 8'd90 + {2'd0,bar_length};
+wire [16:0] outer_radius_sq = outer_radius * outer_radius;
+// 恒定细线宽度；圆帽中央保留尖端像素，两侧各缩一像素。
+wire [16:0] cap_body_radius_sq = outer_radius_sq - {8'd0,outer_radius,1'b0} + 17'd1;
+wire bar = active_stage && inside_side_stage &&
+    (distance_sq_stage >= 17'd8100) && (distance_sq_stage <= outer_radius_sq) &&
+    ((distance_sq_stage >= 17'd8281) || narrow_center_stage) &&
+    ((distance_sq_stage <= cap_body_radius_sq) || narrow_center_stage);
+assign pixel_on = bar;
+assign pixel_rgb = color_stage;
 endmodule

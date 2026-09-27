@@ -2,6 +2,7 @@
 import argparse
 import re
 import shutil
+import sys
 import subprocess
 from pathlib import Path
 
@@ -32,6 +33,7 @@ def main():
             raise RuntimeError(f"{name} did not complete its assertions")
         print(f"PASS {name}")
 
+    run("tables", [sys.executable, "src/test/generate_ring_visual_tables.py", "--check"], True)
     if not (output / "work").exists():
         run("library", [binaries["vlib"], library])
     sources = ["src/audio_fft_spectrum.v", "src/ring_spectrum_renderer.v",

@@ -27,6 +27,8 @@ integer line;
 integer pixel;
 integer osd_text_pixels;
 integer control_level;
+integer ring_overlay_pixels=0;
+reg [23:0] expected_ring_rgb;
 reg [7:0] previous_control_value;
 
 always #20 clk = ~clk;
@@ -51,6 +53,16 @@ video_presentation #(
     .spectrum_bands(spectrum_bands),
     .rgb_in(rgb_in), .rgb_out(rgb_out)
 );
+
+// 频谱内部第一级必须与视频其他第一级信号对齐，不能多延迟一拍。
+always @(posedge clk) begin
+    if (!rst && dut.base_valid_stage && !dut.param_osd_stage && dut.spectrum_on) begin
+        expected_ring_rgb=dut.spectrum_rgb;
+        #1;
+        if (rgb_out!==expected_ring_rgb) $fatal(1,"ring overlay latency/color mismatch");
+        ring_overlay_pixels=ring_overlay_pixels+1;
+    end
+end
 
 task next_frame;
     begin
@@ -234,6 +246,11 @@ initial begin
         $fatal(1, "registered horizontal edge enhancement failed: %h", rgb_out);
     @(negedge clk); de = 1'b0;
 
+    spectrum_bands={32{8'd255}};
+    next_frame;
+    for (line=0;line<480;line=line+1) active_line(line);
+    if (ring_overlay_pixels<20) $fatal(1,"ring overlay not exercised");
+    spectrum_bands=0;
     $display("PASS video presentation: OSD, timeout, adjustment, sharpness, and overlays");
     $finish;
 end

@@ -379,6 +379,7 @@ wire [23:0] spectrum_rgb;
 ring_spectrum_renderer #(
     .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
 ) u_ring_spectrum_renderer (
+    .clk(clk), .rst(rst),
     .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );
@@ -401,17 +402,15 @@ wire [23:0] subtitle_banner_rgb = {
     (adjusted_rgb[7:0]   >> 1) + (adjusted_rgb[7:0]   >> 2)
 };
 
-// 第一级锁存图像调节结果及同像素的叠加判定；第二级锁存
-// 锐化/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
+// 频谱模块内部完成同像素的第一级锁存；本模块第一级锁存其他叠加判定。
+// 第二级锁存锐化/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
 reg [23:0] adjusted_rgb_stage;
 reg [23:0] previous_adjusted_rgb;
 reg [23:0] banner_rgb_stage;
-reg [23:0] spectrum_rgb_stage;
 reg [6:0] sharpness_stage;
 reg base_valid_stage;
 reg line_first_stage;
 reg param_osd_stage;
-reg spectrum_stage;
 reg subtitle_text_stage;
 reg subtitle_banner_stage;
 wire [23:0] sharpened_rgb_stage = line_first_stage ? adjusted_rgb_stage : {
@@ -444,10 +443,10 @@ always @(posedge clk or posedge rst) begin
         subtitle_tick_count <= 19'd0;
         subtitle_scroll_x <= 9'd0;
         adjusted_rgb_stage <= 24'd0; previous_adjusted_rgb <= 24'd0;
-        banner_rgb_stage <= 24'd0; spectrum_rgb_stage <= 24'd0;
+        banner_rgb_stage <= 24'd0;
         sharpness_stage <= 7'd50; base_valid_stage <= 1'b0;
         line_first_stage <= 1'b0; param_osd_stage <= 1'b0;
-        spectrum_stage <= 1'b0; subtitle_text_stage <= 1'b0;
+        subtitle_text_stage <= 1'b0;
         subtitle_banner_stage <= 1'b0;
         rgb_out <= 24'd0;
     end else begin
@@ -522,12 +521,10 @@ always @(posedge clk or posedge rst) begin
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
         banner_rgb_stage <= subtitle_banner_rgb;
-        spectrum_rgb_stage <= spectrum_rgb;
         sharpness_stage <= image_sharpness_sync;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
         line_first_stage <= line_start;
         param_osd_stage <= param_osd_pixel;
-        spectrum_stage <= spectrum_on;
         subtitle_text_stage <= subtitle_text_pixel;
         subtitle_banner_stage <= subtitle_banner_area;
 
@@ -540,7 +537,7 @@ always @(posedge clk or posedge rst) begin
         // 第二级：OSD/频谱/字幕保持高于图像锐化的优先级。
         if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
-        else if (spectrum_stage) rgb_out <= spectrum_rgb_stage;
+        else if (spectrum_on) rgb_out <= spectrum_rgb;
         else if (subtitle_text_stage) rgb_out <= 24'hFFE040;
         else if (subtitle_banner_stage) rgb_out <= banner_rgb_stage;
         else rgb_out <= sharpened_rgb_stage;

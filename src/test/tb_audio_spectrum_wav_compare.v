@@ -1,8 +1,9 @@
 `timescale 1ns/1ps
 // 同一段左声道 PCM 按 800 个采样一次的显示帧节奏重放。
-// 80 拍采样间隔缩短仿真时间，但仍足够完成每块 256 点 FFT。
+// 80 拍采样间隔缩短仿真时间，但仍足够完成每块 256/512 点 FFT。
 module tb_audio_spectrum_wav_compare;
 parameter integer PIPELINED = 1;
+parameter integer FFT_POINTS = 256;
 reg clk=0, rst=1, sample_valid=0, frame_start=0;
 reg [23:0] sample_pcm=0;
 wire [255:0] bands;
@@ -11,7 +12,7 @@ reg [2047:0] sample_path, output_path, detail_path;
 integer sample_total, sample_index, output_file, band_number, gap;
 integer detail_file, raw_peak=0, raw_sum=0;
 always #5 clk=~clk;
-audio_fft_spectrum #(.FFT_POINTS(256)) dut (
+audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
     .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands)
 );

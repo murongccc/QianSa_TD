@@ -115,13 +115,13 @@ initial begin
         $fatal(1,"dual tone missing");
 
     // 高频弱音应有可见幅度，但连续帧上升不能一次跳到目标值。
-    weak_band=band_of_bin(80);
-    feed_frame_level(80,0,200000);
+    weak_band=band_of_bin(dut.LAST_BIN-5);
+    feed_frame_level(dut.LAST_BIN-5,0,200000);
     publish_frame;
     weak_first=bands[weak_band*8 +: 8];
     if (weak_first < 8'd24 || weak_first > 8'd100)
         $fatal(1,"weak high tone visibility/attack mismatch: %0d",weak_first);
-    feed_frame_level(80,0,200000);
+    feed_frame_level(dut.LAST_BIN-5,0,200000);
     publish_frame;
     weak_second=bands[weak_band*8 +: 8];
     if (weak_second <= weak_first || weak_second > 8'd150)
@@ -173,7 +173,13 @@ initial begin
         feed_frame_level(tone_index,0,2000000); publish_frame;
         if (bands[n*8 +: 8] < 8'd40) $fatal(1,"sweep missing band %0d",n);
     end
-    if (dut.band_last(31) != FFT_POINTS*85/256) $fatal(1,"last band mismatch");
+    if (dut.band_last(31) != ((FFT_POINTS==512) ? 75 : 85)) $fatal(1,"last band mismatch");
+    if (FFT_POINTS==512) begin
+        if (dut.band_last(0)!=1) $fatal(1,"512 low frequency resolution lost");
+        reset_analyzer;
+        feed_frame_level(110,0,3000000); publish_frame;
+        if (bands!==256'd0) $fatal(1,"out-of-range tone displayed");
+    end
     // 对数曲线全域单调；未饱和区与解析曲线误差不超过 3 级。
     previous_map=0;
     for (n=0;n<524288;n=n+1) begin
@@ -188,7 +194,7 @@ initial begin
     end
     // 低、中、高频 -24/-18/-12/-6 dBFS：稳定等级必须递增且不能封顶。
     for (n=0;n<3;n=n+1) begin
-        tone_index=(n==0) ? 3 : ((n==1) ? FFT_POINTS/8 : FFT_POINTS*3/10);
+        tone_index=(n==0) ? 3 : ((n==1) ? dut.LAST_BIN/2 : dut.LAST_BIN-5);
         expected_band=band_of_bin(tone_index);
         previous_level=0;
         for (strength=0;strength<4;strength=strength+1) begin
