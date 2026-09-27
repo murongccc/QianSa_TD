@@ -44,8 +44,12 @@ reg dir_end_pending;
 reg [31:0] cached_first_cluster [0:4];
 reg [31:0] cached_file_size [0:4];
 reg [8:0] fat_offset;
-reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
+reg [31:0] fat_entry_shift;
 reg [31:0] fat_next_cluster_reg;
+
+// FAT 项按四字节对齐。四拍共享同一个写使能，避免独立字节使能
+// 被打包到同一 slice 后争用局部控制布线；最后得到小端 32 位簇号。
+wire fat_entry_byte_valid = (pos[9:2] == {1'b0,fat_offset[8:2]});
 
 wire bpb_looks_valid = (bytes_per_sector == 16'd512) &&
                        (sectors_per_cluster != 8'd0) &&
@@ -89,7 +93,7 @@ always @(posedge clk or posedge rst) begin
         dir_cluster<=0; dir_sector<=0; dir_cluster_offset<=0;
         dir_data_sector_offset<=0; dir_fat_sector_offset<=0;
         dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
-        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0;
+        fat_offset<=0; fat_entry_shift<=0;
         fat_next_cluster_reg<=0;
         for (i=0;i<32;i=i+1) begin
             ent[i]<=0;
@@ -277,15 +281,13 @@ always @(posedge clk or posedge rst) begin
             end
             ST_DIR_FAT: begin
                 if (sd_sec_read_data_valid) begin
-                    if (pos==fat_offset) fat_b0<=sd_sec_read_data;
-                    if (pos==fat_offset+1'b1) fat_b1<=sd_sec_read_data;
-                    if (pos==fat_offset+2'd2) fat_b2<=sd_sec_read_data;
-                    if (pos==fat_offset+2'd3) fat_b3<=sd_sec_read_data;
+                    if (fat_entry_byte_valid)
+                        fat_entry_shift<={sd_sec_read_data,fat_entry_shift[31:8]};
                     pos<=pos+1'b1;
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; pos<=0;
-                    fat_next_cluster_reg<={fat_b3,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
+                    fat_next_cluster_reg<=fat_entry_shift & 32'h0fff_ffff;
                     state<=ST_DIR_FAT_CHECK;
                 end
             end
