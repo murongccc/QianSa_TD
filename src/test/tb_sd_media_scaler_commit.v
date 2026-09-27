@@ -100,6 +100,7 @@ module media_startup_sector_model(
 );
     reg [1:0] state;
     integer index;
+    reg [31:0] sector_addr;
     assign SD_nCS = 1'b1;
     assign SD_DCLK = 1'b0;
     assign SD_MOSI = 1'b1;
@@ -130,10 +131,42 @@ module media_startup_sector_model(
         end
     endfunction
 
+    // 当前媒体链先扫描 FAT32 目录，不能在 LBA0 只提供旧版裸 BMP。
+    // 构造直接卷：BPB=0、FAT=1、根目录=2、2x2 BMP 文件=3。
+    function [7:0] sector_byte;
+        input [31:0] address;
+        input integer byte_index;
+        begin
+            sector_byte=8'd0;
+            case(address)
+                0: case(byte_index)
+                    12: sector_byte=8'd2;
+                    13,14,16,36: sector_byte=8'd1;
+                    44: sector_byte=8'd2;
+                    default: ;
+                endcase
+                1: if(byte_index>=8 && byte_index<16)
+                    sector_byte=(byte_index%4==3)?8'h0f:8'hff;
+                2: case(byte_index)
+                    0: sector_byte="I";
+                    8: sector_byte="B";
+                    9: sector_byte="M";
+                    10: sector_byte="P";
+                    26: sector_byte=8'd3;
+                    28: sector_byte=8'd70;
+                    default: ;
+                endcase
+                3: sector_byte=bmp_byte(byte_index);
+                default: ;
+            endcase
+        end
+    endfunction
+
     always @(posedge clk) begin
         if (rst) begin
             state <= 0;
             index <= 0;
+            sector_addr <= 0;
             sd_init_done <= 0;
             sd_sec_read_data <= 0;
             sd_sec_read_data_valid <= 0;
@@ -143,9 +176,9 @@ module media_startup_sector_model(
             sd_sec_read_data_valid <= 0;
             sd_sec_read_end <= 0;
             case (state)
-                0: if (sd_sec_read) begin index <= 0; state <= 1; end
+                0: if (sd_sec_read) begin index <= 0; sector_addr <= sd_sec_read_addr; state <= 1; end
                 1: begin
-                    sd_sec_read_data <= bmp_byte(index);
+                    sd_sec_read_data <= sector_byte(sector_addr,index);
                     sd_sec_read_data_valid <= 1;
                     if (index == 511) state <= 2;
                     else index <= index + 1;

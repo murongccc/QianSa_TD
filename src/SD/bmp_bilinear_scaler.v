@@ -22,21 +22,45 @@ localparam ST_IDLE=5'd0, ST_DIV_X_INIT=5'd1, ST_DIV_X_RUN=5'd2,
            ST_PACK=5'd15, ST_EMIT=5'd16, ST_DONE=5'd17,
            ST_CHECK=5'd18, ST_CHECK_ROWS=5'd19;
 
+function integer count_width;
+ input integer maximum;
+ integer remaining;
+ begin
+  remaining=maximum;count_width=0;
+  while(remaining>0) begin remaining=remaining>>1;count_width=count_width+1;end
+  if(count_width<1)count_width=1;
+ end
+endfunction
+// 尺寸寄存器需要容纳最大尺寸本身，next_row 还会保存已填完的行数。
+localparam integer SRC_X_BITS=count_width(MAX_WIDTH);
+localparam integer SRC_Y_BITS=count_width(MAX_HEIGHT);
+localparam integer X_FP_BITS=SRC_X_BITS+16;
+localparam integer Y_FP_BITS=SRC_Y_BITS+16;
+localparam integer X_PHASE_BITS=count_width(OUT_WIDTH-1);
+localparam integer Y_PHASE_BITS=count_width(OUT_HEIGHT-1);
+localparam integer DIVISOR_BITS=(X_PHASE_BITS>Y_PHASE_BITS)?X_PHASE_BITS:Y_PHASE_BITS;
+localparam [X_PHASE_BITS:0] X_DENOM=OUT_WIDTH-1;
+localparam [Y_PHASE_BITS:0] Y_DENOM=OUT_HEIGHT-1;
+
 reg [4:0] state;
-reg [15:0] sw,sh,fill_col,next_row;
-reg [15:0] required_row;
-reg [9:0] out_x,out_y;
-reg [31:0] x_fp,y_fp,x_step,y_step;
-reg [15:0] x_rem_step,y_rem_step,x_phase,y_phase;
+reg [SRC_X_BITS-1:0] sw,fill_col;
+reg [SRC_Y_BITS-1:0] sh,next_row,required_row;
+reg [X_PHASE_BITS-1:0] out_x;
+reg [Y_PHASE_BITS-1:0] out_y;
+reg [X_FP_BITS-1:0] x_fp,x_step;
+reg [Y_FP_BITS-1:0] y_fp,y_step;
+reg [X_PHASE_BITS-1:0] x_rem_step,x_phase;
+reg [Y_PHASE_BITS-1:0] y_rem_step,y_phase;
 // Register both interpolation weights before the multiplier stages.  Without
 // this boundary, a coordinate phase accumulator, subtractor and multiplier
 // are packed into the same 100 MHz path.
 reg [8:0] fx_inv_q,fx_weight_q,fy_inv_q,fy_weight_q;
 reg [23:0] p00_q,p01_q,p10_q,p11_q;
-reg [16:0] h0_base_r,h0_base_g,h0_base_b,h1_base_r,h1_base_g,h1_base_b;
-reg [17:0] h0_r,h0_g,h0_b,h1_r,h1_g,h1_b;
-reg [26:0] v_base_r,v_base_g,v_base_b;
-reg [27:0] v_r,v_g,v_b;
+// 两个权重之和为 256，水平最大 255*256，垂直最大 255*65536。
+reg [15:0] h0_base_r,h0_base_g,h0_base_b,h1_base_r,h1_base_g,h1_base_b;
+reg [15:0] h0_r,h0_g,h0_b,h1_r,h1_g,h1_b;
+reg [23:0] v_base_r,v_base_g,v_base_b;
+reg [23:0] v_r,v_g,v_b;
 reg last_q,frame_last_q;
 
 // Three physical multipliers are shared by all RGB horizontal and vertical
@@ -79,49 +103,52 @@ EG_LOGIC_MULT #(
 // A shared sequential divider computes the coordinate step only once per
 // frame.  Per-pixel mapping is then just fixed-point addition.
 reg [31:0] div_dividend,div_quotient;
-reg [15:0] div_divisor;
-reg [16:0] div_remainder;
+reg [DIVISOR_BITS-1:0] div_divisor;
+reg [DIVISOR_BITS:0] div_remainder;
 reg [5:0] div_bit;
-wire [16:0] div_shift_remainder={div_remainder[15:0],div_dividend[div_bit]};
+wire [DIVISOR_BITS:0] div_shift_remainder={div_remainder[DIVISOR_BITS-1:0],div_dividend[div_bit]};
 wire div_subtract=(div_shift_remainder>={1'b0,div_divisor});
-wire [16:0] div_next_remainder=div_subtract ?
+wire [DIVISOR_BITS:0] div_next_remainder=div_subtract ?
     (div_shift_remainder-{1'b0,div_divisor}):div_shift_remainder;
 
-wire [31:0] x_fp_eff=(out_x==OUT_WIDTH-1)?{sw-1'b1,16'h0000}:x_fp;
-wire [31:0] y_fp_eff=(out_y==OUT_HEIGHT-1)?{sh-1'b1,16'h0000}:y_fp;
-wire [15:0] sx0=x_fp_eff[31:16], sy0=y_fp_eff[31:16];
-wire [15:0] sx1=(sx0>=sw-1'b1)?sx0:(sx0+1'b1);
-wire [15:0] sy1=(sy0>=sh-1'b1)?sy0:(sy0+1'b1);
+wire [X_FP_BITS-1:0] x_fp_eff=(out_x==OUT_WIDTH-1)?{sw-1'b1,16'h0000}:x_fp;
+wire [Y_FP_BITS-1:0] y_fp_eff=(out_y==OUT_HEIGHT-1)?{sh-1'b1,16'h0000}:y_fp;
+wire [SRC_X_BITS-1:0] sx0=x_fp_eff[X_FP_BITS-1:16];
+wire [SRC_Y_BITS-1:0] sy0=y_fp_eff[Y_FP_BITS-1:16];
+wire [SRC_X_BITS-1:0] sx1=(sx0>=sw-1'b1)?sx0:(sx0+1'b1);
+wire [SRC_Y_BITS-1:0] sy1=(sy0>=sh-1'b1)?sy0:(sy0+1'b1);
 wire [7:0] fx=x_fp_eff[15:8], fy=y_fp_eff[15:8];
-wire [16:0] x_phase_sum={1'b0,x_phase}+{1'b0,x_rem_step};
-wire x_phase_carry=(x_phase_sum>=OUT_WIDTH-1);
-wire [16:0] y_phase_sum={1'b0,y_phase}+{1'b0,y_rem_step};
-wire y_phase_carry=(y_phase_sum>=OUT_HEIGHT-1);
-wire [31:0] y_fp_next=(out_y==OUT_HEIGHT-2)?{sh-1'b1,16'h0000}:
+wire [X_PHASE_BITS:0] x_phase_sum={1'b0,x_phase}+{1'b0,x_rem_step};
+wire x_phase_carry=(x_phase_sum>=X_DENOM);
+wire [Y_PHASE_BITS:0] y_phase_sum={1'b0,y_phase}+{1'b0,y_rem_step};
+wire y_phase_carry=(y_phase_sum>=Y_DENOM);
+wire [Y_FP_BITS-1:0] y_fp_next=(out_y==OUT_HEIGHT-2)?{sh-1'b1,16'h0000}:
     (y_fp+y_step+y_phase_carry);
 
 // Port A is the PDPW write port.  The IP fixes wea=1 in this mode; cea is
 // therefore the actual write qualifier and is asserted only on src handshakes.
 wire [23:0] line_even_dout,line_odd_dout;
 wire linebuf_write=src_valid&&src_ready;
-wire [10:0] linebuf_read_addr=(state==ST_READ0)?sx0[10:0]:sx1[10:0];
+wire [10:0] linebuf_read_addr=(state==ST_READ0)?sx0:sx1;
+wire [10:0] linebuf_write_addr=fill_col;
 wire [23:0] top_dout=sy0[0]?line_odd_dout:line_even_dout;
 wire [23:0] bottom_dout=sy1[0]?line_odd_dout:line_even_dout;
 
 scaler_linebuf_even_ip u_line_even(
-    .dia(src_pixel),.addra(fill_col[10:0]),.cea(linebuf_write&&!next_row[0]),.clka(clk),
+    .dia(src_pixel),.addra(linebuf_write_addr),.cea(linebuf_write&&!next_row[0]),.clka(clk),
     .dob(line_even_dout),.addrb(linebuf_read_addr),.clkb(clk),.rstb(rst)
 );
 scaler_linebuf_odd_ip u_line_odd(
-    .dia(src_pixel),.addra(fill_col[10:0]),.cea(linebuf_write&&next_row[0]),.clka(clk),
+    .dia(src_pixel),.addra(linebuf_write_addr),.cea(linebuf_write&&next_row[0]),.clka(clk),
     .dob(line_odd_dout),.addrb(linebuf_read_addr),.clkb(clk),.rstb(rst)
 );
 
 function [7:0] round_interp;
- input [27:0] value;
- reg [28:0] rounded;
+ input [23:0] value;
+ reg [23:0] rounded;
  begin
-  rounded={1'b0,value}+29'd32768;
+  // 最大插值结果加半个输出 LSB 后仍小于 2^24。
+  rounded=value+24'd32768;
   round_interp=rounded[23:16];
  end
 endfunction
@@ -162,7 +189,7 @@ always @(posedge clk or posedge rst) begin
    ST_DIV_X_RUN: begin
     div_remainder<=div_next_remainder;div_quotient[div_bit]<=div_subtract;
     if(div_bit==0) begin
-     x_step<={div_quotient[31:1],div_subtract};x_rem_step<=div_next_remainder[15:0];state<=ST_DIV_Y_INIT;
+     x_step<={div_quotient[X_FP_BITS-1:1],div_subtract};x_rem_step<=div_next_remainder[X_PHASE_BITS-1:0];state<=ST_DIV_Y_INIT;
     end else div_bit<=div_bit-1'b1;
    end
    ST_DIV_Y_INIT: begin
@@ -172,7 +199,7 @@ always @(posedge clk or posedge rst) begin
    ST_DIV_Y_RUN: begin
     div_remainder<=div_next_remainder;div_quotient[div_bit]<=div_subtract;
     if(div_bit==0) begin
-     y_step<={div_quotient[31:1],div_subtract};y_rem_step<=div_next_remainder[15:0];state<=ST_CHECK;
+     y_step<={div_quotient[Y_FP_BITS-1:1],div_subtract};y_rem_step<=div_next_remainder[Y_PHASE_BITS-1:0];state<=ST_CHECK;
     end else div_bit<=div_bit-1'b1;
    end
    ST_FILL: begin
@@ -214,49 +241,48 @@ always @(posedge clk or posedge rst) begin
     state<=ST_H0_BASE;
    end
    // The six interpolation terms are scheduled through the three shared
-   // multipliers.  Widths match the former direct expressions exactly:
-   // 8x9 products -> 17 bits, horizontal sums -> 18 bits, and vertical
-   // products/sums -> 27 bits (zero-extended into the 28-bit round input).
+   // multipliers.  Keep the registered DSP operands and the existing schedule.
+   // 权重互补，因此按实际最大值保留水平 16 位、垂直 24 位结果。
    ST_H0_BASE: begin
     busy<=1;
-    h0_base_r<=mul_p0[16:0];h0_base_g<=mul_p1[16:0];h0_base_b<=mul_p2[16:0];
+    h0_base_r<=mul_p0[15:0];h0_base_g<=mul_p1[15:0];h0_base_b<=mul_p2[15:0];
     mul_a0<={10'd0,p01_q[23:16]};mul_a1<={10'd0,p01_q[15:8]};mul_a2<={10'd0,p01_q[7:0]};
     mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
     state<=ST_H0_ACC;
    end
    ST_H0_ACC: begin
     busy<=1;
-    h0_r<=h0_base_r+mul_p0[16:0];h0_g<=h0_base_g+mul_p1[16:0];h0_b<=h0_base_b+mul_p2[16:0];
+    h0_r<=h0_base_r+mul_p0[15:0];h0_g<=h0_base_g+mul_p1[15:0];h0_b<=h0_base_b+mul_p2[15:0];
     mul_a0<={10'd0,p10_q[23:16]};mul_a1<={10'd0,p10_q[15:8]};mul_a2<={10'd0,p10_q[7:0]};
     mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
     state<=ST_H1_BASE;
    end
    ST_H1_BASE: begin
     busy<=1;
-    h1_base_r<=mul_p0[16:0];h1_base_g<=mul_p1[16:0];h1_base_b<=mul_p2[16:0];
+    h1_base_r<=mul_p0[15:0];h1_base_g<=mul_p1[15:0];h1_base_b<=mul_p2[15:0];
     mul_a0<={10'd0,p11_q[23:16]};mul_a1<={10'd0,p11_q[15:8]};mul_a2<={10'd0,p11_q[7:0]};
     mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
     state<=ST_H1_ACC;
    end
    ST_H1_ACC: begin
     busy<=1;
-    h1_r<=h1_base_r+mul_p0[16:0];h1_g<=h1_base_g+mul_p1[16:0];h1_b<=h1_base_b+mul_p2[16:0];
-    mul_a0<=h0_r;mul_a1<=h0_g;mul_a2<=h0_b;
+    h1_r<=h1_base_r+mul_p0[15:0];h1_g<=h1_base_g+mul_p1[15:0];h1_b<=h1_base_b+mul_p2[15:0];
+    mul_a0<={2'b0,h0_r};mul_a1<={2'b0,h0_g};mul_a2<={2'b0,h0_b};
     mul_b0<={9'd0,fy_inv_q};mul_b1<={9'd0,fy_inv_q};mul_b2<={9'd0,fy_inv_q};
     state<=ST_V_BASE;
    end
    ST_V_BASE: begin
     busy<=1;
-    v_base_r<=mul_p0;v_base_g<=mul_p1;v_base_b<=mul_p2;
-    mul_a0<=h1_r;mul_a1<=h1_g;mul_a2<=h1_b;
+    v_base_r<=mul_p0[23:0];v_base_g<=mul_p1[23:0];v_base_b<=mul_p2[23:0];
+    mul_a0<={2'b0,h1_r};mul_a1<={2'b0,h1_g};mul_a2<={2'b0,h1_b};
     mul_b0<={9'd0,fy_weight_q};mul_b1<={9'd0,fy_weight_q};mul_b2<={9'd0,fy_weight_q};
     state<=ST_V_ACC;
    end
    ST_V_ACC: begin
     busy<=1;
-    v_r<={1'b0,v_base_r}+{1'b0,mul_p0};
-    v_g<={1'b0,v_base_g}+{1'b0,mul_p1};
-    v_b<={1'b0,v_base_b}+{1'b0,mul_p2};
+    v_r<=v_base_r+mul_p0[23:0];
+    v_g<=v_base_g+mul_p1[23:0];
+    v_b<=v_base_b+mul_p2[23:0];
     state<=ST_PACK;
    end
    ST_PACK: begin
@@ -270,8 +296,8 @@ always @(posedge clk or posedge rst) begin
     else if(last_q) begin
      out_x<=0;out_y<=out_y+1'b1;x_fp<=0;x_phase<=0;y_fp<=y_fp_next;
      if(out_y==OUT_HEIGHT-2) y_phase<=0;
-     else if(y_phase_carry) y_phase<=y_phase_sum-(OUT_HEIGHT-1);
-     else y_phase<=y_phase_sum[15:0];
+     else if(y_phase_carry) y_phase<=y_phase_sum-Y_DENOM;
+     else y_phase<=y_phase_sum[Y_PHASE_BITS-1:0];
      // Re-evaluate sy1 after out_y/y_fp advance.  ST_FILL immediately moves
      // to ST_READ0 when both required rows are already resident.
      state<=ST_CHECK;
@@ -280,8 +306,8 @@ always @(posedge clk or posedge rst) begin
      if(out_x==OUT_WIDTH-2) begin x_fp<={sw-1'b1,16'h0000};x_phase<=0;end
      else begin
       x_fp<=x_fp+x_step+x_phase_carry;
-      if(x_phase_carry) x_phase<=x_phase_sum-(OUT_WIDTH-1);
-      else x_phase<=x_phase_sum[15:0];
+      if(x_phase_carry) x_phase<=x_phase_sum-X_DENOM;
+      else x_phase<=x_phase_sum[X_PHASE_BITS-1:0];
      end
      state<=ST_READ0;
     end
