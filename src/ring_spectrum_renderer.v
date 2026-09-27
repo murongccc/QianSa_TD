@@ -84,11 +84,14 @@ wire [7:0] next_level = bands[next_band_index*8 +: 8];
 wire [8:0] level_sum = {1'b0,direct_level} + {1'b0,next_level};
 wire [7:0] level = sector[0] ? level_sum[8:1] : direct_level;
 wire [7:0] bar_length = {2'd0,level[7:2]} + {4'd0,level[7:4]};
+// 整组有声时保留独立短柱；在最终距离判断合并，避免增加平方前的选择链。
+wire spectrum_active = |bands;
 wire [8:0] outer_radius = 9'd90 + {1'b0,bar_length};
 wire [17:0] outer_radius_sq = outer_radius * outer_radius;
 wire bar = in_circle_bounds &&
            (distance_sq > 17'd8100) &&
-           ({1'b0,distance_sq} <= outer_radius_sq) &&
+           (({1'b0,distance_sq} <= outer_radius_sq) ||
+            (spectrum_active && distance_sq <= 17'd8464)) &&
            !angular_gap;
 assign pixel_on = bar;
 assign pixel_rgb = rainbow(sector);

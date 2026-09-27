@@ -12,22 +12,31 @@ module audio_fft_spectrum #(
 );
 localparam integer ADDR_W = (FFT_POINTS == 512) ? 9 : 8;
 localparam [ADDR_W-1:0] LAST_SAMPLE = FFT_POINTS - 1;
-localparam [ADDR_W-1:0] LAST_BIN = FFT_POINTS / 2;
-localparam [3:0] ST_IDLE=4'd0, ST_RD_A=4'd1, ST_LATCH_A=4'd2,
-                 ST_RD_B=4'd3, ST_LATCH_B=4'd4, ST_M0=4'd5,
-                 ST_M1=4'd6, ST_M2=4'd7, ST_M3=4'd8,
-                 ST_CALC=4'd9, ST_WR_A=4'd10, ST_WR_B=4'd11,
-                 ST_SCAN_RD=4'd12, ST_SCAN_EVAL=4'd13,
-                 ST_BAND_COMMIT=4'd14;
-reg [3:0] state;
+localparam [ADDR_W-1:0] LAST_BIN = (FFT_POINTS == 512) ? 170 : 85;
+localparam [4:0] ST_IDLE=5'd0, ST_RD_A=5'd1, ST_LATCH_A=5'd2,
+                 ST_RD_B=5'd3, ST_LATCH_B=5'd4, ST_M0=5'd5,
+                 ST_M1=5'd6, ST_M2=5'd7, ST_M3=5'd8,
+                 ST_CALC=5'd9, ST_WR_A=5'd10, ST_WR_B=5'd11,
+                 ST_SCAN_RD=5'd12, ST_SCAN_EVAL=5'd13,
+                 ST_BAND_COMMIT=5'd14, ST_BAND_MIX=5'd15,
+                 ST_BAND_GAIN=5'd16, ST_BAND_LEVEL=5'd17,
+                 ST_BAND_PUBLISH=5'd18;
+reg [4:0] state;
 reg capture_bank, process_bank;
 reg [ADDR_W-1:0] sample_count;
 reg [ADDR_W-1:0] group_base, pair_index, step;
 reg [3:0] stage;
 reg [ADDR_W-1:0] scan_bin;
 reg [4:0] band_index;
-reg [7:0] band_peak;
-reg [13:0] band_sum;
+// 原始 L1 幅度最多 65536；最大频段 18 个 bin，累加保留保护位。
+reg [16:0] band_peak;
+reg [21:0] band_sum;
+// 以下仅为分拍中间值，进入发布状态前全部被覆盖，无需异步复位。
+// 避免给全局复位网络增加 DSP/数据寄存器的保持修复负载。
+reg [29:0] mean_product;
+reg [16:0] mixed_magnitude;
+reg [26:0] gain_product;
+reg [7:0] band_level;
 reg [31:0] a_data, b_data, twiddle_word;
 wire [31:0] read_data, bank0_q, bank1_q;
 reg signed [31:0] p0, p1, p2, p3;
@@ -75,49 +84,27 @@ wire signed [17:0] ai = $signed({{2{a_data[15]}},a_data[15:0]});
 wire [15:0] scan_real_abs = read_data[31] ? -read_data[31:16] : read_data[31:16];
 wire [15:0] scan_imag_abs = read_data[15] ? -read_data[15:0] : read_data[15:0];
 wire [16:0] scan_magnitude = {1'b0,scan_real_abs} + {1'b0,scan_imag_abs};
-// 音乐的高频能量通常较低，分段补偿后用分段曲线提升弱信号的可见度。
-// Hann 窗的相干增益约为 1/2，在显示映射前恢复约 6 dB。
-wire [17:0] calibrated_magnitude = {scan_magnitude,1'b0};
-wire [19:0] boosted_magnitude = (band_index >= 5'd24) ?
-                                  {calibrated_magnitude,2'b00} :
-                                  (band_index >= 5'd16) ?
-                                  {1'b0,calibrated_magnitude,1'b0} :
-                                  {2'b00,calibrated_magnitude};
-// 显示曲线前保留 25% 的幅度余量，减轻高潮时的压缩和饱和。
-wire [19:0] weighted_magnitude = boosted_magnitude -
-                                  (boosted_magnitude >> 2);
-wire [19:0] middle_level = 20'd128 +
-                           ((weighted_magnitude - 20'd1024) >> 5);
-wire [19:0] high_level = 20'd224 +
-                         ((weighted_magnitude - 20'd4096) >> 7);
-wire [7:0] scan_level = (scan_magnitude < 17'd32) ? 8'd0 :
-                        (weighted_magnitude >= 20'd8192) ? 8'hff :
-                        (weighted_magnitude < 20'd1024) ?
-                        weighted_magnitude[10:3] :
-                        (weighted_magnitude < 20'd4096) ?
-                        middle_level[7:0] : high_level[7:0];
-wire [7:0] next_peak = (scan_level > band_peak) ? scan_level : band_peak;
-wire [13:0] next_sum = band_sum + {6'd0,scan_level};
+// 在线性幅度域汇总，避免逐 bin 封顶后丢失高潮的幅度变化。
+wire [16:0] next_peak = (scan_magnitude > band_peak) ? scan_magnitude : band_peak;
+wire [21:0] next_sum = band_sum + {5'd0,scan_magnitude};
 wire [7:0] reciprocal = band_reciprocal(band_index);
-wire [21:0] mean_product = band_sum * reciprocal;
-wire [14:0] mean_scaled = (mean_product + 22'd64) >> 7;
-wire [7:0] band_mean = (mean_scaled > 15'd255) ? 8'hff : mean_scaled[7:0];
-// 峰值保持瞬态，均值抑制宽频段里单个 bin 的跳动。
-wire [9:0] combined_sum = {2'b00,band_peak} +
+wire [29:0] rounded_mean = mean_product + 30'd64;
+wire [16:0] band_mean = rounded_mean[23:7];
+wire [18:0] combined_sum = {2'b00,band_peak} +
                            {1'b0,band_peak,1'b0} +
-                           {2'b00,band_mean} + 10'd2;
-wire [7:0] band_level = combined_sum[9:2];
+                           {2'b00,band_mean} + 19'd2;
+// Q1.8 补偿从 1.0 连续增加到 1.96875，避免原来的 2/4 倍台阶。
+wire [8:0] band_gain = 9'd256 + {1'b0,band_index,3'b000};
+wire [18:0] display_magnitude = gain_product[26:8];
 wire [7:0] old_band = bands_history[band_index*8 +: 8];
 wire [7:0] rise_delta = band_level - old_band;
 wire [7:0] fall_delta = old_band - band_level;
-wire [9:0] rise_step = ({2'b00,rise_delta} + 10'd3) >> 2;
+wire [8:0] rise_step = ({1'b0,rise_delta} + 9'd1) >> 1;
 wire [10:0] fall_step = ({3'b000,fall_delta} + 11'd7) >> 3;
-// 上升约四分之一差值、回落约八分之一；2 级死区过滤帧间小抖动。
+// 快升慢落，向上取整保证小差值仍收敛，静音最终严格归零。
 wire [7:0] smoothed_band = (band_level > old_band) ?
-                           ((rise_delta > 8'd2) ?
-                            old_band + rise_step[7:0] : old_band) :
-                           (((fall_delta > 8'd2) || (band_level == 8'd0)) ?
-                            old_band - fall_step[7:0] : old_band);
+                           old_band + rise_step[7:0] :
+                           old_band - fall_step[7:0];
 wire bank0_we = (capture_we && !capture_bank) || (process_we && !process_bank);
 wire bank1_we = (capture_we && capture_bank) || (process_we && process_bank);
 wire [ADDR_W-1:0] bank0_addr = (process_we && !process_bank) ? write_addr : capture_addr;
@@ -147,82 +134,47 @@ function [15:0] sat16;
     end
 endfunction
 
+// 48 kHz 下末端约 15.94 kHz；512 点按相同频率边界加倍。
 function [8:0] band_last;
     input [4:0] index;
+    reg [7:0] last_256;
     begin
-        if (FFT_POINTS == 512) begin
-            case (index)
-                5'd0: band_last = 9'd1;
-                5'd1: band_last = 9'd2;
-                5'd2: band_last = 9'd3;
-                5'd3: band_last = 9'd4;
-                5'd4: band_last = 9'd5;
-                5'd5: band_last = 9'd6;
-                5'd6: band_last = 9'd7;
-                5'd7: band_last = 9'd8;
-                5'd8: band_last = 9'd9;
-                5'd9: band_last = 9'd10;
-                5'd10: band_last = 9'd11;
-                5'd11: band_last = 9'd12;
-                5'd12: band_last = 9'd13;
-                5'd13: band_last = 9'd14;
-                5'd14: band_last = 9'd15;
-                5'd15: band_last = 9'd16;
-                5'd16: band_last = 9'd18;
-                5'd17: band_last = 9'd22;
-                5'd18: band_last = 9'd26;
-                5'd19: band_last = 9'd31;
-                5'd20: band_last = 9'd37;
-                5'd21: band_last = 9'd44;
-                5'd22: band_last = 9'd53;
-                5'd23: band_last = 9'd63;
-                5'd24: band_last = 9'd75;
-                5'd25: band_last = 9'd90;
-                5'd26: band_last = 9'd107;
-                5'd27: band_last = 9'd127;
-                5'd28: band_last = 9'd152;
-                5'd29: band_last = 9'd181;
-                5'd30: band_last = 9'd215;
-                5'd31: band_last = 9'd256;
-                default: band_last = 9'd256;
-            endcase
-        end else begin
-            case (index)
-                5'd0: band_last = 9'd1;
-                5'd1: band_last = 9'd2;
-                5'd2: band_last = 9'd3;
-                5'd3: band_last = 9'd4;
-                5'd4: band_last = 9'd5;
-                5'd5: band_last = 9'd6;
-                5'd6: band_last = 9'd7;
-                5'd7: band_last = 9'd8;
-                5'd8: band_last = 9'd9;
-                5'd9: band_last = 9'd10;
-                5'd10: band_last = 9'd11;
-                5'd11: band_last = 9'd12;
-                5'd12: band_last = 9'd13;
-                5'd13: band_last = 9'd14;
-                5'd14: band_last = 9'd15;
-                5'd15: band_last = 9'd16;
-                5'd16: band_last = 9'd17;
-                5'd17: band_last = 9'd18;
-                5'd18: band_last = 9'd19;
-                5'd19: band_last = 9'd20;
-                5'd20: band_last = 9'd23;
-                5'd21: band_last = 9'd27;
-                5'd22: band_last = 9'd32;
-                5'd23: band_last = 9'd37;
-                5'd24: band_last = 9'd44;
-                5'd25: band_last = 9'd51;
-                5'd26: band_last = 9'd59;
-                5'd27: band_last = 9'd69;
-                5'd28: band_last = 9'd81;
-                5'd29: band_last = 9'd94;
-                5'd30: band_last = 9'd110;
-                5'd31: band_last = 9'd128;
-                default: band_last = 9'd128;
-            endcase
-        end
+        case (index)
+            5'd0: last_256 = 8'd1;
+            5'd1: last_256 = 8'd2;
+            5'd2: last_256 = 8'd3;
+            5'd3: last_256 = 8'd4;
+            5'd4: last_256 = 8'd5;
+            5'd5: last_256 = 8'd6;
+            5'd6: last_256 = 8'd7;
+            5'd7: last_256 = 8'd8;
+            5'd8: last_256 = 8'd9;
+            5'd9: last_256 = 8'd10;
+            5'd10: last_256 = 8'd11;
+            5'd11: last_256 = 8'd12;
+            5'd12: last_256 = 8'd13;
+            5'd13: last_256 = 8'd14;
+            5'd14: last_256 = 8'd15;
+            5'd15: last_256 = 8'd16;
+            5'd16: last_256 = 8'd17;
+            5'd17: last_256 = 8'd18;
+            5'd18: last_256 = 8'd19;
+            5'd19: last_256 = 8'd20;
+            5'd20: last_256 = 8'd22;
+            5'd21: last_256 = 8'd25;
+            5'd22: last_256 = 8'd28;
+            5'd23: last_256 = 8'd32;
+            5'd24: last_256 = 8'd36;
+            5'd25: last_256 = 8'd41;
+            5'd26: last_256 = 8'd47;
+            5'd27: last_256 = 8'd53;
+            5'd28: last_256 = 8'd60;
+            5'd29: last_256 = 8'd67;
+            5'd30: last_256 = 8'd76;
+            5'd31: last_256 = 8'd85;
+            default: last_256 = 8'd85;
+        endcase
+        band_last = (FFT_POINTS == 512) ? {last_256,1'b0} : {1'b0,last_256};
     end
 endfunction
 
@@ -305,51 +257,121 @@ endfunction
 function [7:0] band_reciprocal;
     input [4:0] index;
     begin
-        band_reciprocal = 8'd128;
         if (FFT_POINTS == 512) begin
             case (index)
+                5'd0: band_reciprocal = 8'd64;
+                5'd1: band_reciprocal = 8'd64;
+                5'd2: band_reciprocal = 8'd64;
+                5'd3: band_reciprocal = 8'd64;
+                5'd4: band_reciprocal = 8'd64;
+                5'd5: band_reciprocal = 8'd64;
+                5'd6: band_reciprocal = 8'd64;
+                5'd7: band_reciprocal = 8'd64;
+                5'd8: band_reciprocal = 8'd64;
+                5'd9: band_reciprocal = 8'd64;
+                5'd10: band_reciprocal = 8'd64;
+                5'd11: band_reciprocal = 8'd64;
+                5'd12: band_reciprocal = 8'd64;
+                5'd13: band_reciprocal = 8'd64;
+                5'd14: band_reciprocal = 8'd64;
+                5'd15: band_reciprocal = 8'd64;
                 5'd16: band_reciprocal = 8'd64;
-                5'd17: band_reciprocal = 8'd32;
-                5'd18: band_reciprocal = 8'd32;
-                5'd19: band_reciprocal = 8'd26;
-                5'd20: band_reciprocal = 8'd21;
-                5'd21: band_reciprocal = 8'd18;
-                5'd22: band_reciprocal = 8'd14;
-                5'd23: band_reciprocal = 8'd13;
-                5'd24: band_reciprocal = 8'd11;
-                5'd25: band_reciprocal = 8'd9;
-                5'd26: band_reciprocal = 8'd8;
-                5'd27: band_reciprocal = 8'd6;
-                5'd28: band_reciprocal = 8'd5;
-                5'd29: band_reciprocal = 8'd4;
-                5'd30: band_reciprocal = 8'd4;
-                5'd31: band_reciprocal = 8'd3;
-                default: band_reciprocal = 8'd128;
+                5'd17: band_reciprocal = 8'd64;
+                5'd18: band_reciprocal = 8'd64;
+                5'd19: band_reciprocal = 8'd64;
+                5'd20: band_reciprocal = 8'd32;
+                5'd21: band_reciprocal = 8'd21;
+                5'd22: band_reciprocal = 8'd21;
+                5'd23: band_reciprocal = 8'd16;
+                5'd24: band_reciprocal = 8'd16;
+                5'd25: band_reciprocal = 8'd13;
+                5'd26: band_reciprocal = 8'd11;
+                5'd27: band_reciprocal = 8'd11;
+                5'd28: band_reciprocal = 8'd9;
+                5'd29: band_reciprocal = 8'd9;
+                5'd30: band_reciprocal = 8'd7;
+                5'd31: band_reciprocal = 8'd7;
+                default: band_reciprocal = 8'd7;
             endcase
         end else begin
             case (index)
+                5'd0: band_reciprocal = 8'd128;
+                5'd1: band_reciprocal = 8'd128;
+                5'd2: band_reciprocal = 8'd128;
+                5'd3: band_reciprocal = 8'd128;
+                5'd4: band_reciprocal = 8'd128;
+                5'd5: band_reciprocal = 8'd128;
+                5'd6: band_reciprocal = 8'd128;
+                5'd7: band_reciprocal = 8'd128;
+                5'd8: band_reciprocal = 8'd128;
+                5'd9: band_reciprocal = 8'd128;
+                5'd10: band_reciprocal = 8'd128;
+                5'd11: band_reciprocal = 8'd128;
+                5'd12: band_reciprocal = 8'd128;
+                5'd13: band_reciprocal = 8'd128;
+                5'd14: band_reciprocal = 8'd128;
+                5'd15: band_reciprocal = 8'd128;
                 5'd16: band_reciprocal = 8'd128;
                 5'd17: band_reciprocal = 8'd128;
                 5'd18: band_reciprocal = 8'd128;
                 5'd19: band_reciprocal = 8'd128;
-                5'd20: band_reciprocal = 8'd43;
-                5'd21: band_reciprocal = 8'd32;
-                5'd22: band_reciprocal = 8'd26;
-                5'd23: band_reciprocal = 8'd26;
-                5'd24: band_reciprocal = 8'd18;
-                5'd25: band_reciprocal = 8'd18;
-                5'd26: band_reciprocal = 8'd16;
-                5'd27: band_reciprocal = 8'd13;
-                5'd28: band_reciprocal = 8'd11;
-                5'd29: band_reciprocal = 8'd10;
-                5'd30: band_reciprocal = 8'd8;
-                5'd31: band_reciprocal = 8'd7;
-                default: band_reciprocal = 8'd128;
+                5'd20: band_reciprocal = 8'd64;
+                5'd21: band_reciprocal = 8'd43;
+                5'd22: band_reciprocal = 8'd43;
+                5'd23: band_reciprocal = 8'd32;
+                5'd24: band_reciprocal = 8'd32;
+                5'd25: band_reciprocal = 8'd26;
+                5'd26: band_reciprocal = 8'd21;
+                5'd27: band_reciprocal = 8'd21;
+                5'd28: band_reciprocal = 8'd18;
+                5'd29: band_reciprocal = 8'd18;
+                5'd30: band_reciprocal = 8'd14;
+                5'd31: band_reciprocal = 8'd14;
+                default: band_reciprocal = 8'd14;
             endcase
         end
     end
 endfunction
 
+// 24*log2(M/32)：最高有效位给出整数部分，16 项表给出小数部分。
+// 输入先作 Hann 相干增益恢复及频段补偿；门限 32，输出饱和到 255。
+function [7:0] magnitude_to_level;
+    input [18:0] magnitude;
+    reg [4:0] exponent;
+    reg [18:0] normalized;
+    reg [4:0] fraction;
+    reg [8:0] mapped;
+    integer bit_index;
+    begin
+        exponent = 5'd0;
+        for (bit_index=0;bit_index<19;bit_index=bit_index+1)
+            if (magnitude[bit_index]) exponent = bit_index;
+        normalized = magnitude >> ((exponent >= 5'd4) ? exponent - 5'd4 : 5'd0);
+        case (normalized[3:0])
+            4'd0: fraction = 5'd0;
+            4'd1: fraction = 5'd2;
+            4'd2: fraction = 5'd4;
+            4'd3: fraction = 5'd6;
+            4'd4: fraction = 5'd8;
+            4'd5: fraction = 5'd9;
+            4'd6: fraction = 5'd11;
+            4'd7: fraction = 5'd13;
+            4'd8: fraction = 5'd14;
+            4'd9: fraction = 5'd15;
+            4'd10: fraction = 5'd17;
+            4'd11: fraction = 5'd18;
+            4'd12: fraction = 5'd19;
+            4'd13: fraction = 5'd21;
+            4'd14: fraction = 5'd22;
+            4'd15: fraction = 5'd23;
+            default: fraction = 5'd0;
+        endcase
+        mapped = (exponent - 5'd5) * 9'd24 + {4'd0,fraction};
+        if (magnitude <= 19'd32) magnitude_to_level = 8'd0;
+        else if (mapped >= 9'd255) magnitude_to_level = 8'hff;
+        else magnitude_to_level = mapped[7:0];
+    end
+endfunction
 
 // Q1.15 的 e^(-j2πk/512)。256 点模式使用偶数地址。
 function [31:0] twiddle;
@@ -709,7 +731,24 @@ always @(posedge clk or posedge rst) begin
                     state <= ST_BAND_COMMIT;
                 else state <= ST_SCAN_RD;
             end
+            // 分拍计算均值、混合、补偿与对数，避免视频域长组合乘加链。
             ST_BAND_COMMIT: begin
+                mean_product <= band_sum * reciprocal;
+                state <= ST_BAND_MIX;
+            end
+            ST_BAND_MIX: begin
+                mixed_magnitude <= combined_sum[18:2];
+                state <= ST_BAND_GAIN;
+            end
+            ST_BAND_GAIN: begin
+                gain_product <= {mixed_magnitude,1'b0} * band_gain;
+                state <= ST_BAND_LEVEL;
+            end
+            ST_BAND_LEVEL: begin
+                band_level <= magnitude_to_level(display_magnitude);
+                state <= ST_BAND_PUBLISH;
+            end
+            ST_BAND_PUBLISH: begin
                 bands_history[band_index*8 +: 8] <= smoothed_band;
                 bands_build[band_index*8 +: 8] <= smoothed_band;
                 band_index <= band_index + 1'b1;

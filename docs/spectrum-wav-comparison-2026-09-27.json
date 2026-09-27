@@ -1,0 +1,912 @@
+{
+  "old": {
+    "video_frames": 645,
+    "target_saturation_percent": 0.0031017369727047144,
+    "mean_visible_bars": 53.71782945736434,
+    "per_bar": [
+      {
+        "bar": 0,
+        "min_px": 0,
+        "max_px": 70,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.8152173913043477
+      },
+      {
+        "bar": 1,
+        "min_px": 0,
+        "max_px": 70,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.6754658385093166
+      },
+      {
+        "bar": 2,
+        "min_px": 0,
+        "max_px": 73,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 3.1552795031055902
+      },
+      {
+        "bar": 3,
+        "min_px": 0,
+        "max_px": 65,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 2.652173913043478
+      },
+      {
+        "bar": 4,
+        "min_px": 0,
+        "max_px": 67,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 3.077639751552795
+      },
+      {
+        "bar": 5,
+        "min_px": 0,
+        "max_px": 62,
+        "p05_p95_range_px": 26.0,
+        "mean_frame_change_px": 2.562111801242236
+      },
+      {
+        "bar": 6,
+        "min_px": 0,
+        "max_px": 63,
+        "p05_p95_range_px": 35.8,
+        "mean_frame_change_px": 2.998447204968944
+      },
+      {
+        "bar": 7,
+        "min_px": 0,
+        "max_px": 63,
+        "p05_p95_range_px": 37.0,
+        "mean_frame_change_px": 2.5962732919254656
+      },
+      {
+        "bar": 8,
+        "min_px": 0,
+        "max_px": 68,
+        "p05_p95_range_px": 43.0,
+        "mean_frame_change_px": 3.1630434782608696
+      },
+      {
+        "bar": 9,
+        "min_px": 0,
+        "max_px": 63,
+        "p05_p95_range_px": 43.0,
+        "mean_frame_change_px": 2.782608695652174
+      },
+      {
+        "bar": 10,
+        "min_px": 0,
+        "max_px": 68,
+        "p05_p95_range_px": 46.0,
+        "mean_frame_change_px": 3.0947204968944098
+      },
+      {
+        "bar": 11,
+        "min_px": 0,
+        "max_px": 58,
+        "p05_p95_range_px": 43.0,
+        "mean_frame_change_px": 2.698757763975155
+      },
+      {
+        "bar": 12,
+        "min_px": 0,
+        "max_px": 61,
+        "p05_p95_range_px": 43.599999999999994,
+        "mean_frame_change_px": 3.190993788819876
+      },
+      {
+        "bar": 13,
+        "min_px": 0,
+        "max_px": 53,
+        "p05_p95_range_px": 40.0,
+        "mean_frame_change_px": 2.690993788819876
+      },
+      {
+        "bar": 14,
+        "min_px": 0,
+        "max_px": 53,
+        "p05_p95_range_px": 38.0,
+        "mean_frame_change_px": 2.9177018633540373
+      },
+      {
+        "bar": 15,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 35.0,
+        "mean_frame_change_px": 2.4736024844720497
+      },
+      {
+        "bar": 16,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 35.0,
+        "mean_frame_change_px": 2.7639751552795033
+      },
+      {
+        "bar": 17,
+        "min_px": 0,
+        "max_px": 43,
+        "p05_p95_range_px": 30.0,
+        "mean_frame_change_px": 2.389751552795031
+      },
+      {
+        "bar": 18,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.6149068322981366
+      },
+      {
+        "bar": 19,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.220496894409938
+      },
+      {
+        "bar": 20,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 32.0,
+        "mean_frame_change_px": 2.3555900621118013
+      },
+      {
+        "bar": 21,
+        "min_px": 0,
+        "max_px": 42,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.010869565217391
+      },
+      {
+        "bar": 22,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 29.59999999999991,
+        "mean_frame_change_px": 2.229813664596273
+      },
+      {
+        "bar": 23,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 25.799999999999955,
+        "mean_frame_change_px": 1.9984472049689441
+      },
+      {
+        "bar": 24,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 27.799999999999955,
+        "mean_frame_change_px": 2.0248447204968945
+      },
+      {
+        "bar": 25,
+        "min_px": 0,
+        "max_px": 42,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 1.7422360248447204
+      },
+      {
+        "bar": 26,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 1.8928571428571428
+      },
+      {
+        "bar": 27,
+        "min_px": 0,
+        "max_px": 41,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 1.6506211180124224
+      },
+      {
+        "bar": 28,
+        "min_px": 0,
+        "max_px": 41,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 1.75
+      },
+      {
+        "bar": 29,
+        "min_px": 0,
+        "max_px": 36,
+        "p05_p95_range_px": 22.0,
+        "mean_frame_change_px": 1.6071428571428572
+      },
+      {
+        "bar": 30,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 21.0,
+        "mean_frame_change_px": 1.7686335403726707
+      },
+      {
+        "bar": 31,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 1.9813664596273293
+      },
+      {
+        "bar": 32,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 36.0,
+        "mean_frame_change_px": 2.6614906832298137
+      },
+      {
+        "bar": 33,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 37.0,
+        "mean_frame_change_px": 2.422360248447205
+      },
+      {
+        "bar": 34,
+        "min_px": 0,
+        "max_px": 61,
+        "p05_p95_range_px": 38.0,
+        "mean_frame_change_px": 2.642857142857143
+      },
+      {
+        "bar": 35,
+        "min_px": 0,
+        "max_px": 52,
+        "p05_p95_range_px": 35.0,
+        "mean_frame_change_px": 2.3975155279503104
+      },
+      {
+        "bar": 36,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 38.0,
+        "mean_frame_change_px": 2.6661490683229814
+      },
+      {
+        "bar": 37,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 36.0,
+        "mean_frame_change_px": 2.4642857142857144
+      },
+      {
+        "bar": 38,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 38.0,
+        "mean_frame_change_px": 2.625776397515528
+      },
+      {
+        "bar": 39,
+        "min_px": 0,
+        "max_px": 43,
+        "p05_p95_range_px": 35.0,
+        "mean_frame_change_px": 2.3555900621118013
+      },
+      {
+        "bar": 40,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 37.0,
+        "mean_frame_change_px": 2.717391304347826
+      },
+      {
+        "bar": 41,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 37.0,
+        "mean_frame_change_px": 2.4239130434782608
+      },
+      {
+        "bar": 42,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 35.0,
+        "mean_frame_change_px": 2.4751552795031055
+      },
+      {
+        "bar": 43,
+        "min_px": 0,
+        "max_px": 35,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 1.7562111801242235
+      },
+      {
+        "bar": 44,
+        "min_px": 0,
+        "max_px": 32,
+        "p05_p95_range_px": 21.0,
+        "mean_frame_change_px": 1.7313664596273293
+      },
+      {
+        "bar": 45,
+        "min_px": 0,
+        "max_px": 32,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 1.639751552795031
+      },
+      {
+        "bar": 46,
+        "min_px": 0,
+        "max_px": 32,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 1.7608695652173914
+      },
+      {
+        "bar": 47,
+        "min_px": 0,
+        "max_px": 36,
+        "p05_p95_range_px": 26.0,
+        "mean_frame_change_px": 2.027950310559006
+      },
+      {
+        "bar": 48,
+        "min_px": 0,
+        "max_px": 41,
+        "p05_p95_range_px": 32.0,
+        "mean_frame_change_px": 2.591614906832298
+      },
+      {
+        "bar": 49,
+        "min_px": 0,
+        "max_px": 42,
+        "p05_p95_range_px": 30.0,
+        "mean_frame_change_px": 2.4114906832298137
+      },
+      {
+        "bar": 50,
+        "min_px": 0,
+        "max_px": 43,
+        "p05_p95_range_px": 33.0,
+        "mean_frame_change_px": 2.670807453416149
+      },
+      {
+        "bar": 51,
+        "min_px": 0,
+        "max_px": 41,
+        "p05_p95_range_px": 30.0,
+        "mean_frame_change_px": 2.2142857142857144
+      },
+      {
+        "bar": 52,
+        "min_px": 0,
+        "max_px": 40,
+        "p05_p95_range_px": 30.0,
+        "mean_frame_change_px": 2.389751552795031
+      },
+      {
+        "bar": 53,
+        "min_px": 0,
+        "max_px": 32,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 1.843167701863354
+      },
+      {
+        "bar": 54,
+        "min_px": 0,
+        "max_px": 30,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 1.796583850931677
+      },
+      {
+        "bar": 55,
+        "min_px": 0,
+        "max_px": 16,
+        "p05_p95_range_px": 10.0,
+        "mean_frame_change_px": 0.9285714285714286
+      },
+      {
+        "bar": 56,
+        "min_px": 0,
+        "max_px": 5,
+        "p05_p95_range_px": 1.0,
+        "mean_frame_change_px": 0.13664596273291926
+      },
+      {
+        "bar": 57,
+        "min_px": 0,
+        "max_px": 2,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.046583850931677016
+      },
+      {
+        "bar": 58,
+        "min_px": 0,
+        "max_px": 1,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.003105590062111801
+      },
+      {
+        "bar": 59,
+        "min_px": 0,
+        "max_px": 0,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.0
+      },
+      {
+        "bar": 60,
+        "min_px": 0,
+        "max_px": 0,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.0
+      },
+      {
+        "bar": 61,
+        "min_px": 0,
+        "max_px": 0,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.0
+      },
+      {
+        "bar": 62,
+        "min_px": 0,
+        "max_px": 0,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.0
+      },
+      {
+        "bar": 63,
+        "min_px": 0,
+        "max_px": 0,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.0
+      }
+    ]
+  },
+  "new": {
+    "video_frames": 645,
+    "target_saturation_percent": 0.0,
+    "mean_visible_bars": 63.90077519379845,
+    "per_bar": [
+      {
+        "bar": 0,
+        "min_px": 0,
+        "max_px": 60,
+        "p05_p95_range_px": 11.0,
+        "mean_frame_change_px": 1.8385093167701863
+      },
+      {
+        "bar": 1,
+        "min_px": 0,
+        "max_px": 58,
+        "p05_p95_range_px": 11.0,
+        "mean_frame_change_px": 1.686335403726708
+      },
+      {
+        "bar": 2,
+        "min_px": 0,
+        "max_px": 60,
+        "p05_p95_range_px": 14.0,
+        "mean_frame_change_px": 2.010869565217391
+      },
+      {
+        "bar": 3,
+        "min_px": 0,
+        "max_px": 56,
+        "p05_p95_range_px": 13.0,
+        "mean_frame_change_px": 1.6925465838509317
+      },
+      {
+        "bar": 4,
+        "min_px": 0,
+        "max_px": 58,
+        "p05_p95_range_px": 12.0,
+        "mean_frame_change_px": 2.099378881987578
+      },
+      {
+        "bar": 5,
+        "min_px": 0,
+        "max_px": 56,
+        "p05_p95_range_px": 14.799999999999997,
+        "mean_frame_change_px": 1.7096273291925466
+      },
+      {
+        "bar": 6,
+        "min_px": 0,
+        "max_px": 55,
+        "p05_p95_range_px": 19.0,
+        "mean_frame_change_px": 2.062111801242236
+      },
+      {
+        "bar": 7,
+        "min_px": 0,
+        "max_px": 55,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 1.7686335403726707
+      },
+      {
+        "bar": 8,
+        "min_px": 0,
+        "max_px": 57,
+        "p05_p95_range_px": 22.0,
+        "mean_frame_change_px": 2.172360248447205
+      },
+      {
+        "bar": 9,
+        "min_px": 0,
+        "max_px": 55,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 1.8509316770186335
+      },
+      {
+        "bar": 10,
+        "min_px": 0,
+        "max_px": 57,
+        "p05_p95_range_px": 25.799999999999997,
+        "mean_frame_change_px": 2.2049689440993787
+      },
+      {
+        "bar": 11,
+        "min_px": 0,
+        "max_px": 53,
+        "p05_p95_range_px": 24.799999999999955,
+        "mean_frame_change_px": 1.93944099378882
+      },
+      {
+        "bar": 12,
+        "min_px": 0,
+        "max_px": 55,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.5077639751552794
+      },
+      {
+        "bar": 13,
+        "min_px": 0,
+        "max_px": 52,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 2.1661490683229814
+      },
+      {
+        "bar": 14,
+        "min_px": 0,
+        "max_px": 52,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.4968944099378882
+      },
+      {
+        "bar": 15,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.152173913043478
+      },
+      {
+        "bar": 16,
+        "min_px": 0,
+        "max_px": 52,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 2.4751552795031055
+      },
+      {
+        "bar": 17,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 20.799999999999997,
+        "mean_frame_change_px": 2.2142857142857144
+      },
+      {
+        "bar": 18,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 2.5248447204968945
+      },
+      {
+        "bar": 19,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 21.0,
+        "mean_frame_change_px": 2.1754658385093166
+      },
+      {
+        "bar": 20,
+        "min_px": 0,
+        "max_px": 51,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.498447204968944
+      },
+      {
+        "bar": 21,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 20.0,
+        "mean_frame_change_px": 2.1847826086956523
+      },
+      {
+        "bar": 22,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 21.0,
+        "mean_frame_change_px": 2.484472049689441
+      },
+      {
+        "bar": 23,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 20.799999999999997,
+        "mean_frame_change_px": 2.290372670807453
+      },
+      {
+        "bar": 24,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 20.799999999999997,
+        "mean_frame_change_px": 2.5217391304347827
+      },
+      {
+        "bar": 25,
+        "min_px": 0,
+        "max_px": 48,
+        "p05_p95_range_px": 21.0,
+        "mean_frame_change_px": 2.159937888198758
+      },
+      {
+        "bar": 26,
+        "min_px": 0,
+        "max_px": 52,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.43944099378882
+      },
+      {
+        "bar": 27,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 25.799999999999955,
+        "mean_frame_change_px": 2.222049689440994
+      },
+      {
+        "bar": 28,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.597826086956522
+      },
+      {
+        "bar": 29,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 2.361801242236025
+      },
+      {
+        "bar": 30,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 22.0,
+        "mean_frame_change_px": 2.75
+      },
+      {
+        "bar": 31,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 22.799999999999997,
+        "mean_frame_change_px": 2.2841614906832297
+      },
+      {
+        "bar": 32,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.510869565217391
+      },
+      {
+        "bar": 33,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.3385093167701863
+      },
+      {
+        "bar": 34,
+        "min_px": 0,
+        "max_px": 50,
+        "p05_p95_range_px": 27.799999999999955,
+        "mean_frame_change_px": 2.6180124223602483
+      },
+      {
+        "bar": 35,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 26.59999999999991,
+        "mean_frame_change_px": 2.2437888198757765
+      },
+      {
+        "bar": 36,
+        "min_px": 0,
+        "max_px": 43,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 2.5854037267080745
+      },
+      {
+        "bar": 37,
+        "min_px": 0,
+        "max_px": 43,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.2841614906832297
+      },
+      {
+        "bar": 38,
+        "min_px": 0,
+        "max_px": 46,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 2.5093167701863353
+      },
+      {
+        "bar": 39,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.049689440993789
+      },
+      {
+        "bar": 40,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 26.0,
+        "mean_frame_change_px": 2.2763975155279503
+      },
+      {
+        "bar": 41,
+        "min_px": 0,
+        "max_px": 45,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 1.9611801242236024
+      },
+      {
+        "bar": 42,
+        "min_px": 0,
+        "max_px": 47,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.111801242236025
+      },
+      {
+        "bar": 43,
+        "min_px": 0,
+        "max_px": 42,
+        "p05_p95_range_px": 23.0,
+        "mean_frame_change_px": 1.874223602484472
+      },
+      {
+        "bar": 44,
+        "min_px": 0,
+        "max_px": 42,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 2.1925465838509317
+      },
+      {
+        "bar": 45,
+        "min_px": 0,
+        "max_px": 38,
+        "p05_p95_range_px": 22.0,
+        "mean_frame_change_px": 1.9968944099378882
+      },
+      {
+        "bar": 46,
+        "min_px": 0,
+        "max_px": 38,
+        "p05_p95_range_px": 24.0,
+        "mean_frame_change_px": 2.6149068322981366
+      },
+      {
+        "bar": 47,
+        "min_px": 0,
+        "max_px": 40,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 2.562111801242236
+      },
+      {
+        "bar": 48,
+        "min_px": 0,
+        "max_px": 40,
+        "p05_p95_range_px": 27.0,
+        "mean_frame_change_px": 2.984472049689441
+      },
+      {
+        "bar": 49,
+        "min_px": 0,
+        "max_px": 38,
+        "p05_p95_range_px": 26.0,
+        "mean_frame_change_px": 2.6335403726708075
+      },
+      {
+        "bar": 50,
+        "min_px": 0,
+        "max_px": 38,
+        "p05_p95_range_px": 29.799999999999955,
+        "mean_frame_change_px": 2.8680124223602483
+      },
+      {
+        "bar": 51,
+        "min_px": 0,
+        "max_px": 37,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 2.472049689440994
+      },
+      {
+        "bar": 52,
+        "min_px": 0,
+        "max_px": 40,
+        "p05_p95_range_px": 29.0,
+        "mean_frame_change_px": 2.6024844720496896
+      },
+      {
+        "bar": 53,
+        "min_px": 0,
+        "max_px": 37,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 2.2577639751552794
+      },
+      {
+        "bar": 54,
+        "min_px": 0,
+        "max_px": 38,
+        "p05_p95_range_px": 29.0,
+        "mean_frame_change_px": 2.4114906832298137
+      },
+      {
+        "bar": 55,
+        "min_px": 0,
+        "max_px": 35,
+        "p05_p95_range_px": 28.0,
+        "mean_frame_change_px": 2.001552795031056
+      },
+      {
+        "bar": 56,
+        "min_px": 0,
+        "max_px": 33,
+        "p05_p95_range_px": 26.0,
+        "mean_frame_change_px": 2.077639751552795
+      },
+      {
+        "bar": 57,
+        "min_px": 0,
+        "max_px": 31,
+        "p05_p95_range_px": 25.0,
+        "mean_frame_change_px": 1.9440993788819876
+      },
+      {
+        "bar": 58,
+        "min_px": 0,
+        "max_px": 31,
+        "p05_p95_range_px": 23.799999999999955,
+        "mean_frame_change_px": 2.25
+      },
+      {
+        "bar": 59,
+        "min_px": 0,
+        "max_px": 25,
+        "p05_p95_range_px": 18.0,
+        "mean_frame_change_px": 1.8462732919254659
+      },
+      {
+        "bar": 60,
+        "min_px": 0,
+        "max_px": 23,
+        "p05_p95_range_px": 15.0,
+        "mean_frame_change_px": 1.920807453416149
+      },
+      {
+        "bar": 61,
+        "min_px": 0,
+        "max_px": 11,
+        "p05_p95_range_px": 6.0,
+        "mean_frame_change_px": 0.7096273291925466
+      },
+      {
+        "bar": 62,
+        "min_px": 0,
+        "max_px": 7,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.017080745341614908
+      },
+      {
+        "bar": 63,
+        "min_px": 0,
+        "max_px": 7,
+        "p05_p95_range_px": 0.0,
+        "mean_frame_change_px": 0.017080745341614908
+      }
+    ]
+  }
+}

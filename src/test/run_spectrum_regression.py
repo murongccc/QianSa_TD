@@ -1,0 +1,53 @@
+"""运行频谱、环形绘制和视频呈现的 ModelSim 局部回归。"""
+import argparse
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+
+def main():
+    repo = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=repo / "prj/log/spectrum_regression")
+    args = parser.parse_args()
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    library = (output / "work").as_posix()
+    binaries = {}
+    for name in ("vlib", "vlog", "vsim"):
+        binaries[name] = shutil.which(name)
+        if not binaries[name]:
+            raise RuntimeError(f"ModelSim {name} is not on PATH")
+
+    def run(name, command, expect_pass=False):
+        result = subprocess.run(command, cwd=repo, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, timeout=180)
+        text = result.stdout.decode("utf-8", errors="replace")
+        (output / f"{name}.log").write_text(text, encoding="utf-8")
+        # 部分 OEM 版本在 $fatal 后仍返回零，必须同时检查日志。
+        if result.returncode or re.search(r"\*\* (?:Fatal|Error):|Errors: [1-9]", text):
+            raise RuntimeError(f"{name} failed; see {output / (name + '.log')}")
+        if expect_pass and "PASS" not in text:
+            raise RuntimeError(f"{name} did not complete its assertions")
+        print(f"PASS {name}")
+
+    if not (output / "work").exists():
+        run("library", [binaries["vlib"], library])
+    sources = ["src/audio_fft_spectrum.v", "src/ring_spectrum_renderer.v",
+               "src/video_presentation.v", "src/test/tb_audio_fft_spectrum.v",
+               "src/test/tb_ring_spectrum_renderer.v", "src/test/tb_video_presentation.v",
+               "src/test/tb_video_presentation_startup.v"]
+    run("compile", [binaries["vlog"], "-work", library, *sources])
+    tests = [("fft256", "tb_audio_fft_spectrum", ["-gFFT_POINTS=256"]),
+             ("fft512", "tb_audio_fft_spectrum", ["-gFFT_POINTS=512"]),
+             ("ring", "tb_ring_spectrum_renderer", []),
+             ("video", "tb_video_presentation", []),
+             ("startup", "tb_video_presentation_startup", [])]
+    for name, module, parameters in tests:
+        run(name, [binaries["vsim"], "-c", "-lib", library, module, *parameters,
+                   "-do", "src/test/run_pcm_audio_player.do"], expect_pass=True)
+
+
+if __name__ == "__main__":
+    main()

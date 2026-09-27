@@ -8,6 +8,8 @@ wire [23:0] pixel_rgb;
 reg [23:0] top_color;
 integer i;
 integer center_x, center_y;
+integer x,y,j;
+integer visible_pixels [0:63];
 real angle;
 ring_spectrum_renderer dut (
     .pixel_x(pixel_x), .pixel_y(pixel_y), .bands(bands),
@@ -75,7 +77,33 @@ initial begin
     expect_pixel(10'd308,10'd120,1'b0);
     if (dut.sector !== 6'd63 || dut.level !== 8'd80)
         $fatal(1,"last bar must retain highest band without wrapping");
-    $display("PASS ring renderer: 64 centers, interpolation, no frequency wrap, gaps, silence, round edge, color");
+    // 有声但等级很低时，64 个扇区均应有独立 2 像素短柱。
+    bands=256'd1;
+    for (j=0;j<64;j=j+1) visible_pixels[j]=0;
+    for (y=72;y<=408;y=y+1)
+        for (x=152;x<=488;x=x+1) begin
+            pixel_x=x; pixel_y=y; #1;
+            if (pixel_on) begin
+                visible_pixels[dut.sector]=visible_pixels[dut.sector]+1;
+                if (dut.distance_sq<=8100 || dut.distance_sq>8464 || dut.angular_gap)
+                    $fatal(1,"minimum bar bounds/gap violated");
+            end
+        end
+    for (j=0;j<64;j=j+1)
+        if (visible_pixels[j]==0) $fatal(1,"missing short bar sector %0d",j);
+    // 逐频段激活，检查偶数柱的等级与位置。
+    for (j=0;j<32;j=j+1) begin
+        bands=0; bands[j*8 +: 8]=8'd160;
+        angle=6.283185307179586*(2*j)/64;
+        center_x=320+$rtoi(110*$sin(angle));
+        center_y=240-$rtoi(110*$cos(angle));
+        expect_pixel(center_x,center_y,1'b1);
+        if (dut.level!=160) $fatal(1,"one-hot band mapping %0d",j);
+    end
+    bands=0;
+    for (y=72;y<=408;y=y+1)
+        for (x=152;x<=488;x=x+1) expect_pixel(x,y,1'b0);
+    $display("PASS ring renderer: 64 centers, one-hot, 2px floor, no wrap, gaps, silence, round edge, color");
     $finish;
 end
 endmodule
