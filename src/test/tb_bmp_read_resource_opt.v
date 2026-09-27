@@ -135,8 +135,9 @@ task run_case;
 endtask
 
 task run_truncated_case;
+    input reset_before_load;
     begin
-        @(negedge clk); rst=1; check_pixels=0;
+        @(negedge clk); rst=reset_before_load; check_pixels=0;
         case_width=2; case_height=3; height_bits=32'd3;
         case_stride=8; case_size=32'd74; seen_pixels=0;
         repeat(3) @(negedge clk);
@@ -168,7 +169,12 @@ initial begin
     run_case(1,32'h0001_0438,1'b0);
     run_case(0,1,1'b0);
     run_case(1,0,1'b0);
-    run_truncated_case;
+    // 完整帧之后直接加载截断帧，验证每次加载都清除上一帧的完成标志。
+    run_case(2,3,1'b1);
+    run_truncated_case(1'b0);
+    // 再覆盖完整帧、全局复位、截断帧，防止复位后残留完成标志误放行。
+    run_case(2,3,1'b1);
+    run_truncated_case(1'b1);
     $display("PASS BMP resource optimization boundaries");
     $finish;
 end

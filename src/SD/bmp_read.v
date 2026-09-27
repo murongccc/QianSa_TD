@@ -142,7 +142,9 @@ always @(posedge clk or posedge rst) begin
         pixel_valid<=0; pixel_data<=0; pixel_last<=0; frame_last<=0;
         bmp_data_wr_en<=0; bmp_data<=0;
         parsed_width<=0; parsed_height<=0; parsed_top_down<=0;
-        load_failed<=0; frame_seen<=0;
+        // frame_seen 在每次加载开始时清零，空闲/复位期间不参与输出。
+        // 不连接异步复位，避免该内部标志引入复位 hold 修复布线。
+        load_failed<=0;
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
         fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0; fat_byte_cnt<=0;
         fat_next_cluster_reg<=0; fat_cluster_offset<=0; fat_data_sector_offset<=0;
