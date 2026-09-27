@@ -39,10 +39,11 @@ reg [15:0] bit_count;
 reg top_down;
 reg [31:0] scan_sector, load_sector_latched, bmp_len_cnt;
 reg [1:0] bmp_byte_idx;
-reg [31:0] row_byte_cnt, row_stride;
+// 合法源图最大为 1920x1080，24 位像素的对齐行跨度不超过 5760 字节。
+reg [12:0] row_byte_cnt, row_stride;
 reg [31:0] output_pixel_count;
 reg [7:0] b_byte, g_byte;
-reg [15:0] src_col, src_row;
+reg [10:0] src_col, src_row;
 reg frame_seen;
 reg header_valid;
 reg file_mode_latched;
@@ -68,8 +69,16 @@ wire [31:0] next_scan_sector_if_match = scan_sector + file_sector_count;
 wire [31:0] next_scan_sector_if_miss = scan_sector + 1'b1;
 wire bmp_data_valid = sd_sec_read_data_valid && (bmp_len_cnt >= pixel_offset) &&
                       (bmp_len_cnt < file_len);
+// 只在完整 32 位图头校验通过后使用已锁存尺寸，避免截断非法图头。
+wire [10:0] pixel_width = parsed_width[10:0];
+wire [10:0] pixel_height = parsed_height[10:0];
+wire [12:0] row_pixel_bytes = {2'b0,pixel_width} + {1'b0,pixel_width,1'b0};
+wire [10:0] src_col_next = src_col + 11'd1;
+wire [10:0] src_row_next = src_row + 11'd1;
+wire source_row_last = (src_col_next >= pixel_width);
+wire source_frame_last = source_row_last && (src_row_next >= pixel_height);
 wire bmp_pixel_byte_valid = bmp_data_valid &&
-                            (row_byte_cnt < (width + (width << 1))) &&
+                            (row_byte_cnt < row_pixel_bytes) &&
                             (!pixel_valid || pixel_ready);
 assign ready = (state == ST_IDLE);
 
@@ -217,7 +226,7 @@ always @(posedge clk or posedge rst) begin
                 if (write_req_ack) begin
                     write_req<=0; state<=ST_LOAD_DATA; sd_sec_read<=1;
                     bmp_len_cnt<=0; row_byte_cnt<=0;
-                    row_stride<=(width+(width<<1)+3)&32'hffff_fffc;
+                    row_stride<=(row_pixel_bytes+13'd3)&13'h1ffc;
                     bmp_byte_idx<=0; output_pixel_count<=0; src_col<=0; src_row<=0;
                 end
             end
@@ -232,24 +241,22 @@ always @(posedge clk or posedge rst) begin
                                 2: begin
                                     pixel_data<={sd_sec_read_data,g_byte,b_byte};
                                     bmp_data<= {sd_sec_read_data,g_byte,b_byte};
-                                    pixel_last <= (src_col + 1'b1 >= width[15:0]);
-                                    frame_last <= (src_col + 1'b1 >= width[15:0]) &&
-                                                  (src_row + 1'b1 >= abs_height[15:0]);
-                                    if ((src_col + 1'b1 >= width[15:0]) &&
-                                        (src_row + 1'b1 >= abs_height[15:0]))
+                                    pixel_last <= source_row_last;
+                                    frame_last <= source_frame_last;
+                                    if (source_frame_last)
                                         frame_seen <= 1'b1;
                                     pixel_valid <= 1'b1;
                                     bmp_data_wr_en <= 1'b1;
                                     bmp_byte_idx<=0;
                                     output_pixel_count<=output_pixel_count+1'b1;
-                                    if (src_col + 1'b1 >= width[15:0]) begin src_col<=0; src_row<=src_row+1'b1; end
-                                    else src_col<=src_col+1'b1;
+                                    if (source_row_last) begin src_col<=0; src_row<=src_row_next; end
+                                    else src_col<=src_col_next;
                                 end
                                 default: bmp_byte_idx<=0;
                             endcase
                         end
-                        if (row_byte_cnt + 1'b1 >= row_stride) row_byte_cnt<=0;
-                        else row_byte_cnt<=row_byte_cnt+1'b1;
+                        if (row_byte_cnt + 13'd1 >= row_stride) row_byte_cnt<=0;
+                        else row_byte_cnt<=row_byte_cnt+13'd1;
                     end
                     bmp_len_cnt<=bmp_len_cnt+1'b1;
                 end
@@ -260,8 +267,7 @@ always @(posedge clk or posedge rst) begin
                         // the payload ends before a complete source frame.
                         if (!frame_seen && !(bmp_pixel_byte_valid &&
                             (bmp_byte_idx == 2) &&
-                            (src_col + 1'b1 >= width[15:0]) &&
-                            (src_row + 1'b1 >= abs_height[15:0])))
+                            source_frame_last))
                             load_failed<=1'b1;
                         state<=ST_IDLE;
                     end
