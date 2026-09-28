@@ -23,7 +23,7 @@ def main():
 
     def run(name, command, expect_pass=False):
         result = subprocess.run(command, cwd=repo, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, timeout=180)
+                                stderr=subprocess.STDOUT, timeout=600 if name=="reference2048" else 180)
         text = result.stdout.decode("utf-8", errors="replace")
         (output / f"{name}.log").write_text(text, encoding="utf-8")
         # 部分 OEM 版本在 $fatal 后仍返回零，必须同时检查日志。
@@ -46,6 +46,7 @@ def main():
     tests = [("fft256", "tb_audio_fft_spectrum", ["-gFFT_POINTS=256"]),
              ("fft512", "tb_audio_fft_spectrum", ["-gFFT_POINTS=512"]),
              ("reference512", "tb_reference_fft_spectrum", ["-gFFT_POINTS=512"]),
+             ("reference2048", "tb_reference_fft_spectrum", ["-gFFT_POINTS=2048"]),
              ("reference_ring", "tb_reference_ring", []),
              ("ring", "tb_ring_spectrum_renderer", []),
              ("video", "tb_video_presentation", []),

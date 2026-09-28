@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // 完整音乐输入直达 FFT，记录 80 个最终等级用于渲染和比较。
 module tb_reference_wav;
-parameter integer FFT_POINTS=1024;
+parameter integer FFT_POINTS=2048;
 reg clk=0,rst=1,sample_valid=0,frame_start=0;
 reg [23:0] sample_pcm=0;
 wire [639:0] bars;
@@ -20,7 +20,7 @@ initial begin
     out_file=$fopen(output_path,"w");if(!out_file) $fatal(1,"cannot open output");
     $fwrite(out_file,"sample");for(b=0;b<80;b=b+1) $fwrite(out_file,",b%0d",b);$fwrite(out_file,"\n");
     repeat(4) @(negedge clk);rst=0;
-    repeat(150) @(negedge clk);
+    wait(dut.g_reference.u_reference.state==0);
     for(n=0;n<sample_total;n=n+1) begin
         @(negedge clk);sample_pcm=samples[n];sample_valid=1;
         @(negedge clk);sample_valid=0;

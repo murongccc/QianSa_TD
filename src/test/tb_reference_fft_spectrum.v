@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // 检查真实输入 FFT、直接频点映射、对数曲线、静音和帧同步。
 module tb_reference_fft_spectrum;
-parameter integer FFT_POINTS=1024;
+parameter integer FFT_POINTS=2048;
 reg clk=0,rst=1,sample_valid=0,frame_start=0;
 reg [23:0] sample_pcm=0;
 wire [639:0] bars;
@@ -12,9 +12,12 @@ reg [639:0] saved_bars;
 reg [2047:0] output_path;
 real pi=3.141592653589793,argument,expected,error;
 real scanned_real,scanned_imag;
+real second_frequency=0;
+real test_frequency;
+integer second_gain=0;
 integer expected_root=0;
 reg [7:0] actual;
-reg [15:0] position;
+reg [16:0] position;
 reg [31:0] root_square;
 reg [639:0] observed_bars=0;
 reg publication_allowed;
@@ -52,16 +55,17 @@ task block;
     integer n,sample;
     begin
         for(n=0;n<FFT_POINTS;n=n+1) begin
-            sample=$rtoi(gain*$sin(2*pi*frequency*n/48000));
+            sample=$rtoi(gain*$sin(2*pi*frequency*n/48000)+
+                second_gain*$sin(2*pi*second_frequency*n/48000));
             @(negedge clk);sample_valid=1;sample_pcm=sample*256;
             @(negedge clk);sample_valid=0;
             repeat(62) @(negedge clk);
         end
         k=0;
-        while(dut.g_reference.u_reference.state!=0 && k<80000) begin
+        while(dut.g_reference.u_reference.state!=0 && k<FFT_POINTS*80) begin
             @(negedge clk);k=k+1;
         end
-        if(k==80000) $fatal(1,"FFT processing timeout");
+        if(k==FFT_POINTS*80) $fatal(1,"FFT processing timeout");
         saved_bars=bars;
         repeat(5) @(negedge clk);
         if(bars!==saved_bars) $fatal(1,"bars changed outside frame boundary");
@@ -80,7 +84,7 @@ initial begin
     if($value$plusargs("OUTPUT=%s",output_path)) out_file=$fopen(output_path,"w");
     else out_file=0;
     repeat(3) @(negedge clk);rst=0;
-    repeat(150) @(negedge clk);
+    wait(dut.g_reference.u_reference.state==0);
     if(bars!==0 || bands!==0) $fatal(1,"reset not silent");
     // 完整幅度范围：固定点曲线与浮点参考的误差不得超过 2 等级。
     previous_peak=0;
@@ -95,7 +99,7 @@ initial begin
         previous_peak=actual;
     end
     position=dut.g_reference.u_reference.reference_position(79);
-    if(position<16'd34896 || position>16'd34899) $fatal(1,"upper frequency mapping");
+    if(position<17'd69792 || position>17'd69798) $fatal(1,"upper frequency mapping");
     // 相同 FFT bin 的四级输入应产生不同显示等级，避免提前封顶。
     previous_peak=-1;
     for(i=0;i<4;i=i+1) begin
@@ -110,15 +114,40 @@ initial begin
     // 频率升高，峰柱位置必须向高序号移动；非整数频点也必须完成扫描。
     previous_peak=-1;
     for(i=0;i<4;i=i+1) begin
-        repeat(60) block(0,0);
-        repeat(8) block(300.0*(1<<i)+13.0,8192);
+        repeat(50) block(0,0);
+        test_frequency=300.0*(1<<i)+13.0;
+        // 2048 点的高频窄峰可能落在两柱取样位置之间；显示顺序测试用第 66 柱附近。
+        if(FFT_POINTS==2048 && i==3) test_frequency=2489.5;
+        repeat(8) block(test_frequency,8192);
         peak_bar;
         if(max_value==0 || max_index<=previous_peak) $fatal(1,"frequency order");
         previous_peak=max_index;
-        $display("FREQUENCY %f peak column=%0d level=%0d",300.0*(1<<i)+13.0,max_index,max_value);
+        $display("FREQUENCY %f peak column=%0d level=%0d",test_frequency,max_index,max_value);
     end
-    repeat(70) block(0,0);
+    repeat(50) block(0,0);
     if(bars!==0) $fatal(1,"silence did not converge");
+    if(FFT_POINTS==2048) begin
+        // 紫色区域覆盖 bin2..4，不再全部由 bin1 控制。
+        // 两个低频峰要在各自的 bin 中出现；高位地址 bin270 不得折返至 bin14。
+        second_frequency=5.0*48000/FFT_POINTS;second_gain=4096;
+        repeat(8) block(2.0*48000/FFT_POINTS,4096);
+        second_gain=0;
+        if(dut.g_reference.u_reference.magnitude_memory[2]<900 ||
+           dut.g_reference.u_reference.magnitude_memory[5]<900 ||
+           dut.g_reference.u_reference.magnitude_memory[10]>10)
+            $fatal(1,"two independent low-frequency peaks missing");
+        repeat(50) block(0,0);
+        // 2413 Hz 位于高频两柱之间，FFT 必须存在峰；直取 80 柱不保证显示每个窄峰。
+        repeat(8) block(2413,8192);
+        if(dut.g_reference.u_reference.magnitude_memory[103]<1800)
+            $fatal(1,"FFT missed narrow tone between displayed columns");
+        repeat(50) block(0,0);
+        repeat(8) block(270.0*48000/FFT_POINTS,8192);
+        if(dut.g_reference.u_reference.magnitude_memory[270]<1800 ||
+           dut.g_reference.u_reference.magnitude_memory[14]>10)
+            $fatal(1,"upper-bin address wrapped");
+        repeat(50) block(0,0);
+    end
     repeat(8) block(9000,8192);
     peak_bar;
     if(max_value>10) $fatal(1,"out-of-range frequency visible");
@@ -127,7 +156,7 @@ initial begin
     if(bars!==0) $fatal(1,"reset retained bars");
     // 在蝶形运算中复位，缓存重新初始化后必须能正常接收下一块。
     @(negedge clk);rst=0;
-    repeat(150) @(negedge clk);
+    wait(dut.g_reference.u_reference.state==0);
     for(i=0;i<FFT_POINTS;i=i+1) begin
         @(negedge clk);sample_valid=1;sample_pcm=24'd500000;
         @(negedge clk);sample_valid=0;repeat(30) @(negedge clk);
@@ -135,12 +164,12 @@ initial begin
     wait(dut.g_reference.u_reference.state==7);
     @(negedge clk);rst=1;
     @(negedge clk);rst=0;
-    repeat(150) @(negedge clk);
+    wait(dut.g_reference.u_reference.state==0);
     if(bars!==0) $fatal(1,"mid-FFT reset retained display");
     repeat(4) block(1000,4096);
     peak_bar;if(max_value==0) $fatal(1,"mid-FFT reset did not recover");
     if(out_file) $fclose(out_file);
     $display("PASS reference FFT %0d",FFT_POINTS);$finish;
 end
-initial begin #1000000000;$fatal(1,"test timeout");end
+initial begin #(64'd3000000000);$fatal(1,"test timeout");end
 endmodule

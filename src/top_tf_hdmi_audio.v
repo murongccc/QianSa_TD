@@ -655,8 +655,8 @@ always @(posedge video_clk or posedge rst_video) begin
         audio_read_toggle <= ~audio_read_toggle;
 end
 
-// 1024 点候选超出 80% LUT 限制，保持 512 点；直接 FFT 插值显示至约 6.39 kHz。
-audio_fft_spectrum #(.FFT_POINTS(512), .REFERENCE_MODE(1)) u_audio_fft_spectrum (
+// 2048 点在 48 kHz 下提供 23.4375 Hz 间隔；直接 FFT 插值显示至约 6.39 kHz。
+audio_fft_spectrum #(.FFT_POINTS(2048), .REFERENCE_MODE(1)) u_audio_fft_spectrum (
     .clk         (video_clk),
     .rst         (rst_video),
     .sample_valid(audio_valid),
