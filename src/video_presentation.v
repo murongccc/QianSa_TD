@@ -382,7 +382,7 @@ ring_spectrum_renderer #(
     .REFERENCE_MODE(REFERENCE_SPECTRUM),
     .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
 ) u_ring_spectrum_renderer (
-    .clk(clk), .rst(rst),
+    .clk(clk), .rst(rst), .frame_start(frame_start),
     .bars(spectrum_bars), .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );

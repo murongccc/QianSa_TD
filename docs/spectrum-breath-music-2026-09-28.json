@@ -1,0 +1,12 @@
+{
+  "frames": 645,
+  "radius_min": 90,
+  "radius_max": 107,
+  "sounding_radius_percentiles_5_50_95": [
+    102.0,
+    105.0,
+    106.0
+  ],
+  "radius_changes": 75,
+  "mean_absolute_radius_change": 0.13043478260869565
+}

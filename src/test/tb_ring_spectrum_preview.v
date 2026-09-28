@@ -2,16 +2,17 @@
 // 逐像素导出真实 RTL 输出；BANDS 来自音乐重放 CSV，禁止用绘图模型替代 RTL。
 module tb_ring_spectrum_preview;
 parameter integer REFERENCE_MODE=0;
-reg clk=0,rst=1;
+parameter integer WARMUP_FRAMES=4;
+reg clk=0,rst=1,frame_start=0;
 reg [9:0] pixel_x=0,pixel_y=0;
 reg [255:0] bands=0;
 reg [639:0] bars=0;
 wire pixel_on;
 wire [23:0] pixel_rgb;
 reg [2047:0] output_path;
-integer x,y,out_file;
+integer x,y,out_file,frame_index;
 always #5 clk=~clk;
-ring_spectrum_renderer #(.REFERENCE_MODE(REFERENCE_MODE)) dut(.clk(clk),.rst(rst),.pixel_x(pixel_x),.pixel_y(pixel_y),
+ring_spectrum_renderer #(.REFERENCE_MODE(REFERENCE_MODE)) dut(.clk(clk),.rst(rst),.frame_start(frame_start),.pixel_x(pixel_x),.pixel_y(pixel_y),
     .bands(bands),.bars(bars),.pixel_on(pixel_on),.pixel_rgb(pixel_rgb));
 initial begin
     if (!$value$plusargs("FRAME=%s",output_path))
@@ -23,6 +24,11 @@ initial begin
     if (!out_file) $fatal(1,"cannot open preview output");
     $fwrite(out_file,"P3\n640 480\n255\n");
     repeat (2) @(negedge clk);rst=0;
+    for(frame_index=0;frame_index<WARMUP_FRAMES;frame_index=frame_index+1) begin
+        @(negedge clk);frame_start=1;
+        @(negedge clk);frame_start=0;
+        repeat(90) @(negedge clk);
+    end
     for (y=0;y<480;y=y+1)
         for (x=0;x<640;x=x+1) begin
             @(negedge clk);pixel_x=x;pixel_y=y;
