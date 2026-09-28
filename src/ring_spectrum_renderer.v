@@ -185,9 +185,10 @@ always @(posedge clk or posedge rst) begin
     if (rst) active_stage <= 1'b0;
     else active_stage <= spectrum_active && in_circle_bounds;
 end
-// 最大长度 63 像素；整组有声时零幅度柱仍长 2 像素，静音整圈消失。
+// 最大长度 63 像素；参考模式有声时最低 4 像素，静音整圈消失。
+localparam [5:0] MIN_BAR_LENGTH = REFERENCE_MODE ? 6'd4 : 6'd2;
 wire [5:0] scaled_length = level_stage[7:2];
-wire [5:0] bar_length = (scaled_length < 6'd2) ? 6'd2 : scaled_length;
+wire [5:0] bar_length = (scaled_length < MIN_BAR_LENGTH) ? MIN_BAR_LENGTH : scaled_length;
 wire [7:0] outer_radius = 8'd90 + {2'd0,bar_length};
 wire [16:0] outer_radius_sq = outer_radius * outer_radius;
 // 恒定细线宽度；圆帽中央保留尖端像素，两侧各缩一像素。

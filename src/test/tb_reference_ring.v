@@ -27,7 +27,20 @@ initial begin
         if(observed_index!==i[6:0]) $fatal(1,"direct bar index=%0d actual=%0d",i,observed_index);
         if(observed_level!==8'd160 || !pixel_on) $fatal(1,"direct level or geometry index=%0d",i);
     end
-    @(negedge clk);bars=0;
+    // 只有一柱有声时，其余弱柱也必须保持 4 像素最低高度。
+    bars=640'd1;
+    for(i=0;i<80;i=i+1) begin
+        angle=6.283185307179586*i/80;
+        x=$rtoi(320+93*$cos(angle)+0.5);y=$rtoi(240+93*$sin(angle)+0.5);
+        @(negedge clk);pixel_x=x;pixel_y=y;
+        @(posedge clk);#1;
+        if(dut.bar_length!==6'd4 || !pixel_on)
+            $fatal(1,"weak column minimum missing index=%0d",i);
+    end
+    @(negedge clk);pixel_x=415;pixel_y=240;
+    @(posedge clk);#1;
+    if(pixel_on) $fatal(1,"weak column exceeded minimum height");
+    @(negedge clk);pixel_x=413;bars=0;
     @(posedge clk);#1;
     if(pixel_on) $fatal(1,"silent circle visible");
     $display("PASS reference ring 80 direct columns");$finish;

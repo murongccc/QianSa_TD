@@ -20,7 +20,6 @@ module pcm_audio_player #(
     wire [32:0] phase_next = sample_tick ? phase_sum - {1'b0,CLOCK_RATE} : phase_sum;
     reg read_pending, sample_ready;
     reg [31:0] sample_buffer;
-    reg [5:0] fallback_sample_count;
     reg [2:0] volume_meta, volume_sync;
     reg [1:0] playback_mode_meta, playback_mode_sync;
     localparam [1:0] MODE_STOP=2'd0, MODE_PLAY=2'd1, MODE_PAUSE=2'd2;
@@ -53,7 +52,6 @@ module pcm_audio_player #(
             phase<=32'd0; fifo_re<=1'b0; audio_valid<=1'b0;
             left_pcm<=24'd0; right_pcm<=24'd0; underrun<=1'b0;
             read_pending<=1'b0; sample_ready<=1'b0; sample_buffer<=32'd0;
-            fallback_sample_count<=6'd0;
             volume_meta<=3'd4; volume_sync<=3'd4;
             playback_mode_meta<=MODE_STOP; playback_mode_sync<=MODE_STOP;
         end else begin
@@ -82,13 +80,8 @@ module pcm_audio_player #(
                         right_pcm<=scale_pcm(sample_buffer[31:16],volume_sync);
                         sample_ready<=1'b0;
                     end else begin
-                        if (fallback_sample_count < 6'd24) begin
-                            left_pcm<=24'sd1000000; right_pcm<=24'sd1000000;
-                        end else begin
-                            left_pcm<=-24'sd1000000; right_pcm<=-24'sd1000000;
-                        end
-                        if (fallback_sample_count == 6'd47) fallback_sample_count<=6'd0;
-                        else fallback_sample_count<=fallback_sample_count + 1'b1;
+                        // SD 加载或缺数据时补零，保持采样时序，避免发出提示方波。
+                        left_pcm<=24'd0; right_pcm<=24'd0;
                         underrun<=1'b1;
                     end
                 end
