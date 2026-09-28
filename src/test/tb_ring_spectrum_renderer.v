@@ -13,7 +13,7 @@ reg [2047:0] frame_path;
 reg [23:0] first_color;
 real angle,dx,dy;
 ring_spectrum_renderer dut (
-    .clk(clk),.rst(rst),.frame_start(1'b0),
+    .clk(clk),.rst(rst),.breath_radius(8'd90),
     .pixel_x(pixel_x),.pixel_y(pixel_y),.bands(bands), .bars(640'd0),
     .pixel_on(pixel_on),.pixel_rgb(pixel_rgb)
 );

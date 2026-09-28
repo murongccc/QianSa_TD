@@ -6,6 +6,7 @@ reg clk=0,rst=1,sample_valid=0,frame_start=0;
 reg [23:0] sample_pcm=0;
 wire [639:0] bars;
 wire [255:0] bands;
+wire [7:0] breath_radius;
 integer i,j,k,amplitude,peak,previous_peak,max_index,max_value;
 integer out_file;
 reg [639:0] saved_bars;
@@ -21,10 +22,12 @@ reg [16:0] position;
 reg [31:0] root_square;
 reg [639:0] observed_bars=0;
 reg publication_allowed;
+reg [7:0] observed_radius=90;
+integer block_peak_root=0,expected_envelope;
 always #5 clk=~clk;
 audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS),.REFERENCE_MODE(1)) dut(
     .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
-    .frame_start(frame_start),.bands(bands),.bars(bars));
+    .frame_start(frame_start),.bands(bands),.bars(bars),.breath_radius(breath_radius));
 always @(posedge clk) begin
     if(!rst && dut.g_reference.u_reference.state==13) begin
         scanned_real=$signed(dut.g_reference.u_reference.read_data[31:16]);
@@ -34,6 +37,18 @@ always @(posedge clk) begin
     if(!rst && dut.g_reference.u_reference.state==16)
         if(dut.g_reference.u_reference.sqrt_root!==expected_root[15:0])
             $fatal(1,"Euclidean magnitude mismatch");
+    if(!rst && dut.g_reference.u_reference.state==16) begin
+        if(dut.g_reference.u_reference.scan_bin==0) block_peak_root=0;
+        if(expected_root>block_peak_root) block_peak_root=expected_root;
+    end
+    if(!rst && dut.g_reference.u_reference.state==23 && dut.g_reference.u_reference.bar_index==79) begin
+        if(dut.g_reference.u_reference.raw_peak!=block_peak_root*7)
+            $fatal(1,"breathing peak not taken from complete raw FFT");
+        expected_envelope=(dut.g_reference.u_reference.peak_envelope+block_peak_root*28+2)/5;
+        #1;
+        if(dut.g_reference.u_reference.peak_envelope!=expected_envelope)
+            $fatal(1,"raw peak smoothing mismatch");
+    end
 end
 always @(posedge clk) begin
     publication_allowed=frame_start && !dut.g_reference.u_reference.frame_start_d &&
@@ -41,7 +56,12 @@ always @(posedge clk) begin
     #1;
     if(!rst && bars!==observed_bars && !publication_allowed)
         $fatal(1,"visible bars changed outside frame edge");
+    if(!rst && breath_radius!==observed_radius && !publication_allowed)
+        $fatal(1,"visible breathing radius changed outside frame edge");
+    if(publication_allowed && breath_radius!==dut.g_reference.u_reference.radius_build)
+        $fatal(1,"radius not published together with current bars");
     observed_bars=bars;
+    observed_radius=breath_radius;
 end
 task publish;
     begin
@@ -104,7 +124,10 @@ initial begin
     previous_peak=-1;
     for(i=0;i<4;i=i+1) begin
         amplitude=512<<i;
-        repeat(8) block(3.0*48000/FFT_POINTS,amplitude);
+        block(3.0*48000/FFT_POINTS,amplitude);
+        if(dut.g_reference.u_reference.magnitude_memory[3][18:0]<amplitude*3/2)
+            $fatal(1,"tone rise did not follow first FFT block");
+        repeat(7) block(3.0*48000/FFT_POINTS,amplitude);
         peak_bar;
         if(max_value<=previous_peak || max_value==240) $fatal(1,"amplitude response clipped/nonmonotonic");
         previous_peak=max_value;
@@ -132,25 +155,27 @@ initial begin
         second_frequency=5.0*48000/FFT_POINTS;second_gain=4096;
         repeat(8) block(2.0*48000/FFT_POINTS,4096);
         second_gain=0;
-        if(dut.g_reference.u_reference.magnitude_memory[2]<900 ||
-           dut.g_reference.u_reference.magnitude_memory[5]<900 ||
-           dut.g_reference.u_reference.magnitude_memory[10]>10)
+        if(dut.g_reference.u_reference.magnitude_memory[2][18:0]<6300 ||
+           dut.g_reference.u_reference.magnitude_memory[5][18:0]<6300 ||
+           dut.g_reference.u_reference.magnitude_memory[10][18:0]>70)
             $fatal(1,"two independent low-frequency peaks missing");
         repeat(50) block(0,0);
         // 2413 Hz 位于高频两柱之间，FFT 必须存在峰；直取 80 柱不保证显示每个窄峰。
         repeat(8) block(2413,8192);
-        if(dut.g_reference.u_reference.magnitude_memory[103]<1800)
+        if(dut.g_reference.u_reference.magnitude_memory[103][18:0]<12600)
             $fatal(1,"FFT missed narrow tone between displayed columns");
         repeat(50) block(0,0);
         repeat(8) block(270.0*48000/FFT_POINTS,8192);
-        if(dut.g_reference.u_reference.magnitude_memory[270]<1800 ||
-           dut.g_reference.u_reference.magnitude_memory[14]>10)
+        if(dut.g_reference.u_reference.magnitude_memory[270][18:0]<12600 ||
+           dut.g_reference.u_reference.magnitude_memory[14][18:0]>70)
             $fatal(1,"upper-bin address wrapped");
         repeat(50) block(0,0);
     end
     repeat(8) block(9000,8192);
     peak_bar;
     if(max_value>10) $fatal(1,"out-of-range frequency visible");
+    if(breath_radius<=8'd90 || dut.g_reference.u_reference.raw_peak<19'd12000)
+        $fatal(1,"full FFT raw peak did not drive breathing outside displayed range");
     @(negedge clk);rst=1;
     @(negedge clk);
     if(bars!==0) $fatal(1,"reset retained bars");

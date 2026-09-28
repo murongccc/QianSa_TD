@@ -154,6 +154,7 @@ wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
 wire [255:0] audio_spectrum_bands;
 wire [639:0] audio_spectrum_bars;
+wire [7:0] audio_spectrum_radius;
 wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
 wire [31:0] audio_fifo_din, audio_fifo_dout;
 wire audio_reader_busy, audio_reader_done, audio_underrun;
@@ -663,6 +664,7 @@ audio_fft_spectrum #(.FFT_POINTS(2048), .REFERENCE_MODE(1)) u_audio_fft_spectrum
     .sample_pcm  (audio_left_data),
     .frame_start (vs),
     .bars        (audio_spectrum_bars),
+    .breath_radius(audio_spectrum_radius),
     .bands       (audio_spectrum_bands)
 );
 
@@ -698,6 +700,7 @@ video_presentation #(
     .image_select_toggle_async(image_select_toggle),
     .image_adjust_toggle_async(image_adjust_toggle),
     .spectrum_bars      (audio_spectrum_bars),
+    .spectrum_radius    (audio_spectrum_radius),
     .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
     .vs                 (vs),

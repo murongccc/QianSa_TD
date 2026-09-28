@@ -25,7 +25,7 @@ always #5 clk=~clk;
 
 audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
-    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars()
+    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars(), .breath_radius()
 );
 
 function integer band_of_bin;

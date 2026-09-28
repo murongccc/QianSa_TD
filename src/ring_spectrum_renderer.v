@@ -7,7 +7,7 @@ module ring_spectrum_renderer #(
 )(
     input wire clk,
     input wire rst,
-    input wire frame_start,
+    input wire [7:0] breath_radius,
     input wire [9:0] pixel_x,
     input wire [9:0] pixel_y,
     input wire [255:0] bands,
@@ -24,53 +24,12 @@ wire [10:0] abs_y = (pixel_y >= CENTER_Y) ?
 wire x_right = pixel_x >= CENTER_X;
 wire y_down = pixel_y >= CENTER_Y;
 wire in_circle_bounds = (abs_x <= 11'd176) && (abs_y <= 11'd176);
-// 参考项目按峰值平滑后做 3*log2(M+1) 的半径扩张。
-// 当前柱等级 P 约为 100*ln(1+0.1*M)，以下阈值近似反推 M 后的整数扩张。
-function [4:0] radius_offset;
-    input [7:0] peak;
-    begin
-        if      (peak >= 8'd241) radius_offset=5'd20;
-        else if (peak >= 8'd220) radius_offset=5'd19;
-        else if (peak >= 8'd199) radius_offset=5'd18;
-        else if (peak >= 8'd179) radius_offset=5'd17;
-        else if (peak >= 8'd160) radius_offset=5'd16;
-        else if (peak >= 8'd142) radius_offset=5'd15;
-        else if (peak >= 8'd124) radius_offset=5'd14;
-        else if (peak >= 8'd108) radius_offset=5'd13;
-        else if (peak >= 8'd92)  radius_offset=5'd12;
-        else if (peak >= 8'd78)  radius_offset=5'd11;
-        else if (peak >= 8'd65)  radius_offset=5'd10;
-        else if (peak >= 8'd54)  radius_offset=5'd9;
-        else if (peak >= 8'd43)  radius_offset=5'd8;
-        else if (peak >= 8'd34)  radius_offset=5'd7;
-        else if (peak >= 8'd27)  radius_offset=5'd6;
-        else if (peak >= 8'd20)  radius_offset=5'd5;
-        else if (peak >= 8'd15)  radius_offset=5'd4;
-        else if (peak >= 8'd10)  radius_offset=5'd3;
-        else if (peak >= 8'd6)   radius_offset=5'd2;
-        else if (peak >= 8'd3)   radius_offset=5'd1;
-        else radius_offset=5'd0;
-    end
-endfunction
-wire [7:0] base_radius;
+// 半径已由 FFT 原始峰值按参考算法计算，与音柱在同一视频帧发布。
+wire [7:0] base_radius = REFERENCE_MODE ? breath_radius : 8'd90;
 wire [16:0] base_radius_sq;
-generate if (REFERENCE_MODE) begin : g_breath
-    reg frame_start_d, scan_busy, peak_ready;
-    reg [6:0] scan_index;
-    reg [7:0] scan_peak, pending_peak, peak_envelope, radius;
-    wire [7:0] scan_level=bars[scan_index*8 +:8];
-    wire [7:0] next_peak=(scan_level>scan_peak)?scan_level:scan_peak;
-    // 13/16 新值 + 3/16 历史值，约为参考的 0.8/0.2；移位加法不用 DSP。
-    wire [11:0] peak_wide={4'd0,pending_peak};
-    wire [11:0] history_wide={4'd0,peak_envelope};
-    wire [11:0] envelope_sum=(peak_wide<<3)+(peak_wide<<2)+peak_wide+
-                              (history_wide<<1)+history_wide+12'd8;
-    wire [7:0] next_envelope=envelope_sum[11:4];
-    assign base_radius=radius;
-    // 小范围查表代替新增半径平方乘法器，避免占用额外 DSP。
     reg [16:0] radius_square;
     always @* begin
-        case(radius)
+        case(base_radius)
             8'd91: radius_square=17'd8281;
             8'd92: radius_square=17'd8464;
             8'd93: radius_square=17'd8649;
@@ -95,33 +54,6 @@ generate if (REFERENCE_MODE) begin : g_breath
         endcase
     end
     assign base_radius_sq=radius_square;
-    always @(posedge clk or posedge rst) begin
-        if(rst) begin
-            frame_start_d<=1'b0;scan_busy<=1'b0;peak_ready<=1'b0;
-            scan_index<=7'd0;scan_peak<=8'd0;pending_peak<=8'd0;
-            peak_envelope<=8'd0;radius<=8'd90;
-        end else begin
-            frame_start_d<=frame_start;
-            if(frame_start && !frame_start_d) begin
-                // 用上一帧已完成的扫描结果更新；随后读取本帧新发布的 FFT 柱。
-                if(peak_ready) begin
-                    peak_envelope<=next_envelope;
-                    radius<=8'd90+{3'd0,radius_offset(next_envelope)};
-                end
-                peak_ready<=1'b0;scan_busy<=1'b1;
-                scan_index<=7'd0;scan_peak<=8'd0;
-            end else if(scan_busy) begin
-                scan_peak<=next_peak;
-                if(scan_index==7'd79) begin
-                    pending_peak<=next_peak;peak_ready<=1'b1;scan_busy<=1'b0;
-                end else scan_index<=scan_index+7'd1;
-            end
-        end
-    end
-end else begin : g_fixed_radius
-    assign base_radius=8'd90;
-    assign base_radius_sq=17'd8100;
-end endgenerate
 wire [7:0] local_x = abs_x[7:0];
 wire [7:0] local_y = abs_y[7:0];
 wire [16:0] distance_sq = (local_x * local_x) + (local_y * local_y);

@@ -55,6 +55,7 @@ video_presentation #(
     .image_adjust_toggle_async(image_adjust_toggle_async),
     .spectrum_bands(spectrum_bands),
     .spectrum_bars(spectrum_bars),
+    .spectrum_radius(8'd90),
     .rgb_in(rgb_in), .rgb_out(rgb_out)
 );
 

@@ -14,7 +14,7 @@ integer detail_file, raw_peak=0, raw_sum=0;
 always #5 clk=~clk;
 audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
-    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars()
+    .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars(), .breath_radius()
 );
 always @(posedge clk) begin
     if (rst) begin raw_peak=0; raw_sum=0; end

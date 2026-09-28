@@ -1,0 +1,66 @@
+{
+  "input": "src/python/1.wav, 48 kHz 24-bit stereo, left channel raw volume",
+  "fft_points": 2048,
+  "sample_rate": 48000,
+  "frequency_spacing_hz": 23.4375,
+  "highest_bar_target_hz": 6389.739363991631,
+  "before": {
+    "frames": 645,
+    "mean_frame_change_px": 0.26805124223602483,
+    "mean_adjacent_difference_px": 2.5633990776175057,
+    "mean_seam_difference_px": 0.0,
+    "maximum_bar_length_px": 46
+  },
+  "after": {
+    "frames": 645,
+    "mean_frame_change_px": 0.5443905279503105,
+    "mean_adjacent_difference_px": 3.046335001471887,
+    "mean_seam_difference_px": 0.0,
+    "maximum_bar_length_px": 52,
+    "clipped_bar_ratio": 0.0
+  },
+  "preview_frames": [
+    {
+      "sample": 80800,
+      "seconds": 1.6833333333333333,
+      "before_bars": "02030305080c0505030505030c050f051208090612190d1a09113181291e0f324e5a2f694538575573a5ae7b3e4b7c86784e3d2f3f4b5a666b61574e54595d6059524b453e38322c25201a1510090500",
+      "after_bars": "02030505000602050308050306020f050f060805140a1115090914932910113b515e23543b313d5289b1b884373b7984774d37233341515f634f3b25323b454b453e37312b24201c1814100d09060300",
+      "after_radius": 106,
+      "before_radius": 106
+    },
+    {
+      "sample": 331200,
+      "seconds": 6.9,
+      "before_bars": "0302030312181a0d050a0c0a0a0c0f09251a1c123c101a24511a242a14242a15354b2f4a312b48614859686963512532322522202f3b4a5660697277797a7b7c73695f554a413a332d251f19120c0600",
+      "after_bars": "050206051e242a15050214100f10120d37192a1e29192a3729223524190619183a4741543e35526c4d425f655d4b25241f14100c1a2647606c61554d5b6671776a5d4e3f2d1c191612100c0908050200",
+      "after_radius": 103,
+      "before_radius": 104
+    }
+  ],
+  "note": "Same source samples. No board-level audio/volume simulation.",
+  "minimum_bar_length_px": 8,
+  "breathing": {
+    "radius_min": 90,
+    "radius_max": 108,
+    "radius_changes": 145,
+    "mean_absolute_radius_change_px": 0.3105590062111801
+  },
+  "low_frequency_column_correlation": {
+    "before": {
+      "16-20": 0.9056750231611761,
+      "20-23": 0.5410028473245064,
+      "16-23": 0.5031243900499713
+    },
+    "after": {
+      "16-20": 0.856020948414713,
+      "20-23": 0.6482337254466823,
+      "16-23": 0.6385246523909822
+    }
+  },
+  "before_breathing": {
+    "radius_min": 90,
+    "radius_max": 107,
+    "radius_changes": 75,
+    "mean_absolute_radius_change_px": 0.13043478260869565
+  }
+}

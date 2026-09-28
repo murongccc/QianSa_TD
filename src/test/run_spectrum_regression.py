@@ -42,9 +42,10 @@ def main():
                "src/video_presentation.v", "src/test/tb_audio_fft_spectrum.v",
                "src/test/tb_ring_spectrum_renderer.v", "src/test/tb_video_presentation.v",
                "src/test/tb_video_presentation_startup.v", "src/test/tb_reference_fft_spectrum.v",
-               "src/test/tb_reference_ring.v"]
+               "src/test/tb_reference_ring.v", "src/test/tb_reference_dynamics.v"]
     run("compile", [binaries["vlog"], "-work", library, *sources])
     tests = [("pcm_player", "tb_pcm_audio_player", []),
+             ("reference_dynamics", "tb_reference_dynamics", []),
              ("fft256", "tb_audio_fft_spectrum", ["-gFFT_POINTS=256"]),
              ("fft512", "tb_audio_fft_spectrum", ["-gFFT_POINTS=512"]),
              ("reference512", "tb_reference_fft_spectrum", ["-gFFT_POINTS=512"]),

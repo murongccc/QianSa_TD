@@ -5,19 +5,21 @@ module audio_fft_spectrum #(
 )(
     input wire clk, input wire rst, input wire sample_valid,
     input wire [23:0] sample_pcm, input wire frame_start,
-    output wire [255:0] bands, output wire [639:0] bars
+    output wire [255:0] bands, output wire [639:0] bars,
+    output wire [7:0] breath_radius
 );
 generate
     if (REFERENCE_MODE) begin: g_reference
         reference_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) u_reference (
             .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
-            .frame_start(frame_start),.bars(bars));
+            .frame_start(frame_start),.bars(bars),.breath_radius(breath_radius));
         assign bands=256'd0;
     end else begin: g_legacy
         legacy_audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) u_legacy (
             .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
             .frame_start(frame_start),.bands(bands));
         assign bars=640'd0;
+        assign breath_radius=8'd90;
     end
 endgenerate
 endmodule
@@ -850,13 +852,15 @@ endmodule
 
 
 // 48 kHz 参考显示链：512/1024/2048 点，逐 bin 欧氏幅度、直接插值、100*ln(1+0.1*M)。
-// 保留 Hann 窗与原快升慢落；不更改播放采样率，不引入自动增益。
+// 参考动态移植自 RP2350_FFT，MIT 声明见 docs/third-party/RP2350_FFT-LICENSE。
+// 保留 Hann 窗与采样率；立即上升、重力回落，原始峰值独立驱动呼吸。
 module reference_fft_spectrum #(
     parameter integer FFT_POINTS=2048
 )(
     input wire clk, input wire rst, input wire sample_valid,
     input wire [23:0] sample_pcm, input wire frame_start,
-    output reg [639:0] bars
+    output reg [639:0] bars,
+    output reg [7:0] breath_radius
 );
 localparam integer ADDR_W=(FFT_POINTS==2048)?11:(FFT_POINTS==1024)?10:9;
 localparam integer LAST_BIN=(FFT_POINTS==2048)?273:(FFT_POINTS==1024)?137:69;
@@ -874,10 +878,12 @@ wire [31:0] read_data,bank0_q,bank1_q;
 reg [31:0] square_sum,sqrt_remainder;
 reg [15:0] sqrt_root;
 reg [4:0] sqrt_count;
-reg [15:0] history_q;
+reg [23:0] history_q;
 reg [6:0] bar_index;
-reg [15:0] magnitude_a,magnitude_b;
-reg [23:0] interpolated_product;
+reg [18:0] magnitude_a,magnitude_b;
+reg [27:0] interpolated_product;
+reg [18:0] raw_peak,peak_envelope;
+reg [7:0] radius_build;
 reg [7:0] bar_level;
 reg [639:0] bars_build;
 reg pending_valid,frame_start_d;
@@ -887,18 +893,25 @@ wire [7:0] fraction=position[7:0];
 wire [8:0] magnitude_address= (state==ST_BAR_RD_A)?position[16:8]:
     (state==ST_BAR_RD_B)?position[16:8]+9'd1:scan_bin[8:0];
 // 读写地址同为 9 位、深度统一为 512，覆盖 2048 点模式的最高 bin273。
-(* ram_style="bram" *) reg [15:0] magnitude_memory [0:511];
-wire [15:0] rise_delta=sqrt_root-history_q;
-wire [15:0] fall_delta=history_q-sqrt_root;
-wire [15:0] smooth_magnitude=(sqrt_root>history_q)?
-    history_q+(({1'b0,rise_delta}+17'd1)>>1):
-    history_q-(({3'd0,fall_delta}+19'd7)>>3);
+// 幅度换算成参考 M 的 Q8，速度为参考幅度单位/更新；两者共用一组 RAM。
+(* ram_style="bram" *) reg [23:0] magnitude_memory [0:511];
+wire [18:0] raw_m_q8=({3'd0,sqrt_root}<<3)-{3'd0,sqrt_root};
+wire [18:0] held_m_q8=history_q[18:0];
+wire [4:0] fall_speed=history_q[23:19];
+wire immediate_rise=raw_m_q8>held_m_q8;
+wire [18:0] fall_step={6'd0,fall_speed,8'd0};
+// 精确保留参考的分支：能减速度则减速度，否则每次减 1；零附近截断。
+wire [18:0] falling_m_q8=(held_m_q8>fall_step)?held_m_q8-fall_step:
+    (held_m_q8>19'd256)?held_m_q8-19'd256:19'd0;
+wire [18:0] smooth_magnitude=immediate_rise?raw_m_q8:falling_m_q8;
+wire [4:0] next_fall_speed=immediate_rise?5'd0:
+    (fall_speed<5'd20)?fall_speed+5'd1:5'd20;
 // bin0 不混入音乐低音；保持原设计的直流排除，不新增去直流滤波器。
-wire [15:0] stored_magnitude=(scan_bin==0)?16'd0:smooth_magnitude;
+wire [23:0] stored_magnitude=(scan_bin==0)?24'd0:{next_fall_speed,smooth_magnitude};
 always @(posedge clk) begin
-    if (state==ST_INIT) magnitude_memory[scan_bin[8:0]]<=16'd0;
-    else if (state==ST_MAG_WRITE) magnitude_memory[scan_bin[8:0]]<=stored_magnitude;
-    if (state==ST_SCAN_RD || state==ST_BAR_RD_A || state==ST_BAR_RD_B)
+    if (state==ST_INIT) magnitude_memory[scan_bin[8:0]]<=24'd0;
+    else if (state==ST_MAG_WRITE && scan_bin<=LAST_BIN) magnitude_memory[scan_bin[8:0]]<=stored_magnitude;
+    if ((state==ST_SCAN_RD && scan_bin<=LAST_BIN) || state==ST_BAR_RD_A || state==ST_BAR_RD_B)
         history_q<=magnitude_memory[magnitude_address];
 end
 wire capture_we=sample_valid && state!=ST_INIT;
@@ -939,10 +952,48 @@ wire [33:0] sqrt_shift={sqrt_remainder, square_sum[31:30]};
 wire [33:0] sqrt_trial={16'd0,sqrt_root,2'b01};
 wire sqrt_accept=sqrt_shift>=sqrt_trial;
 // 归一化 FFT 除以 N；恢复到参考 2048 点、满幅归一化、Flat-top 等效增益。
-// M 的 Q8 值约为 magnitude*6.8985，取 7；误差约 1.5%。
-wire [23:0] magnitude_q8=interpolated_product>>8;
-wire [26:0] reference_m_q8=(magnitude_q8<<3)-magnitude_q8;
-wire [23:0] log_argument=24'd256+((reference_m_q8+27'd5)/10);
+// M 的 Q8 值约为原始 magnitude*6.8985，取 7；误差约 1.5%。
+// 已在入历史 RAM 前换算，插值后无需再次乘 7。
+wire [18:0] reference_m_q8=interpolated_product[26:8];
+wire [23:0] log_argument=24'd256+(({5'd0,reference_m_q8}+24'd5)/10);
+// 参考呼吸先在原始幅度域做 0.8/0.2 平滑，再做 3*log2(M+1)。
+wire [21:0] envelope_sum={3'd0,peak_envelope}+{1'b0,raw_peak,2'd0}+22'd2;
+wire [18:0] next_envelope=envelope_sum/22'd5;
+function [4:0] radius_offset;
+    input [18:0] m_q8;
+    reg [19:0] argument;
+    integer offset;
+    begin
+        argument={1'b0,m_q8}+20'd256;
+        radius_offset=5'd0;
+        // 3*log2(x) 的整数阈值：ceil(256*2^(offset/3))。
+        for(offset=1;offset<=20;offset=offset+1) begin
+            case(offset)
+                1: if(argument>=20'd323) radius_offset=5'd1;
+                2: if(argument>=20'd407) radius_offset=5'd2;
+                3: if(argument>=20'd512) radius_offset=5'd3;
+                4: if(argument>=20'd646) radius_offset=5'd4;
+                5: if(argument>=20'd813) radius_offset=5'd5;
+                6: if(argument>=20'd1024) radius_offset=5'd6;
+                7: if(argument>=20'd1291) radius_offset=5'd7;
+                8: if(argument>=20'd1626) radius_offset=5'd8;
+                9: if(argument>=20'd2048) radius_offset=5'd9;
+                10: if(argument>=20'd2581) radius_offset=5'd10;
+                11: if(argument>=20'd3251) radius_offset=5'd11;
+                12: if(argument>=20'd4096) radius_offset=5'd12;
+                13: if(argument>=20'd5161) radius_offset=5'd13;
+                14: if(argument>=20'd6502) radius_offset=5'd14;
+                15: if(argument>=20'd8192) radius_offset=5'd15;
+                16: if(argument>=20'd10322) radius_offset=5'd16;
+                17: if(argument>=20'd13004) radius_offset=5'd17;
+                18: if(argument>=20'd16384) radius_offset=5'd18;
+                19: if(argument>=20'd20643) radius_offset=5'd19;
+                20: if(argument>=20'd26008) radius_offset=5'd20;
+                default: begin end
+            endcase
+        end
+    end
+endfunction
 function [7:0] reference_level;
     input [23:0] argument;
     integer bit_index;
@@ -2203,6 +2254,7 @@ always @(posedge clk or posedge rst) begin
         state<=ST_INIT;scan_bin<=0;sample_count<=0;capture_bank<=0;process_bank<=0;
         group_base<=0;pair_index<=0;step<=1;stage<=0;
         bars<=0;bars_build<=0;pending_valid<=0;frame_start_d<=0;
+        breath_radius<=8'd90;radius_build<=8'd90;raw_peak<=0;peak_envelope<=0;
         bar_index<=0;sqrt_count<=0;sqrt_root<=0;sqrt_remainder<=0;square_sum<=0;
         a_data<=0;b_data<=0;twiddle_word<=0;p0<=0;p1<=0;p2<=0;p3<=0;
         result_a<=0;result_b<=0;magnitude_a<=0;magnitude_b<=0;
@@ -2212,7 +2264,7 @@ always @(posedge clk or posedge rst) begin
         // build 只在完整生成 80 柱后有效；开始下一次构建时撤销有效标志。
         // 避免使用第三组 640 位寄存器，也不会发布正在改写的半帧数据。
         if(frame_start && !frame_start_d && pending_valid) begin
-            bars<=bars_build;pending_valid<=0;
+            bars<=bars_build;breath_radius<=radius_build;pending_valid<=0;
         end
         if(capture_we) begin
             if(sample_count==FFT_POINTS-1) begin
@@ -2248,7 +2300,7 @@ always @(posedge clk or posedge rst) begin
                     if({1'b0,group_base}+{step,1'b0}<FFT_POINTS) group_base<=group_base+(step<<1);
                     else begin
                         group_base<=0;step<=step<<1;stage<=stage+1'b1;
-                        if(stage==ADDR_W-1) begin scan_bin<=0;state<=ST_SCAN_RD;end
+                        if(stage==ADDR_W-1) begin scan_bin<=0;raw_peak<=0;state<=ST_SCAN_RD;end
                     end
                 end
                 if(stage!=ADDR_W-1 || pair_index+1'b1<step || {1'b0,group_base}+{step,1'b0}<FFT_POINTS) state<=ST_RD_A;
@@ -2265,13 +2317,15 @@ always @(posedge clk or posedge rst) begin
                 if(sqrt_count==15) state<=ST_MAG_WRITE;
             end
             ST_MAG_WRITE: begin
-                if(scan_bin==LAST_BIN) begin bar_index<=0;pending_valid<=0;state<=ST_BAR_RD_A;end
+                if(raw_m_q8>raw_peak) raw_peak<=raw_m_q8;
+                // 音柱仅保存显示范围；呼吸峰值必须扫描完整正频率，含 Nyquist。
+                if(scan_bin==FFT_POINTS/2) begin bar_index<=0;pending_valid<=0;state<=ST_BAR_RD_A;end
                 else begin scan_bin<=scan_bin+1'b1;state<=ST_SCAN_RD;end
             end
             ST_BAR_RD_A: state<=ST_BAR_A;
-            ST_BAR_A: begin magnitude_a<=history_q;state<=ST_BAR_RD_B;end
+            ST_BAR_A: begin magnitude_a<=history_q[18:0];state<=ST_BAR_RD_B;end
             ST_BAR_RD_B: state<=ST_BAR_B;
-            ST_BAR_B: begin magnitude_b<=history_q;state<=ST_BLEND;end
+            ST_BAR_B: begin magnitude_b<=history_q[18:0];state<=ST_BLEND;end
             ST_BLEND: begin
                 // 幅度先线性插值，再对数压缩，避免先压缩后插值产生错误轮廓。
                 interpolated_product<=magnitude_a*(9'd256-{1'b0,fraction})+magnitude_b*fraction;
@@ -2281,6 +2335,8 @@ always @(posedge clk or posedge rst) begin
             ST_BAR_WRITE: begin
                 bars_build[bar_index*8 +:8]<=bar_level;
                 if(bar_index==79) begin
+                    peak_envelope<=next_envelope;
+                    radius_build<=8'd90+{3'd0,radius_offset(next_envelope)};
                     pending_valid<=1;state<=ST_IDLE;
                 end else begin bar_index<=bar_index+1'b1;state<=ST_BAR_RD_A;end
             end
