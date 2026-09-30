@@ -13,7 +13,8 @@ module fat32_bmp_catalog(
     // 已交给 BMP 读取器的候选数量，用于板级区分目录枚举与加载失败。
     output reg [2:0] candidate_count,
     input wire candidate_release, input wire stop,
-    output reg scan_done, output reg volume_valid
+    output reg scan_done, output reg volume_valid,
+    output wire [31:0] volume_root_cluster
 );
 localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            ST_DIR_CALC=4'd4, ST_DIR=4'd5, ST_DIR_FAT=4'd6,
@@ -26,11 +27,15 @@ localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            ST_VALIDATE_BPB=4'd15;
 reg [3:0] state;
 reg [9:0] pos;
-reg [7:0] ent [0:31];
+reg [7:0] entry_first,entry_attr;
+reg [23:0] entry_ext,entry_size_low;
+reg [31:0] entry_cluster;
 integer i;
 reg [15:0] bytes_per_sector, reserved_sector_count;
 reg [7:0] fat_count;
 reg [31:0] sectors_per_fat, root_cluster, volume_base;
+// 卷信息在初始化后保持稳定，供同一 SD 域的 WAV 读取器复用。
+assign volume_root_cluster=root_cluster;
 reg [31:0] mbr_partition_lba;
 reg mbr_entry_is_fat, mbr_found_partition, mbr_writing_lba;
 // 0：刚读完 LBA0，可在 BPB 无效时回退到 MBR 分区；
@@ -55,12 +60,12 @@ wire bpb_looks_valid = (bytes_per_sector == 16'd512) &&
                        (sectors_per_cluster != 8'd0) &&
                        (fat_count != 8'd0) && (sectors_per_fat != 32'd0) &&
                        (root_cluster >= 32'd2);
-wire dir_entry_is_bmp = (ent[0] != 8'h00) && (ent[0] != 8'he5) &&
-                        (ent[11] != 8'h0f) && (ent[11] != 8'h10) &&
-                        (ent[11] != 8'h08) &&
-                        (ent[8] == "B") && (ent[9] == "M") && (ent[10] == "P") &&
-                        ({ent[21],ent[20],ent[27],ent[26]} >= 32'd2) &&
-                        ({sd_sec_read_data,ent[30],ent[29],ent[28]} != 32'd0);
+wire dir_entry_is_bmp = (entry_first != 8'h00) && (entry_first != 8'he5) &&
+                        (entry_attr != 8'h0f) && (entry_attr != 8'h10) &&
+                        (entry_attr != 8'h08) &&
+                        (entry_ext[7:0] == "B") && (entry_ext[15:8] == "M") && (entry_ext[23:16] == "P") &&
+                        (entry_cluster >= 32'd2) &&
+                        ({sd_sec_read_data,entry_size_low} != 32'd0);
 
 task advance_directory_sector;
     begin
@@ -95,8 +100,8 @@ always @(posedge clk or posedge rst) begin
         dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
         fat_offset<=0; fat_entry_shift<=0;
         fat_next_cluster_reg<=0;
+        entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
         for (i=0;i<32;i=i+1) begin
-            ent[i]<=0;
             if (i<5) begin
                 cached_first_cluster[i]<=0;
                 cached_file_size[i]<=0;
@@ -224,13 +229,28 @@ always @(posedge clk or posedge rst) begin
             end
             ST_DIR: begin
                 if (sd_sec_read_data_valid) begin
-                    ent[pos[4:0]] <= sd_sec_read_data;
+                    // 每个目录项的必要字段都有固定写入位置，非连续字节也不会错位。
+                    case(pos[4:0])
+                        5'd0: entry_first<=sd_sec_read_data;
+                        5'd8: entry_ext[7:0]<=sd_sec_read_data;
+                        5'd9: entry_ext[15:8]<=sd_sec_read_data;
+                        5'd10: entry_ext[23:16]<=sd_sec_read_data;
+                        5'd11: entry_attr<=sd_sec_read_data;
+                        5'd20: entry_cluster[23:16]<=sd_sec_read_data;
+                        5'd21: entry_cluster[31:24]<=sd_sec_read_data;
+                        5'd26: entry_cluster[7:0]<=sd_sec_read_data;
+                        5'd27: entry_cluster[15:8]<=sd_sec_read_data;
+                        5'd28: entry_size_low[7:0]<=sd_sec_read_data;
+                        5'd29: entry_size_low[15:8]<=sd_sec_read_data;
+                        5'd30: entry_size_low[23:16]<=sd_sec_read_data;
+                        default: ;
+                    endcase
                     if (pos[4:0] == 5'd31) begin
-                        if (ent[0] == 8'h00) begin
+                        if (entry_first == 8'h00) begin
                             dir_end_pending <= 1'b1;
                         end else if (dir_entry_is_bmp && candidate_count < 3'd5) begin
-                            cached_first_cluster[candidate_count] <= {ent[21],ent[20],ent[27],ent[26]};
-                            cached_file_size[candidate_count] <= {sd_sec_read_data,ent[30],ent[29],ent[28]};
+                            cached_first_cluster[candidate_count] <= entry_cluster;
+                            cached_file_size[candidate_count] <= {sd_sec_read_data,entry_size_low};
                             candidate_count <= candidate_count+1'b1;
                             // 收满五项无需继续读取根目录其余扇区。
                             if (candidate_count == 3'd4)

@@ -22,7 +22,8 @@ fat32_bmp_catalog dut(
     .candidate_valid(candidate_valid),.candidate_first_cluster(first_cluster),.candidate_file_size(file_size),
     .fat_start_sector(fat_start),.first_data_sector(data_start),.sectors_per_cluster(spc),
     .candidate_count(catalog_candidate_count),
-    .candidate_release(candidate_release),.stop(1'b0),.scan_done(scan_done),.volume_valid(volume_valid)
+    .candidate_release(candidate_release),.stop(1'b0),.scan_done(scan_done),.volume_valid(volume_valid),
+    .volume_root_cluster()
 );
 
 function [7:0] sector_byte;

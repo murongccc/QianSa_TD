@@ -54,6 +54,7 @@ wire [7:0] sd_data_audio = sd_sec_read_data;
 wire sd_valid_bmp, sd_end_bmp, sd_valid_audio, sd_end_audio;
 wire catalog_done, catalog_candidate_valid, catalog_volume_valid;
 wire [31:0] catalog_first_cluster, catalog_file_size, catalog_fat_start, catalog_data_start;
+wire [31:0] catalog_root_cluster;
 wire [7:0] catalog_sectors_per_cluster;
 wire [2:0] catalog_candidate_count;
 wire catalog_sd_read; wire [31:0] catalog_sd_addr;
@@ -250,7 +251,8 @@ fat32_bmp_catalog u_bmp_catalog(
     .sectors_per_cluster(catalog_sectors_per_cluster), .candidate_count(catalog_candidate_count),
     .candidate_release(catalog_release),
     .stop(media_count >= SCAN_TARGET_COUNT),
-    .scan_done(catalog_done), .volume_valid(catalog_volume_valid)
+    .scan_done(catalog_done), .volume_valid(catalog_volume_valid),
+    .volume_root_cluster(catalog_root_cluster)
 );
 
 // This is a single-clock FIFO: both BMP decoding and scaling execute in
@@ -288,7 +290,8 @@ always @(posedge clk or posedge rst_local) begin
     else if (scaler_start) scaler_started <= 1'b1;
 end
 
-fat32_wav_reader u_sd_audio_reader(
+// 图片目录器已经解析同一卷；播放重启复用稳定元数据，避免重复引导扇区硬件。
+fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
     .clk(clk), .rst(rst_local | audio_reader_reset), .sd_init_done(sd_init_qualified),
     .enable(display_valid && audio_reader_enable),
     .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),
@@ -297,7 +300,10 @@ fat32_wav_reader u_sd_audio_reader(
     .fifo_full(audio_fifo_full), .audio_read_toggle(audio_read_toggle),
     .audio_fifo_level(audio_fifo_level),
     .busy(audio_busy), .done(audio_done), .file_found(audio_file_found), .format_ok(audio_format_ok),
-    .format_error(audio_format_error)
+    .format_error(audio_format_error),
+    .volume_valid(catalog_volume_valid), .volume_fat_start(catalog_fat_start),
+    .volume_data_start(catalog_data_start), .volume_root_cluster(catalog_root_cluster),
+    .volume_sectors_per_cluster(catalog_sectors_per_cluster)
 );
 
 // Test substitution is explicit and never defines a second sd_card_top.

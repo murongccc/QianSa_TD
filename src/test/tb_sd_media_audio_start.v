@@ -9,7 +9,9 @@ module tb_sd_media_audio_start;
   .clk(clk),.rst(rst),.sd_init_done(sd_init_done),.enable(enable),
   .sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
   .sd_data(8'd0),.sd_data_valid(1'b0),.sd_sec_read_end(1'b0),.fifo_we(),.fifo_din(),.fifo_full(1'b0),
-  .audio_read_toggle(1'b0),.busy(busy),.done(),.file_found(),.format_ok());
+  .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(busy),.done(),.file_found(),.format_ok(),.format_error(),
+  .volume_valid(1'b0),.volume_fat_start(32'd0),.volume_data_start(32'd0),
+  .volume_root_cluster(32'd0),.volume_sectors_per_cluster(8'd0));
  always #5 clk=~clk;
  initial begin
   #20 rst=0; sd_init_done=1;

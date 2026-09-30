@@ -10,7 +10,7 @@ fat32_bmp_catalog dut(
     .sd_sec_read_data_valid(sd_valid),.sd_sec_read_data(sd_data),.sd_sec_read_end(sd_end),
     .candidate_valid(),.candidate_first_cluster(),.candidate_file_size(),
     .fat_start_sector(),.first_data_sector(),.sectors_per_cluster(),.candidate_count(),
-    .candidate_release(1'b0),.stop(1'b0),.scan_done(),.volume_valid()
+    .candidate_release(1'b0),.stop(1'b0),.scan_done(),.volume_valid(),.volume_root_cluster()
 );
 
 task check_entry;

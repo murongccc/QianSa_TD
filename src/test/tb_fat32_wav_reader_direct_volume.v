@@ -10,7 +10,9 @@ always #5 clk=~clk;
 fat32_wav_reader dut(
  .clk(clk),.rst(rst),.sd_init_done(1'b1),.enable(1'b1),.sd_sec_read(req),.sd_sec_read_addr(addr),
  .sd_data(data),.sd_data_valid(valid),.sd_sec_read_end(sec_end),.fifo_we(),.fifo_din(),.fifo_full(1'b0),
- .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(),.done(),.file_found(),.format_ok(),.format_error()
+ .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(),.done(),.file_found(),.format_ok(),.format_error(),
+ .volume_valid(1'b0),.volume_fat_start(32'd0),.volume_data_start(32'd0),
+ .volume_root_cluster(32'd0),.volume_sectors_per_cluster(8'd0)
 );
 
 task send_boot_sector;

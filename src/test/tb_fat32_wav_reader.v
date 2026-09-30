@@ -1,15 +1,18 @@
 `timescale 1ns/1ps
 module tb_fat32_wav_reader;
+ parameter integer USE_SHARED_VOLUME=0;
  reg clk=0,rst=1,sd_init_done=0,sd_data_valid=0,sd_sec_read_end=0,read_toggle=0;
  reg [7:0] sd_data=0;
  wire sd_sec_read,fifo_we,busy,done,file_found,format_ok;
  wire [31:0] sd_sec_read_addr,fifo_din;
  integer i, writes=0;
  always #5 clk=~clk;
- fat32_wav_reader #(.FIFO_SAFE_LEVEL(3968)) dut(
+ fat32_wav_reader #(.FIFO_SAFE_LEVEL(3968),.USE_SHARED_VOLUME(USE_SHARED_VOLUME)) dut(
   .clk(clk),.rst(rst),.sd_init_done(sd_init_done),.enable(1'b1),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
   .sd_data(sd_data),.sd_data_valid(sd_data_valid),.sd_sec_read_end(sd_sec_read_end),.fifo_we(fifo_we),.fifo_din(fifo_din),
-  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(),.busy(busy),.done(done),.file_found(file_found),.format_ok(format_ok),.format_error());
+  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(),.busy(busy),.done(done),.file_found(file_found),.format_ok(format_ok),.format_error(),
+  .volume_valid(1'b1),.volume_fat_start(32'd2080),.volume_data_start(32'd2082),
+  .volume_root_cluster(32'd2),.volume_sectors_per_cluster(8'd1));
  task byte(input [7:0] v); begin @(negedge clk);sd_data=v;sd_data_valid=1;@(negedge clk);sd_data_valid=0;end endtask
  task end_sector; begin @(negedge clk);sd_sec_read_end=1;@(negedge clk);sd_sec_read_end=0;end endtask
  task send_sector(input [31:0] addr); begin
@@ -44,7 +47,8 @@ module tb_fat32_wav_reader;
  always @(posedge clk) if(fifo_we) begin writes=writes+1; if(writes==1 && fifo_din!==32'h5678_1234)$fatal(1,"PCM byte order incorrect: %h",fifo_din); end
  initial begin
   #25 rst=0;sd_init_done=1;
-  send_sector(0);send_sector(2048);send_sector(2082);send_sector(2085);
+  if(!USE_SHARED_VOLUME)begin send_sector(0);send_sector(2048);end
+  send_sector(2082);send_sector(2085);
   #100;
   if(!file_found)$fatal(1,"WAV directory entry not found");
   if(!format_ok)$fatal(1,"WAV format header rejected");

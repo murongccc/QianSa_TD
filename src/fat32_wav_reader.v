@@ -3,7 +3,8 @@
 // The producer reserves room for a whole sector before requesting it, so an
 // unpausable SD sector never overflows the asynchronous audio FIFO.
 module fat32_wav_reader #(
- parameter integer FIFO_SAFE_LEVEL=3968
+ parameter integer FIFO_SAFE_LEVEL=3968,
+ parameter integer USE_SHARED_VOLUME=0
 )(
  input wire clk,input wire rst,input wire sd_init_done,input wire enable,
  output reg sd_sec_read,output reg [31:0] sd_sec_read_addr,
@@ -12,10 +13,14 @@ module fat32_wav_reader #(
  input wire audio_read_toggle,
  output wire [31:0] audio_fifo_level,
  output reg busy,output reg done,output reg file_found,output reg format_ok,
- output reg format_error
+ output reg format_error,
+ // 板级复用已验证的卷；独立使用时默认保留原 MBR/BPB 解析接口。
+ input wire volume_valid,
+ input wire [31:0] volume_fat_start,volume_data_start,volume_root_cluster,
+ input wire [7:0] volume_sectors_per_cluster
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -29,34 +34,63 @@ module fat32_wav_reader #(
  endfunction
  localparam integer FIFO_LEVEL_WIDTH=fifo_count_width(FIFO_SAFE_LEVEL+128);
  localparam [FIFO_LEVEL_WIDTH-1:0] FIFO_SAFE_COUNT=FIFO_SAFE_LEVEL;
- reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] ent[0:31]; integer i;
+ reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] entry_first,entry_attr;
+ reg [23:0] entry_ext,entry_size_low;
+ reg [31:0] entry_cluster;
  reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
  reg [7:0] boot_fat0,boot_fat1,boot_fat2,boot_fat3,boot_fat4;
  reg mbr_entry_is_fat,mbr_found_partition,mbr_writing_lba;
  reg [31:0] spf;
  reg [31:0] fat_sectors,cluster_offset;
  reg [1:0] calc_action;
+ reg [31:0] cluster_product;
+ reg [2:0] multiply_bit;
  reg [15:0] reserved; reg [7:0] spc,fats,sector_in_cluster;
  reg [FIFO_LEVEL_WIDTH-1:0] fifo_level; reg read_meta,read_sync,read_seen;
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2; reg [31:0] wav_data_remaining;
- reg [7:0] h[0:43]; reg [5:0] header_pos;
+ reg base_header_error; reg [5:0] header_pos;
  reg [7:0] chunk_id0,chunk_id1,chunk_id2,chunk_id3;
  reg [31:0] chunk_size,chunk_skip_remaining;
  reg [3:0] chunk_header_pos;
  reg data_found;
  reg format_error_pending;
- wire base_header_valid=(h[0]=="R"&&h[1]=="I"&&h[2]=="F"&&h[3]=="F"&&
-                    h[8]=="W"&&h[9]=="A"&&h[10]=="V"&&h[11]=="E"&&
-                    h[12]=="f"&&h[13]=="m"&&h[14]=="t"&&h[15]==" "&&
-                    h[20]==8'd1&&h[21]==0&&h[22]==8'd2&&h[23]==0&&
-                    h[24]==8'h80&&h[25]==8'hbb&&h[26]==0&&h[27]==0&&
-                    h[34]==8'd16&&h[35]==0);
+ // 固定头字段流式校验；错误标志在每次新 RIFF 头开始时重新清零。
+ function header_byte_invalid;
+  input [5:0] index; input [7:0] value;
+  begin
+   case(index)
+    6'd0:header_byte_invalid=(value!="R");
+    6'd1:header_byte_invalid=(value!="I");
+    6'd2:header_byte_invalid=(value!="F");
+    6'd3:header_byte_invalid=(value!="F");
+    6'd8:header_byte_invalid=(value!="W");
+    6'd9:header_byte_invalid=(value!="A");
+    6'd10:header_byte_invalid=(value!="V");
+    6'd11:header_byte_invalid=(value!="E");
+    6'd12:header_byte_invalid=(value!="f");
+    6'd13:header_byte_invalid=(value!="m");
+    6'd14:header_byte_invalid=(value!="t");
+    6'd15:header_byte_invalid=(value!=" ");
+    6'd20:header_byte_invalid=(value!=8'd1);
+    6'd21:header_byte_invalid=(value!=8'd0);
+    6'd22:header_byte_invalid=(value!=8'd2);
+    6'd23:header_byte_invalid=(value!=8'd0);
+    6'd24:header_byte_invalid=(value!=8'h80);
+    6'd25:header_byte_invalid=(value!=8'hbb);
+    6'd26:header_byte_invalid=(value!=8'd0);
+    6'd27:header_byte_invalid=(value!=8'd0);
+    6'd34:header_byte_invalid=(value!=8'd16);
+    6'd35:header_byte_invalid=(value!=8'd0);
+    default:header_byte_invalid=1'b0;
+   endcase
+  end
+ endfunction
+ wire base_header_valid=!base_header_error;
  wire read_event=read_sync!=read_seen;
  // 同一个加法器实现 +1/-1；减一用计数位宽内的全一补码。
  wire [FIFO_LEVEL_WIDTH-1:0] fifo_count_delta={{(FIFO_LEVEL_WIDTH-1){!fifo_we}},1'b1};
  wire fifo_room=(fifo_level<=FIFO_SAFE_COUNT)&&!fifo_full;
- wire [31:0] entry_cluster={ent[21],ent[20],ent[27],ent[26]};
- wire [31:0] entry_size={sd_data,ent[30],ent[29],ent[28]};
+ wire [31:0] entry_size={sd_data,entry_size_low};
  // 保留外部 32 位接口，内部无符号计数自动零扩展。
  assign audio_fifo_level = fifo_level;
 
@@ -83,12 +117,12 @@ module fat32_wav_reader #(
    mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
    first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
    pcm_index<=0;p0<=0;p1<=0;p2<=0;wav_data_remaining<=0;
-   header_pos<=0;
+   header_pos<=0;cluster_product<=0;multiply_bit<=0;
    chunk_id0<=0;chunk_id1<=0;chunk_id2<=0;chunk_id3<=0;
    chunk_size<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;data_found<=0;
    format_error_pending<=0;
-   for(i=0;i<32;i=i+1)ent[i]<=0;
-   for(i=0;i<44;i=i+1)h[i]<=0;
+   entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
+   base_header_error<=0;
   end else begin
    fifo_we<=0; done<=0;
    case(state)
@@ -99,9 +133,18 @@ module fat32_wav_reader #(
      busy<=1;file_found<=0;format_ok<=0;pos<=0;part<=0;
      mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
      boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
-     sd_sec_read_addr<=0;sd_sec_read<=1;state<=MBR;
+     if(USE_SHARED_VOLUME)begin
+      if(volume_valid)begin
+       fat_start<=volume_fat_start;data_start<=volume_data_start;
+       spc<=volume_sectors_per_cluster;cluster<=volume_root_cluster;
+       sector_in_cluster<=0;calc_action<=CALC_ROOT_DIR;
+       sd_sec_read<=0;state<=CALC_OFFSET;
+      end else begin
+       sd_sec_read<=0;busy<=0;done<=1;state<=HOLD;
+      end
+     end else begin sd_sec_read_addr<=0;sd_sec_read<=1;state<=MBR;end
     end
-    MBR:begin
+    MBR:if(!USE_SHARED_VOLUME)begin
      if(sd_data_valid)begin
       // MBR 中选择物理顺序最靠前的 FAT32 主分区，而不是盲目使用第一个分区。
       if(pos==450||pos==466||pos==482||pos==498)
@@ -131,7 +174,7 @@ module fat32_wav_reader #(
       end
      end
     end
-    BPB:begin
+    BPB:if(!USE_SHARED_VOLUME)begin
      if(sd_data_valid)begin
       if(pos==13)spc<=sd_data;if(pos==14)reserved[7:0]<=sd_data;if(pos==15)reserved[15:8]<=sd_data;if(pos==16)fats<=sd_data;
       if(pos>=36&&pos<=39)spf[(pos-36)*8 +:8]<=sd_data;if(pos>=44&&pos<=47)root[(pos-44)*8 +:8]<=sd_data;pos<=pos+1;
@@ -147,12 +190,28 @@ module fat32_wav_reader #(
     end
     DIR:begin
      if(sd_data_valid)begin
-      ent[pos[4:0]]<=sd_data;pos<=pos+1;
+      // 每个目录项的必要字段都有固定写入位置，非连续字节也不会错位。
+      case(pos[4:0])
+          5'd0: entry_first<=sd_data;
+          5'd8: entry_ext[7:0]<=sd_data;
+          5'd9: entry_ext[15:8]<=sd_data;
+          5'd10: entry_ext[23:16]<=sd_data;
+          5'd11: entry_attr<=sd_data;
+          5'd20: entry_cluster[23:16]<=sd_data;
+          5'd21: entry_cluster[31:24]<=sd_data;
+          5'd26: entry_cluster[7:0]<=sd_data;
+          5'd27: entry_cluster[15:8]<=sd_data;
+          5'd28: entry_size_low[7:0]<=sd_data;
+          5'd29: entry_size_low[15:8]<=sd_data;
+          5'd30: entry_size_low[23:16]<=sd_data;
+          default: ;
+      endcase
+      pos<=pos+1;
       // Accept any regular 8.3 WAV file in the root directory.  Earlier
       // builds required the example alias WAN_CAN_.WAV, which silently
       // failed when the card contained music.wav or another valid name.
-      if(pos[4:0]==31 && ent[8]=="W"&&ent[9]=="A"&&ent[10]=="V"&&
-         ent[11]!=8'h0f&&ent[11]!=8'h10&&ent[11]!=8'h08&&ent[0]!=8'hE5)begin
+      if(pos[4:0]==31 && entry_ext[7:0]=="W"&&entry_ext[15:8]=="A"&&entry_ext[23:16]=="V"&&
+         entry_attr!=8'h0f&&entry_attr!=8'h10&&entry_attr!=8'h08&&entry_first!=8'hE5)begin
        file_found<=1;first_cluster<=entry_cluster;cluster<=entry_cluster;
        file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;state<=DIR_FOUND;
@@ -187,23 +246,32 @@ module fat32_wav_reader #(
       if(sd_data_valid && file_pos<file_size)begin
        file_pos<=file_pos+1;
        if(header_pos<44)begin
-        h[header_pos]<=sd_data;header_pos<=header_pos+1;
+        // 43 是当前输入的长度高字节；其他 chunk 字段已在前拍稳定。
+        if(header_pos==0) base_header_error<=header_byte_invalid(header_pos,sd_data);
+        else if(header_byte_invalid(header_pos,sd_data)) base_header_error<=1'b1;
+        case(header_pos)
+         36:chunk_id0<=sd_data;37:chunk_id1<=sd_data;
+         38:chunk_id2<=sd_data;39:chunk_id3<=sd_data;
+         40:chunk_size[7:0]<=sd_data;41:chunk_size[15:8]<=sd_data;
+         42:chunk_size[23:16]<=sd_data;
+         default: ;
+        endcase
+        header_pos<=header_pos+1;
        if(header_pos==43)begin
         format_ok<=base_header_valid;
         format_error<=!base_header_valid;
-        if (h[36]=="d"&&h[37]=="a"&&h[38]=="t"&&h[39]=="a") begin
+        if (chunk_id0=="d"&&chunk_id1=="a"&&chunk_id2=="t"&&chunk_id3=="a") begin
          data_found<=1;
-         wav_data_remaining<={sd_data,h[42],h[41],h[40]};
+         wav_data_remaining<={sd_data,chunk_size[23:0]};
         end else begin
          // The first non-standard chunk header may already be inside the
          // initial 44-byte read (for example LIST at offsets 36..43).
          // Seed the chunk skipper with that header; subsequent bytes are its
          // payload and the next chunk header will be parsed normally.
          data_found<=0; wav_data_remaining<=0; chunk_header_pos<=0;
-         chunk_id0<=h[36]; chunk_id1<=h[37]; chunk_id2<=h[38]; chunk_id3<=h[39];
-         chunk_size<={sd_data,h[42],h[41],h[40]};
-         chunk_skip_remaining<={sd_data,h[42],h[41],h[40]} +
-                               ((({sd_data,h[42],h[41],h[40]}) & 32'd1)!=0);
+         chunk_size<={sd_data,chunk_size[23:0]};
+         chunk_skip_remaining<={sd_data,chunk_size[23:0]} +
+                               ((({sd_data,chunk_size[23:0]}) & 32'd1)!=0);
         end
         // A malformed/unsupported WAV must not be scanned to EOF.  Keep the
         // current SD transaction alive until its sector-end pulse, then
@@ -286,13 +354,23 @@ module fat32_wav_reader #(
       end
      end
     end
-    BPB_CALC:begin
+    BPB_CALC:if(!USE_SHARED_VOLUME)begin
      data_start<=fat_start+fat_sectors;
      state<=CALC_OFFSET;
     end
     CALC_OFFSET:begin
-     cluster_offset<=(cluster-2)*spc;
-     state<=CALC_SECTOR;
+     // 扇区请求之间有充足计算时间；8 拍移位加法保留任意 spc 的旧数学结果。
+     cluster_offset<=cluster-32'd2;cluster_product<=0;multiply_bit<=0;
+     state<=CALC_MULTIPLY;
+    end
+    CALC_MULTIPLY:begin
+     if(multiply_bit==3'd7)begin
+      cluster_offset<=cluster_product+(spc[multiply_bit]?cluster_offset:32'd0);
+      state<=CALC_SECTOR;
+     end else begin
+      if(spc[multiply_bit])cluster_product<=cluster_product+cluster_offset;
+      cluster_offset<=cluster_offset<<1;multiply_bit<=multiply_bit+1'b1;
+     end
     end
     CALC_SECTOR:begin
      sector<=data_start+cluster_offset;
