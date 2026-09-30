@@ -1,8 +1,6 @@
 `timescale 1ns/1ps
 
-// Self-checks the OSD pixel priority using a compact 64x480 timing model.
-// The subtitle coordinates retain their production y positions, while the
-// smaller width makes the test quick and sufficient for the overlay logic.
+// 使用 64x480 时序检查参数 OSD、频谱及底部字幕移除后的图像输出。
 module tb_video_presentation;
 parameter integer REFERENCE_SPECTRUM=0;
 reg clk = 1'b0;
@@ -83,10 +81,10 @@ task active_line;
         for (pixel = 0; pixel < 64; pixel = pixel + 1) begin
             @(posedge clk);
             #1;
-            if (y == 438 && pixel == 3 && rgb_out != 24'hFFE040)
-                $fatal(1, "subtitle glyph did not have highest priority");
-            if (y == 430 && pixel == 33 && rgb_out == rgb_in)
-                $fatal(1, "subtitle banner did not alpha blend the background");
+            // 原字幕区域应输出原图；跳过行首流水填充拍，并在静音帧检查。
+            if ((y >= 428) && (y < 462) && (pixel >= 2) &&
+                (spectrum_bands == 256'd0) && (rgb_out !== rgb_in))
+                $fatal(1, "removed subtitle area changed background at y=%0d x=%0d", y, pixel);
         end
         @(negedge clk); de = 1'b0;
     end
@@ -100,8 +98,6 @@ initial begin
     next_frame;
     for (line = 0; line < 480; line = line + 1)
         active_line(line);
-    if (dut.subtitle_scroll_x != 9'd0)
-        $fatal(1, "subtitle moved before its configured tick period");
 
     // 单独验证有符号边缘增强：50 完全旁路，高档分别加入
     // 水平差分的 1/4 和 1/2，并对超出 8 bit 的结果饱和。

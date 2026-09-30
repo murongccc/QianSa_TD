@@ -1,7 +1,4 @@
-// Video presentation: image controls, circular audio spectrum, and two-layer OSD.
-// The subtitle overlay stays entirely in the video_clk domain.  It uses a
-// translucent banner as layer 1 and a 5x7 scrolling text layer as layer 2,
-// so the TF/SDRAM frame-read path and HDMI timing remain unchanged.
+// 视频呈现：图像参数处理、环形音频频谱及左上角参数 OSD。
 module video_presentation #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer REFERENCE_SPECTRUM = 0,
@@ -47,8 +44,6 @@ reg [6:0] image_value_seen;
 reg [1:0] image_selected_seen;
 reg [26:0] osd_count;
 reg osd_mode_adjust;
-reg [18:0] subtitle_tick_count;
-reg [8:0] subtitle_scroll_x;
 wire frame_start = vs & ~vs_d;
 wire line_start = de & ~de_d;
 // pixel_x is updated on the clock edge.  At the first active pixel of every
@@ -57,12 +52,6 @@ wire line_start = de & ~de_d;
 // the leftmost column as out of range after a slide transition.
 wire [9:0] render_x = line_start ? 10'd0 : pixel_x;
 
-localparam [9:0] SUBTITLE_TOP = 10'd428;
-localparam [9:0] SUBTITLE_BOTTOM = 10'd462;
-localparam [9:0] SUBTITLE_TEXT_TOP = 10'd438;
-// 25 MHz pixel clock / 312500 = 80 pixels per second.  A 512-pixel message
-// period completes in 6.4 seconds and repeats without a visible jump.
-localparam [18:0] SUBTITLE_TICK_CYCLES = 19'd312500;
 localparam [26:0] OSD_DISPLAY_CYCLES_VALUE = OSD_DISPLAY_CYCLES;
 localparam [3:0] INITIAL_WARMUP_FRAMES_VALUE = INITIAL_WARMUP_FRAMES;
 
@@ -84,71 +73,6 @@ function [7:0] scale_component;
         product = component * level;
         if (product > 15'd16320) scale_component = 8'hff;
         else scale_component = product >> 6;
-    end
-endfunction
-
-// Fixed 32-character message.  Five trailing blanks make its 16-pixel cells
-// fill exactly 512 pixels, allowing a cheap power-of-two wrap for scrolling.
-function [7:0] subtitle_char;
-    input [4:0] index;
-    begin
-        case (index)
-            5'd0: subtitle_char = "A";  5'd1: subtitle_char = "N";
-            5'd2: subtitle_char = "L";  5'd3: subtitle_char = "O";
-            5'd4: subtitle_char = "G";  5'd5: subtitle_char = "I";
-            5'd6: subtitle_char = "C";  5'd7: subtitle_char = " ";
-            5'd8: subtitle_char = "H";  5'd9: subtitle_char = "D";
-            5'd10: subtitle_char = "M"; 5'd11: subtitle_char = "I";
-            5'd12: subtitle_char = " "; 5'd13: subtitle_char = "M";
-            5'd14: subtitle_char = "U"; 5'd15: subtitle_char = "L";
-            5'd16: subtitle_char = "T"; 5'd17: subtitle_char = "I";
-            5'd18: subtitle_char = "M"; 5'd19: subtitle_char = "E";
-            5'd20: subtitle_char = "D"; 5'd21: subtitle_char = "I";
-            5'd22: subtitle_char = "A"; 5'd23: subtitle_char = " ";
-            5'd24: subtitle_char = "O"; 5'd25: subtitle_char = "S";
-            5'd26: subtitle_char = "D";
-            default: subtitle_char = " ";
-        endcase
-    end
-endfunction
-
-// 5x7 bitmap glyph rows, MSB at the left edge.  Only the characters used by
-// the fixed caption are stored, keeping this OSD implementable without ROM IP.
-function [4:0] subtitle_font_row;
-    input [7:0] character;
-    input [2:0] row;
-    begin
-        case (character)
-            "A": case (row) 0:subtitle_font_row=5'b01110; 1:subtitle_font_row=5'b10001; 2:subtitle_font_row=5'b10001; 3:subtitle_font_row=5'b11111; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b10001; endcase
-            "C": case (row) 0:subtitle_font_row=5'b01111; 1:subtitle_font_row=5'b10000; 2:subtitle_font_row=5'b10000; 3:subtitle_font_row=5'b10000; 4:subtitle_font_row=5'b10000; 5:subtitle_font_row=5'b10000; default:subtitle_font_row=5'b01111; endcase
-            "D": case (row) 0:subtitle_font_row=5'b11110; 1:subtitle_font_row=5'b10001; 2:subtitle_font_row=5'b10001; 3:subtitle_font_row=5'b10001; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b11110; endcase
-            "E": case (row) 0:subtitle_font_row=5'b11111; 1:subtitle_font_row=5'b10000; 2:subtitle_font_row=5'b10000; 3:subtitle_font_row=5'b11110; 4:subtitle_font_row=5'b10000; 5:subtitle_font_row=5'b10000; default:subtitle_font_row=5'b11111; endcase
-            "G": case (row) 0:subtitle_font_row=5'b01111; 1:subtitle_font_row=5'b10000; 2:subtitle_font_row=5'b10000; 3:subtitle_font_row=5'b10111; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b01110; endcase
-            "H": case (row) 0:subtitle_font_row=5'b10001; 1:subtitle_font_row=5'b10001; 2:subtitle_font_row=5'b10001; 3:subtitle_font_row=5'b11111; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b10001; endcase
-            "I": case (row) 0:subtitle_font_row=5'b11111; 1:subtitle_font_row=5'b00100; 2:subtitle_font_row=5'b00100; 3:subtitle_font_row=5'b00100; 4:subtitle_font_row=5'b00100; 5:subtitle_font_row=5'b00100; default:subtitle_font_row=5'b11111; endcase
-            "L": case (row) 0:subtitle_font_row=5'b10000; 1:subtitle_font_row=5'b10000; 2:subtitle_font_row=5'b10000; 3:subtitle_font_row=5'b10000; 4:subtitle_font_row=5'b10000; 5:subtitle_font_row=5'b10000; default:subtitle_font_row=5'b11111; endcase
-            "M": case (row) 0:subtitle_font_row=5'b10001; 1:subtitle_font_row=5'b11011; 2:subtitle_font_row=5'b10101; 3:subtitle_font_row=5'b10101; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b10001; endcase
-            "N": case (row) 0:subtitle_font_row=5'b10001; 1:subtitle_font_row=5'b11001; 2:subtitle_font_row=5'b10101; 3:subtitle_font_row=5'b10011; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b10001; endcase
-            "O": case (row) 0:subtitle_font_row=5'b01110; 1:subtitle_font_row=5'b10001; 2:subtitle_font_row=5'b10001; 3:subtitle_font_row=5'b10001; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b01110; endcase
-            "S": case (row) 0:subtitle_font_row=5'b01111; 1:subtitle_font_row=5'b10000; 2:subtitle_font_row=5'b10000; 3:subtitle_font_row=5'b01110; 4:subtitle_font_row=5'b00001; 5:subtitle_font_row=5'b00001; default:subtitle_font_row=5'b11110; endcase
-            "T": case (row) 0:subtitle_font_row=5'b11111; 1:subtitle_font_row=5'b00100; 2:subtitle_font_row=5'b00100; 3:subtitle_font_row=5'b00100; 4:subtitle_font_row=5'b00100; 5:subtitle_font_row=5'b00100; default:subtitle_font_row=5'b00100; endcase
-            "U": case (row) 0:subtitle_font_row=5'b10001; 1:subtitle_font_row=5'b10001; 2:subtitle_font_row=5'b10001; 3:subtitle_font_row=5'b10001; 4:subtitle_font_row=5'b10001; 5:subtitle_font_row=5'b10001; default:subtitle_font_row=5'b01110; endcase
-            default: subtitle_font_row = 5'b00000;
-        endcase
-    end
-endfunction
-
-function subtitle_font_pixel;
-    input [7:0] character;
-    input [2:0] row;
-    input [2:0] column;
-    reg [4:0] glyph_row;
-    begin
-        glyph_row = subtitle_font_row(character, row);
-        if ((row < 3'd7) && (column < 3'd5))
-            subtitle_font_pixel = glyph_row[4-column];
-        else
-            subtitle_font_pixel = 1'b0;
     end
 endfunction
 
@@ -276,10 +200,7 @@ wire show_osd = (osd_count != 27'd0);
 wire [6:0] selected_value = (image_selected_sync == 2'd0) ? image_brightness_sync :
                              (image_selected_sync == 2'd1) ? image_contrast_sync : image_sharpness_sync;
 
-// Small 5x7 parameter/status OSD.  It is deliberately independent of the
-// subtitle font so that the top-left message can be changed without
-// disturbing the scrolling caption.  A selection event shows only the
-// parameter name; a key adjustment shows the numeric value and ADJUST.
+// 左上角 5x7 参数 OSD：选择时显示参数名称，调整时显示数值。
 function [4:0] param_font_row;
     input [7:0] ch; input [2:0] row;
     begin
@@ -388,35 +309,14 @@ ring_spectrum_renderer #(
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );
 
-// Subtitle alpha background: 25% black + the original pixel, then opaque
-// yellow text.  This gives a readable two-layer overlay without a multiplier.
-wire subtitle_banner_area = (pixel_y >= SUBTITLE_TOP) && (pixel_y < SUBTITLE_BOTTOM);
-wire [9:0] subtitle_virtual_x = {1'b0, render_x} + {1'b0, subtitle_scroll_x};
-wire [7:0] subtitle_character = subtitle_char(subtitle_virtual_x[8:4]);
-wire [2:0] subtitle_glyph_column = subtitle_virtual_x[3:1];
-wire [2:0] subtitle_glyph_row = (pixel_y - SUBTITLE_TEXT_TOP) >> 1;
-wire subtitle_text_area = (pixel_y >= SUBTITLE_TEXT_TOP) &&
-                          (pixel_y < (SUBTITLE_TEXT_TOP + 10'd14));
-wire subtitle_text_pixel = subtitle_text_area &&
-                           subtitle_font_pixel(subtitle_character, subtitle_glyph_row,
-                                               subtitle_glyph_column);
-wire [23:0] subtitle_banner_rgb = {
-    (adjusted_rgb[23:16] >> 1) + (adjusted_rgb[23:16] >> 2),
-    (adjusted_rgb[15:8]  >> 1) + (adjusted_rgb[15:8]  >> 2),
-    (adjusted_rgb[7:0]   >> 1) + (adjusted_rgb[7:0]   >> 2)
-};
-
 // 频谱模块内部完成同像素的第一级锁存；本模块第一级锁存其他叠加判定。
 // 第二级锁存锐化/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
 reg [23:0] adjusted_rgb_stage;
 reg [23:0] previous_adjusted_rgb;
-reg [23:0] banner_rgb_stage;
 reg [6:0] sharpness_stage;
 reg base_valid_stage;
 reg line_first_stage;
 reg param_osd_stage;
-reg subtitle_text_stage;
-reg subtitle_banner_stage;
 wire [23:0] sharpened_rgb_stage = line_first_stage ? adjusted_rgb_stage : {
     sharpen_component(adjusted_rgb_stage[23:16], previous_adjusted_rgb[23:16], sharpness_stage),
     sharpen_component(adjusted_rgb_stage[15:8],  previous_adjusted_rgb[15:8],  sharpness_stage),
@@ -444,14 +344,9 @@ always @(posedge clk or posedge rst) begin
         image_value_seen<=7'd50; image_selected_seen<=2'd0;
         osd_mode_adjust<=1'b0;
         osd_count <= 27'd0;
-        subtitle_tick_count <= 19'd0;
-        subtitle_scroll_x <= 9'd0;
         adjusted_rgb_stage <= 24'd0; previous_adjusted_rgb <= 24'd0;
-        banner_rgb_stage <= 24'd0;
         sharpness_stage <= 7'd50; base_valid_stage <= 1'b0;
         line_first_stage <= 1'b0; param_osd_stage <= 1'b0;
-        subtitle_text_stage <= 1'b0;
-        subtitle_banner_stage <= 1'b0;
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
@@ -479,12 +374,6 @@ always @(posedge clk or posedge rst) begin
             osd_count <= OSD_DISPLAY_CYCLES_VALUE;
         end else if (osd_count != 27'd0) begin
             osd_count <= osd_count - 27'd1;
-        end
-        if (subtitle_tick_count == SUBTITLE_TICK_CYCLES - 19'd1) begin
-            subtitle_tick_count <= 19'd0;
-            subtitle_scroll_x <= subtitle_scroll_x + 9'd1;
-        end else begin
-            subtitle_tick_count <= subtitle_tick_count + 19'd1;
         end
         vs_d <= vs; de_d <= de;
         if (frame_start) begin
@@ -524,13 +413,10 @@ always @(posedge clk or posedge rst) begin
         end else if (de) pixel_x <= pixel_x + 10'd1;
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
-        banner_rgb_stage <= subtitle_banner_rgb;
         sharpness_stage <= image_sharpness_sync;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
         line_first_stage <= line_start;
         param_osd_stage <= param_osd_pixel;
-        subtitle_text_stage <= subtitle_text_pixel;
-        subtitle_banner_stage <= subtitle_banner_area;
 
         // 左邻像素只在有效行内推进；消隐期清零，防止跨行引用。
         if (!de)
@@ -538,12 +424,10 @@ always @(posedge clk or posedge rst) begin
         else if (base_valid_stage)
             previous_adjusted_rgb <= adjusted_rgb_stage;
 
-        // 第二级：OSD/频谱/字幕保持高于图像锐化的优先级。
+        // 第二级：参数 OSD/频谱保持高于图像锐化的优先级。
         if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;
-        else if (subtitle_text_stage) rgb_out <= 24'hFFE040;
-        else if (subtitle_banner_stage) rgb_out <= banner_rgb_stage;
         else rgb_out <= sharpened_rgb_stage;
     end
 end
