@@ -14,6 +14,7 @@ wire [1:0] selected;
 wire select_toggle;
 wire adjust_toggle;
 integer index;
+reg select_toggle_before;
 
 always #5 clk = ~clk;
 
@@ -71,17 +72,19 @@ initial begin
     press_inc;
     if (contrast != 7'd55) $fatal(1, "contrast increment failed");
 
+    select_toggle_before = select_toggle;
     settle_switch(2'b10);
-    if (selected != 2'd2) $fatal(1, "sharpness selection failed");
+    if (selected != 2'd1 || select_toggle != select_toggle_before)
+        $fatal(1, "removed sharpness switch changed selection or OSD");
     for (index = 0; index < 12; index = index + 1) press_inc;
-    if (sharpness != 7'd100) $fatal(1, "upper saturation failed: %0d", sharpness);
+    if (contrast != 7'd100) $fatal(1, "upper saturation failed: %0d", contrast);
     for (index = 0; index < 22; index = index + 1) press_dec;
-    if (sharpness != 7'd0) $fatal(1, "lower saturation failed: %0d", sharpness);
+    if (contrast != 7'd0) $fatal(1, "lower saturation failed: %0d", contrast);
 
     settle_switch(2'b11);
-    if (selected != 2'd2) $fatal(1, "reserved switch combination changed selection");
+    if (selected != 2'd1 || select_toggle != select_toggle_before) $fatal(1, "reserved switch combination changed selection");
     press_inc;
-    if (sharpness != 7'd5) $fatal(1, "reserved switch did not retain selected parameter");
+    if (contrast != 7'd5 || sharpness != 7'd50) $fatal(1, "reserved switch did not retain selected parameter");
 
     $display("PASS image_controls: debounce, selection, steps, saturation, and reserved switch");
     $finish;

@@ -27,8 +27,8 @@ always @(posedge clk or posedge rst) begin
         swb0<=sw_sel_b; swb1<=swb0; swa0<=sw_sel_a; swa1<=swa0;
         if ({swb1,swa1} != sw_prev) begin
             sw_prev <= {swb1,swa1};
-            // 11 为保留组合，不改变当前选择，也不弹出 OSD。
-            if ({swb1,swa1} != 2'b11) begin
+            // 10/11 为保留组合，不改变当前选择，也不弹出 OSD。
+            if (!swb1) begin
                 selected <= {swb1,swa1};
                 select_toggle <= ~select_toggle;
             end
@@ -40,8 +40,6 @@ always @(posedge clk or posedge rst) begin
                       else if (dec_pulse && brightness>0) brightness<=brightness-7'd5;
                 2'd1: if (inc_pulse && contrast<100) contrast<=contrast+7'd5;
                       else if (dec_pulse && contrast>0) contrast<=contrast-7'd5;
-                2'd2: if (inc_pulse && sharpness<100) sharpness<=sharpness+7'd5;
-                      else if (dec_pulse && sharpness>0) sharpness<=sharpness-7'd5;
                 default: ;
             endcase
         end

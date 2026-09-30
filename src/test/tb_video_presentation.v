@@ -99,20 +99,6 @@ initial begin
     for (line = 0; line < 480; line = line + 1)
         active_line(line);
 
-    // 单独验证有符号边缘增强：50 完全旁路，高档分别加入
-    // 水平差分的 1/4 和 1/2，并对超出 8 bit 的结果饱和。
-    if (dut.sharpen_component(8'd128, 8'd64, 7'd50) != 8'd128)
-        $fatal(1, "neutral sharpness is not a bypass");
-    if (dut.sharpen_component(8'd128, 8'd64, 7'd75) != 8'd144)
-        $fatal(1, "light edge enhancement failed");
-    if (dut.sharpen_component(8'd128, 8'd64, 7'd100) != 8'd160)
-        $fatal(1, "strong edge enhancement failed");
-    if (dut.sharpen_component(8'd240, 8'd0, 7'd100) != 8'hff ||
-        dut.sharpen_component(8'd8, 8'd240, 7'd100) != 8'd0)
-        $fatal(1, "sharpness saturation failed");
-    if (dut.sharpen_component(8'd96, 8'd96, 7'd100) != 8'd96)
-        $fatal(1, "flat region changed by sharpness");
-
     // Every legal five-point control value must alter a non-saturated pixel.
     previous_control_value = 8'd0;
     for (control_level = 0; control_level <= 100; control_level = control_level + 5) begin
@@ -125,18 +111,6 @@ initial begin
         dut.image_adjust_component(8'd160, 7'd50, 7'd50) != 8'd160 ||
         dut.image_adjust_component(8'd160, 7'd50, 7'd100) != 8'd192)
         $fatal(1, "contrast endpoint curve failed");
-    previous_control_value = 8'd0;
-    for (control_level = 0; control_level <= 100; control_level = control_level + 5) begin
-        if (control_level != 0 &&
-            dut.sharpen_component(8'd192, 8'd64, control_level) <= previous_control_value)
-            $fatal(1, "sharpness plateau at level %0d", control_level);
-        previous_control_value = dut.sharpen_component(8'd192, 8'd64, control_level);
-    end
-    if (dut.sharpen_component(8'd192, 8'd64, 7'd0) != 8'd128 ||
-        dut.sharpen_component(8'd192, 8'd64, 7'd50) != 8'd192 ||
-        dut.sharpen_component(8'd192, 8'd64, 7'd100) != 8'hff)
-        $fatal(1, "sharpness endpoint curve failed");
-
     // Selecting brightness must show its name, without restoring the old
     // two-row block meter.  The toggle crosses two synchronizer stages.
     image_select_toggle_async = ~image_select_toggle_async;
@@ -171,13 +145,6 @@ initial begin
     if (dut.parameter_osd_char(5'd0) != "C" || dut.parameter_osd_char(5'd7) != "T" ||
         dut.parameter_osd_char(5'd8) != " ")
         $fatal(1, "CONTRAST parameter OSD failed");
-    image_selected_async = 2'd2;
-    image_select_toggle_async = ~image_select_toggle_async;
-    repeat (4) @(posedge clk);
-    if (dut.parameter_osd_char(5'd0) != "S" || dut.parameter_osd_char(5'd8) != "S" ||
-        dut.parameter_osd_char(5'd9) != " ")
-        $fatal(1, "SHARPNESS parameter OSD failed");
-
     // Adjustment mode must contain only the compact numeric value.
     image_selected_async = 2'd0;
     image_brightness_async = 7'd50;
@@ -227,8 +194,7 @@ initial begin
         dut.image_adjust_component(8'd0, 7'd0, 7'd100) != 8'd0)
         $fatal(1, "brightness/contrast neutral or saturation behavior failed");
 
-    // 验证真实寄存像素路径：行首像素必须旁路已清零的上一行邻域，
-    // 第二像素使用第一像素作为左邻域，并加入 1/2 差分。
+    // 两拍真实像素路径在兼容锐度输入为 100 时仍应逐像素输出原图。
     image_brightness_async = 7'd50;
     image_contrast_async = 7'd50;
     image_sharpness_async = 7'd100;
@@ -243,8 +209,8 @@ initial begin
         $fatal(1, "line-first pixel used a previous-line neighbour: %h", rgb_out);
     @(negedge clk); rgb_in = 24'h808080;
     @(posedge clk); #1;
-    if (rgb_out != 24'hA0A0A0)
-        $fatal(1, "registered horizontal edge enhancement failed: %h", rgb_out);
+    if (rgb_out != 24'h808080)
+        $fatal(1, "removed sharpness changed pixel: %h", rgb_out);
     @(negedge clk); de = 1'b0;
 
     spectrum_bands={32{8'd255}};
@@ -252,7 +218,7 @@ initial begin
     for (line=0;line<480;line=line+1) active_line(line);
     if (ring_overlay_pixels<20) $fatal(1,"ring overlay not exercised");
     spectrum_bands=0;
-    $display("PASS video presentation: OSD, timeout, adjustment, sharpness, and overlays");
+    $display("PASS video presentation: OSD, timeout, adjustment, removed sharpness, and overlays");
     $finish;
 end
 endmodule

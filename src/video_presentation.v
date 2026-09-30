@@ -36,7 +36,6 @@ reg [6:0] fade_level;
 reg [2:0] brightness_meta, brightness_sync;
 reg [6:0] image_brightness_meta, image_brightness_sync;
 reg [6:0] image_contrast_meta, image_contrast_sync;
-reg [6:0] image_sharpness_meta, image_sharpness_sync;
 reg [1:0] image_selected_meta, image_selected_sync;
 reg image_select_toggle_meta, image_select_toggle_sync, image_select_toggle_seen;
 reg image_adjust_toggle_meta, image_adjust_toggle_sync, image_adjust_toggle_seen;
@@ -157,48 +156,9 @@ wire [23:0] adjusted_rgb = {
     image_adjust_component(faded_rgb[15:8],  image_brightness_sync, image_contrast_sync),
     image_adjust_component(faded_rgb[7:0],   image_brightness_sync, image_contrast_sync)
 };
-// 水平单邻域锐化。Q6 强度在 0..100 的每个控制档位线性变化：
-// 0 为 0.5 倍柔化，50 为原图，100 保持原先的 0.5 倍增强上限。
-function [7:0] sharpen_component;
-    input [7:0] current_component;
-    input [7:0] previous_component;
-    input [6:0] level;
-    reg signed [9:0] current_signed;
-    reg signed [9:0] previous_signed;
-    reg signed [9:0] difference;
-    reg signed [6:0] strength_q6;
-    reg signed [17:0] product;
-    reg signed [11:0] sharpened;
-    begin
-        current_signed = $signed({2'b00,current_component});
-        previous_signed = $signed({2'b00,previous_component});
-        difference = current_signed - previous_signed;
-        case (level)
-            7'd0:strength_q6=-7'sd32;   7'd5:strength_q6=-7'sd29;
-            7'd10:strength_q6=-7'sd26;  7'd15:strength_q6=-7'sd22;
-            7'd20:strength_q6=-7'sd19;  7'd25:strength_q6=-7'sd16;
-            7'd30:strength_q6=-7'sd13;  7'd35:strength_q6=-7'sd10;
-            7'd40:strength_q6=-7'sd6;   7'd45:strength_q6=-7'sd3;
-            7'd50:strength_q6=7'sd0;    7'd55:strength_q6=7'sd3;
-            7'd60:strength_q6=7'sd6;    7'd65:strength_q6=7'sd10;
-            7'd70:strength_q6=7'sd13;   7'd75:strength_q6=7'sd16;
-            7'd80:strength_q6=7'sd19;   7'd85:strength_q6=7'sd22;
-            7'd90:strength_q6=7'sd26;   7'd95:strength_q6=7'sd29;
-            default:strength_q6=7'sd32;
-        endcase
-        product = difference * strength_q6;
-        sharpened = current_signed + ((product + 18'sd32) >>> 6);
-        if (sharpened < 0)
-            sharpen_component = 8'd0;
-        else if (sharpened > 12'sd255)
-            sharpen_component = 8'hff;
-        else
-            sharpen_component = sharpened[7:0];
-    end
-endfunction
 wire show_osd = (osd_count != 27'd0);
 wire [6:0] selected_value = (image_selected_sync == 2'd0) ? image_brightness_sync :
-                             (image_selected_sync == 2'd1) ? image_contrast_sync : image_sharpness_sync;
+                             image_contrast_sync;
 
 // 左上角 5x7 参数 OSD：选择时显示参数名称，调整时显示数值。
 function [4:0] param_font_row;
@@ -241,7 +201,7 @@ function [7:0] parameter_char;
     begin
         if (which==2'd0) begin case(index) 0:parameter_char="B";1:parameter_char="R";2:parameter_char="I";3:parameter_char="G";4:parameter_char="H";5:parameter_char="T";6:parameter_char="N";7:parameter_char="E";8:parameter_char="S";9:parameter_char="S";default:parameter_char=" "; endcase end
         else if (which==2'd1) begin case(index) 0:parameter_char="C";1:parameter_char="O";2:parameter_char="N";3:parameter_char="T";4:parameter_char="R";5:parameter_char="A";6:parameter_char="S";7:parameter_char="T";default:parameter_char=" "; endcase end
-        else begin case(index) 0:parameter_char="S";1:parameter_char="H";2:parameter_char="A";3:parameter_char="R";4:parameter_char="P";5:parameter_char="N";6:parameter_char="E";7:parameter_char="S";8:parameter_char="S";default:parameter_char=" "; endcase end
+        else parameter_char=" ";
     end
 endfunction
 wire [3:0] osd_hundreds = image_value_seen / 7'd100;
@@ -253,7 +213,7 @@ function [4:0] parameter_name_length;
         case (which)
             2'd0: parameter_name_length = 5'd10; // BRIGHTNESS
             2'd1: parameter_name_length = 5'd8;  // CONTRAST
-            default: parameter_name_length = 5'd9; // SHARPNESS
+            default: parameter_name_length = 5'd0; // 保留组合不显示参数名称
         endcase
     end
 endfunction
@@ -310,18 +270,10 @@ ring_spectrum_renderer #(
 );
 
 // 频谱模块内部完成同像素的第一级锁存；本模块第一级锁存其他叠加判定。
-// 第二级锁存锐化/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
+// 第二级锁存图像/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
 reg [23:0] adjusted_rgb_stage;
-reg [23:0] previous_adjusted_rgb;
-reg [6:0] sharpness_stage;
 reg base_valid_stage;
-reg line_first_stage;
 reg param_osd_stage;
-wire [23:0] sharpened_rgb_stage = line_first_stage ? adjusted_rgb_stage : {
-    sharpen_component(adjusted_rgb_stage[23:16], previous_adjusted_rgb[23:16], sharpness_stage),
-    sharpen_component(adjusted_rgb_stage[15:8],  previous_adjusted_rgb[15:8],  sharpness_stage),
-    sharpen_component(adjusted_rgb_stage[7:0],   previous_adjusted_rgb[7:0],   sharpness_stage)
-};
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -337,16 +289,15 @@ always @(posedge clk or posedge rst) begin
         brightness_meta <= 3'd4; brightness_sync <= 3'd4;
         image_brightness_meta<=7'd50; image_brightness_sync<=7'd50;
         image_contrast_meta<=7'd50; image_contrast_sync<=7'd50;
-        image_sharpness_meta<=7'd50; image_sharpness_sync<=7'd50;
         image_selected_meta<=2'd0; image_selected_sync<=2'd0;
         image_select_toggle_meta<=0; image_select_toggle_sync<=0; image_select_toggle_seen<=0;
         image_adjust_toggle_meta<=0; image_adjust_toggle_sync<=0; image_adjust_toggle_seen<=0;
         image_value_seen<=7'd50; image_selected_seen<=2'd0;
         osd_mode_adjust<=1'b0;
         osd_count <= 27'd0;
-        adjusted_rgb_stage <= 24'd0; previous_adjusted_rgb <= 24'd0;
-        sharpness_stage <= 7'd50; base_valid_stage <= 1'b0;
-        line_first_stage <= 1'b0; param_osd_stage <= 1'b0;
+        adjusted_rgb_stage <= 24'd0;
+        base_valid_stage <= 1'b0;
+        param_osd_stage <= 1'b0;
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
@@ -356,18 +307,17 @@ always @(posedge clk or posedge rst) begin
         brightness_meta <= brightness_level_async; brightness_sync <= brightness_meta;
         image_brightness_meta <= image_brightness_async; image_brightness_sync <= image_brightness_meta;
         image_contrast_meta <= image_contrast_async; image_contrast_sync <= image_contrast_meta;
-        image_sharpness_meta <= image_sharpness_async; image_sharpness_sync <= image_sharpness_meta;
         image_selected_meta <= image_selected_async; image_selected_sync <= image_selected_meta;
         image_select_toggle_meta <= image_select_toggle_async; image_select_toggle_sync <= image_select_toggle_meta;
         image_adjust_toggle_meta <= image_adjust_toggle_async; image_adjust_toggle_sync <= image_adjust_toggle_meta;
-        if (image_adjust_toggle_sync != image_adjust_toggle_seen) begin
+        if ((image_adjust_toggle_sync != image_adjust_toggle_seen) && (image_selected_sync < 2'd2)) begin
             image_adjust_toggle_seen <= image_adjust_toggle_sync;
             image_value_seen <= selected_value;
             image_selected_seen <= image_selected_sync;
             osd_mode_adjust <= 1'b1;
             // 默认 25 MHz 视频时钟下显示 2 s；参数允许仿真缩短。
             osd_count <= OSD_DISPLAY_CYCLES_VALUE;
-        end else if (image_select_toggle_sync != image_select_toggle_seen) begin
+        end else if ((image_select_toggle_sync != image_select_toggle_seen) && (image_selected_sync < 2'd2)) begin
             image_select_toggle_seen <= image_select_toggle_sync;
             image_selected_seen <= image_selected_sync;
             osd_mode_adjust <= 1'b0;
@@ -413,22 +363,14 @@ always @(posedge clk or posedge rst) begin
         end else if (de) pixel_x <= pixel_x + 10'd1;
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
-        sharpness_stage <= image_sharpness_sync;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
-        line_first_stage <= line_start;
         param_osd_stage <= param_osd_pixel;
 
-        // 左邻像素只在有效行内推进；消隐期清零，防止跨行引用。
-        if (!de)
-            previous_adjusted_rgb <= 24'd0;
-        else if (base_valid_stage)
-            previous_adjusted_rgb <= adjusted_rgb_stage;
-
-        // 第二级：参数 OSD/频谱保持高于图像锐化的优先级。
+        // 第二级：参数 OSD/频谱优先于处理后的底图。
         if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;
-        else rgb_out <= sharpened_rgb_stage;
+        else rgb_out <= adjusted_rgb_stage;
     end
 end
 endmodule
