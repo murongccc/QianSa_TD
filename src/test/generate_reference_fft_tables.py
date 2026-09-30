@@ -6,14 +6,26 @@ from pathlib import Path
 
 def tables():
     lines = ["// 由 generate_reference_fft_tables.py 生成；同步块 ROM 不依赖外部初始化文件。"]
-    lines += ['(* rom_style="bram" *) reg [31:0] twiddle_memory [0:1023];', 'initial begin']
-    for i in range(1024):
-        r = round(32767 * math.cos(2 * math.pi * i / 2048)) & 65535
-        j = round(-32767 * math.sin(2 * math.pi * i / 2048)) & 65535
-        lines.append(f"    twiddle_memory[{i}] = 32'h{r:04x}{j:04x};")
-    lines += ['end', '// 蝶形取数前已有地址，ROM 与 RAM 读取并行，无需增加处理周期。',
-              'always @(posedge clk) begin',
-              '    if (state==ST_RD_B) twiddle_word<=twiddle_memory[twiddle_index];', 'end']
+    # 正弦四分之一周期；512 端点为 32767，单独处理，ROM 恰好 512×15。
+    lines += ['(* rom_style="bram" *) reg [14:0] twiddle_quarter [0:511];', 'initial begin']
+    for i in range(512):
+        value = round(32767 * math.sin(2 * math.pi * i / 2048))
+        lines.append(f"    twiddle_quarter[{i}] = 15'h{value:04x};")
+    lines += ['end', '// 两个既有取数周期复用单读口 ROM，恢复原 1024 项的精确符号与端点。',
+              'reg [14:0] twiddle_quarter_q,twiddle_real_abs,twiddle_imag_abs;', 'reg [9:0] twiddle_index_q;',
+              "wire [8:0] twiddle_fold=9'd0-twiddle_index[8:0];",
+              'wire [8:0] twiddle_real_address=twiddle_index[9]?twiddle_index[8:0]:twiddle_fold;',
+              'wire [8:0] twiddle_imag_address=twiddle_index[9]?twiddle_fold:twiddle_index[8:0];',
+              'always @(posedge clk) begin', '    if (state==ST_RD_B) begin',
+              '        twiddle_real_abs<=twiddle_quarter_q;', '    end',
+              '    if (state==ST_LATCH_B) begin',
+              '        twiddle_imag_abs<=twiddle_quarter_q;twiddle_index_q<=twiddle_index;', '    end',
+              '    if (state==ST_LATCH_A || state==ST_RD_B)',
+              '        twiddle_quarter_q<=twiddle_quarter[(state==ST_LATCH_A)?twiddle_real_address:twiddle_imag_address];',
+              'end',
+              "wire [15:0] twiddle_real_value=(!twiddle_index_q[9] && twiddle_index_q[8:0]==0)?16'h7fff:{1'b0,twiddle_real_abs};",
+              "wire [15:0] twiddle_imag_value=(twiddle_index_q[9] && twiddle_index_q[8:0]==0)?16'h7fff:{1'b0,twiddle_imag_abs};",
+              "assign twiddle_word={(twiddle_index_q[9]?16'd0-twiddle_real_value:twiddle_real_value),16'd0-twiddle_imag_value};"]
     # 参考圆环每四个屏幕横坐标取一柱：bin=320^(i/80)-1。
     # 转换为 48 kHz、2048 点的 Q8 坐标，兼容 512/1024 时按比例右移。
     words = [round((320 ** (i / 80) - 1) * 44100 / 48000 * 256) for i in range(80)]

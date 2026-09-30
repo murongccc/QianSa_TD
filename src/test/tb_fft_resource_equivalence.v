@@ -10,6 +10,13 @@ real pi=3.141592653589793;
 reg [639:0] old_bars;
 reg [7:0] old_radius;
 always #5 clk=~clk;
+// 每次蝶形乘法前检查旋转因子，覆盖所有地址，避免结果舍入掩盖表值差异。
+always @(posedge clk) begin
+    if(!rst && dut.g_reference.u_reference.state==5'd5 &&
+       dut.g_reference.u_reference.twiddle_word!==
+       golden.g_reference.u_reference.reference_twiddle(dut.g_reference.u_reference.twiddle_index))
+        $fatal(1,"twiddle value/sign/endpoint mismatch");
+end
 audio_fft_spectrum #(.FFT_POINTS(2048),.REFERENCE_MODE(1)) dut(
     .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
     .frame_start(frame_start),.bars(bars),.bands(),.breath_radius(radius));
