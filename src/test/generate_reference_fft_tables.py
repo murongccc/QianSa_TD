@@ -5,13 +5,15 @@ from pathlib import Path
 
 
 def tables():
-    lines = ["// 由 generate_reference_fft_tables.py 生成，不使用外部 ROM 文件。"]
-    lines += ["function [31:0] reference_twiddle;", "    input [9:0] index;", "    begin", "        case (index)"]
+    lines = ["// 由 generate_reference_fft_tables.py 生成；同步块 ROM 不依赖外部初始化文件。"]
+    lines += ['(* rom_style="bram" *) reg [31:0] twiddle_memory [0:1023];', 'initial begin']
     for i in range(1024):
         r = round(32767 * math.cos(2 * math.pi * i / 2048)) & 65535
         j = round(-32767 * math.sin(2 * math.pi * i / 2048)) & 65535
-        lines.append(f"            10'd{i}: reference_twiddle = 32'h{r:04x}{j:04x};")
-    lines += ["            default: reference_twiddle = 32'h7fff0000;", "        endcase", "    end", "endfunction"]
+        lines.append(f"    twiddle_memory[{i}] = 32'h{r:04x}{j:04x};")
+    lines += ['end', '// 蝶形取数前已有地址，ROM 与 RAM 读取并行，无需增加处理周期。',
+              'always @(posedge clk) begin',
+              '    if (state==ST_RD_B) twiddle_word<=twiddle_memory[twiddle_index];', 'end']
     # 参考圆环每四个屏幕横坐标取一柱：bin=320^(i/80)-1。
     # 转换为 48 kHz、2048 点的 Q8 坐标，兼容 512/1024 时按比例右移。
     words = [round((320 ** (i / 80) - 1) * 44100 / 48000 * 256) for i in range(80)]
