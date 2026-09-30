@@ -1,0 +1,8 @@
+# 板载 USB 串口：手册第 11 页、当前 2_FPGA 原理图、原项目 pin.adc。
+set_pin_assignment { uart_rxd } { LOCATION = F12; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { uart_txd } { LOCATION = D12; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }
+
+# 当前 4_GPIO 的 RN29 将连接器 GPIOB_0/1 映射到内部 GPIOB20/19。
+# 再按 2_FPGA BANK3 核对：J2 第 1 脚 = P4，第 2 脚 = N4。
+set_pin_assignment { touch_rxd } { LOCATION = P4; IOSTANDARD = LVCMOS33; PULLTYPE = PULLUP; }
+set_pin_assignment { touch_txd } { LOCATION = N4; IOSTANDARD = LVCMOS33; DRIVESTRENGTH = 8; PULLTYPE = NONE; }

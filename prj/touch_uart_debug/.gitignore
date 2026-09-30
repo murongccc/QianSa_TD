@@ -1,0 +1,7 @@
+touch_uart_debug_Runs/
+.lock.f
+.read_design.*.f
+.recent_user_depot.ini
+*.dmp
+*.log
+*.logw
