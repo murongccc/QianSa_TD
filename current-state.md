@@ -1,5 +1,13 @@
 # SD_to_Video 当前状态
 
+## 音游第一阶段：资源转换（2026-10-03）
+
+- 新增 `src/python/osz_to_game.py`：检查原生 osu!mania 4K `.osz` 并转换为自定义 R4B1 `GAME.BIN` 和规范 48 kHz / 16 bit / 双声道 PCM `GAME.WAV`，无需手写谱面。
+- Brave Shine / Dell's Normal 的 413 条音符完整保留（364 Tap、49 Hold），音乐 4323421 帧 / 90.071 秒；资源生成在 `prj/log/rhythm_assets/brave_shine_normal/`，不提交歌曲文件。
+- 15 项转换边界回归及真实源谱独立逐条核对、WAV 头/长度/SHA256 校验通过。协议、使用方法和后续阶段见 [音游实施记录](docs/rhythm-game-2026-10-03.md)。
+- **尚未接入板级音游 RTL**。当前顶层、媒体行为、管脚、时钟、IP、资源与时序没有变化；本阶段不综合/P&R、不生成 bitstream，板级仍以以下 2026-09-30 基线为准。后续依次完成读取/同步、判定、显示集成与最终回归。
+- 保留既有工程/PLL/debug 工程改动及 `docs/history/`，原有彩线和板级复验事项仍未关闭。
+
 更新时间：2026-09-30（当前源码；bitstream 由用户在 TD GUI 生成）
 
 ## 最新修改：保留核心功能的资源优化（2026-09-30）

@@ -22,3 +22,4 @@ work/
 transcript
 prj/.recent_user_depot.ini
 .codex/
+__pycache__/
