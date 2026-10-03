@@ -8,6 +8,7 @@ integer i;
 always #5 clk=~clk;
 
 fat32_wav_reader dut(
+ .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
  .clk(clk),.rst(rst),.sd_init_done(1'b1),.enable(1'b1),.sd_sec_read(req),.sd_sec_read_addr(addr),
  .sd_data(data),.sd_data_valid(valid),.sd_sec_read_end(sec_end),.fifo_we(),.fifo_din(),.fifo_full(1'b0),
  .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(),.done(),.file_found(),.format_ok(),.format_error(),

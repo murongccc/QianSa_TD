@@ -10,7 +10,8 @@ wire [31:0] read_address,fifo_data;
 integer vector_index,byte_index,writes,data_offset,file_length;
 always #5 clk=~clk;
 fat32_wav_reader #(.USE_SHARED_VOLUME(1)) dut(
-    .clk(clk),.rst(rst),.sd_init_done(1'b1),.enable(1'b1),
+    .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
+ .clk(clk),.rst(rst),.sd_init_done(1'b1),.enable(1'b1),
     .sd_sec_read(read_request),.sd_sec_read_addr(read_address),
     .sd_data(sd_data),.sd_data_valid(sd_valid),.sd_sec_read_end(sd_end),
     .fifo_we(fifo_we),.fifo_din(fifo_data),.fifo_full(1'b0),.audio_read_toggle(1'b0),

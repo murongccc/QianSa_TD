@@ -8,7 +8,8 @@ module tb_fat32_wav_reader;
  integer i, writes=0;
  always #5 clk=~clk;
  fat32_wav_reader #(.FIFO_SAFE_LEVEL(3968),.USE_SHARED_VOLUME(USE_SHARED_VOLUME)) dut(
-  .clk(clk),.rst(rst),.sd_init_done(sd_init_done),.enable(1'b1),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
+  .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
+ .clk(clk),.rst(rst),.sd_init_done(sd_init_done),.enable(1'b1),.sd_sec_read(sd_sec_read),.sd_sec_read_addr(sd_sec_read_addr),
   .sd_data(sd_data),.sd_data_valid(sd_data_valid),.sd_sec_read_end(sd_sec_read_end),.fifo_we(fifo_we),.fifo_din(fifo_din),
   .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(),.busy(busy),.done(done),.file_found(file_found),.format_ok(format_ok),.format_error(),
   .volume_valid(1'b1),.volume_fat_start(32'd2080),.volume_data_start(32'd2082),

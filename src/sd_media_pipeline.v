@@ -151,6 +151,7 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     {1'b0, media_count} : bmp_state_code;
 
 sd_sector_arbiter u_sd_arbiter (
+    .chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
     .clk(clk), .rst(rst_local), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
     .audio_req(audio_sd_read), .audio_addr(audio_sd_addr),
     .audio_urgent(audio_urgent),
@@ -292,6 +293,7 @@ end
 
 // 图片目录器已经解析同一卷；播放重启复用稳定元数据，避免重复引导扇区硬件。
 fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
+    .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
     .clk(clk), .rst(rst_local | audio_reader_reset), .sd_init_done(sd_init_qualified),
     .enable(display_valid && audio_reader_enable),
     .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),

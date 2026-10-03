@@ -11,7 +11,8 @@ module tb_pcm_audio_player;
   reg [23:0] captured_left=0, captured_right=0;
   always #20 clk = ~clk; // 25 MHz
   pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000),.SAMPLE_RATE_HZ(48_000)) dut(
-    .clk(clk),.rst(rst),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.volume_level_async(volume_level),.playback_mode_async(playback_mode),
+    .sample_emitted(),.sample_missing(),.sample_index(),.emitted_count(),.prefetch_ready(),
+ .clk(clk),.rst(rst),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.volume_level_async(volume_level),.playback_mode_async(playback_mode),
     .fifo_re(fifo_re),.audio_valid(audio_valid),.left_pcm(left_pcm),.right_pcm(right_pcm),.underrun(underrun));
   always @(posedge clk) if (audio_valid) begin
     sample_count=sample_count+1;

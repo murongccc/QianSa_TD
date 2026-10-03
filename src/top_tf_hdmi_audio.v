@@ -640,6 +640,8 @@ audio_fifo_32x4096 u_audio_fifo (
 );
 
 pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_audio_player (
+    // 新增游戏计时输出在媒体顶层显式留空，游戏会话集成时再连接。
+    .sample_emitted(),.sample_missing(),.sample_index(),.emitted_count(),.prefetch_ready(),
     .clk(video_clk), .rst(rst_video), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
     .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
     .volume_level_async(uart_volume_level),

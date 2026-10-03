@@ -1,10 +1,11 @@
 // WAV file reader for the common SD SPI path.
-// Reads root-directory WAN_CAN_.WAV: FAT32, PCM 48 kHz, 16-bit stereo.
+// 媒体模式读取根目录首个 WAV 并循环；可选游戏模式精确读取 GAME.WAV 并单次播放。
 // The producer reserves room for a whole sector before requesting it, so an
 // unpausable SD sector never overflows the asynchronous audio FIFO.
 module fat32_wav_reader #(
  parameter integer FIFO_SAFE_LEVEL=3968,
- parameter integer USE_SHARED_VOLUME=0
+ parameter integer USE_SHARED_VOLUME=0,
+ parameter integer ENABLE_GAME=0
 )(
  input wire clk,input wire rst,input wire sd_init_done,input wire enable,
  output reg sd_sec_read,output reg [31:0] sd_sec_read_addr,
@@ -17,7 +18,11 @@ module fat32_wav_reader #(
  // 板级复用已验证的卷；独立使用时默认保留原 MBR/BPB 解析接口。
  input wire volume_valid,
  input wire [31:0] volume_fat_start,volume_data_start,volume_root_cluster,
- input wire [7:0] volume_sectors_per_cluster
+ input wire [7:0] volume_sectors_per_cluster,
+ // 仅 ENABLE_GAME=1 时使用；game_mode 必须在开始前稳定并保持至会话结束。
+ input wire game_mode, input wire cancel,
+ output reg [31:0] song_frames, output reg song_frames_valid,
+ output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
             CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15;
@@ -49,6 +54,12 @@ module fat32_wav_reader #(
  reg [FIFO_LEVEL_WIDTH-1:0] fifo_level; reg read_meta,read_sync,read_seen;
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2; reg [31:0] wav_data_remaining;
  reg base_header_error; reg [5:0] header_pos;
+ reg name_match, game_session, cancel_pending;
+ reg [31:0] riff_size;
+ reg [31:0] file_last_byte;
+ reg game_dir_end;
+ reg [15:0] game_dir_sectors;
+ wire cancel_active=ENABLE_GAME && (cancel || cancel_pending);
  reg [7:0] chunk_id0,chunk_id1,chunk_id2,chunk_id3;
  reg [31:0] chunk_size,chunk_skip_remaining;
  reg [3:0] chunk_header_pos;
@@ -81,6 +92,14 @@ module fat32_wav_reader #(
     6'd27:header_byte_invalid=(value!=8'd0);
     6'd34:header_byte_invalid=(value!=8'd16);
     6'd35:header_byte_invalid=(value!=8'd0);
+    6'd16:header_byte_invalid=game_session && value!=8'd16;
+    6'd17,6'd18,6'd19:header_byte_invalid=game_session && value!=8'd0;
+    6'd28:header_byte_invalid=game_session && value!=8'h00;
+    6'd29:header_byte_invalid=game_session && value!=8'hee;
+    6'd30:header_byte_invalid=game_session && value!=8'h02;
+    6'd31:header_byte_invalid=game_session && value!=8'd0;
+    6'd32:header_byte_invalid=game_session && value!=8'd4;
+    6'd33:header_byte_invalid=game_session && value!=8'd0;
     default:header_byte_invalid=1'b0;
    endcase
   end
@@ -123,14 +142,25 @@ module fat32_wav_reader #(
    format_error_pending<=0;
    entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
    base_header_error<=0;
+   name_match<=0;game_session<=0;cancel_pending<=0;cancelled<=0;
+   song_frames<=0;song_frames_valid<=0;stream_eof<=0;riff_size<=0;
+   file_last_byte<=0;
+   game_dir_end<=0;game_dir_sectors<=0;
   end else begin
    fifo_we<=0; done<=0;
-   case(state)
+   // 取消不打断已经获准的整扇区：保持请求/地址到 done，再允许外部清 FIFO/复位。
+   if(cancel_active)begin
+    cancel_pending<=1'b1;
+    if(!sd_sec_read || sd_sec_read_end)begin
+     sd_sec_read<=0;busy<=0;done<=!cancelled;cancelled<=1;state<=HOLD;
+    end
+   end else case(state)
     // Let the BMP catalogue and first SDRAM frame finish before WAV metadata
     // begins using the shared SD SPI bus.  This guarantees a visible HDMI
     // picture even if the WAV file is absent, fragmented, or malformed.
     IDLE:if(sd_init_done && enable)begin
      busy<=1;file_found<=0;format_ok<=0;pos<=0;part<=0;
+     game_session<=ENABLE_GAME && game_mode;
      mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
      boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
      if(USE_SHARED_VOLUME)begin
@@ -192,7 +222,11 @@ module fat32_wav_reader #(
      if(sd_data_valid)begin
       // 每个目录项的必要字段都有固定写入位置，非连续字节也不会错位。
       case(pos[4:0])
-          5'd0: entry_first<=sd_data;
+          5'd0: begin entry_first<=sd_data;name_match<=(sd_data=="G");if(game_session && sd_data==0)game_dir_end<=1;end
+          5'd1: name_match<=name_match && sd_data=="A";
+          5'd2: name_match<=name_match && sd_data=="M";
+          5'd3: name_match<=name_match && sd_data=="E";
+          5'd4,5'd5,5'd6,5'd7: name_match<=name_match && sd_data==" ";
           5'd8: entry_ext[7:0]<=sd_data;
           5'd9: entry_ext[15:8]<=sd_data;
           5'd10: entry_ext[23:16]<=sd_data;
@@ -211,7 +245,8 @@ module fat32_wav_reader #(
       // builds required the example alias WAN_CAN_.WAV, which silently
       // failed when the card contained music.wav or another valid name.
       if(pos[4:0]==31 && entry_ext[7:0]=="W"&&entry_ext[15:8]=="A"&&entry_ext[23:16]=="V"&&
-         entry_attr!=8'h0f&&entry_attr!=8'h10&&entry_attr!=8'h08&&entry_first!=8'hE5)begin
+         (!game_session || (name_match && !game_dir_end)) &&
+         entry_attr!=8'h0f&&((entry_attr&8'h18)==0)&&entry_first!=8'hE5&&entry_first!=0)begin
        file_found<=1;first_cluster<=entry_cluster;cluster<=entry_cluster;
        file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;state<=DIR_FOUND;
@@ -219,11 +254,14 @@ module fat32_wav_reader #(
      end
      if(sd_sec_read_end && !file_found)begin
       sd_sec_read<=0;
+      game_dir_sectors<=game_dir_sectors+16'd1;
       // The FAT32 root directory is a cluster chain. Continue through every
       // sector in the current cluster, then follow the ST_FAT entry when the
       // cluster boundary is reached. This avoids reporting state 9 merely
       // because the WAV entry is beyond the first 512-byte directory sector.
-      if(sector_in_cluster+1<spc)begin
+      if(game_session && (game_dir_end || game_dir_sectors>=16'd1023))begin
+       busy<=0;done<=1;state<=HOLD;
+      end else if(sector_in_cluster+1<spc)begin
        sector_in_cluster<=sector_in_cluster+1;
        sector<=sector+1;
        sd_sec_read_addr<=sector+1;
@@ -240,7 +278,17 @@ module fat32_wav_reader #(
     end
     // The SD sector that contained the directory entry must finish before
     // the shared port can be reused for WAV data.
-    DIR_FOUND:if(sd_sec_read_end)begin sd_sec_read<=0;calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;end
+    DIR_FOUND:if(sd_sec_read_end)begin
+     sd_sec_read<=0;calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;
+     // 目录结束时预计算末字节位置，避免 EOF 的减法串到每个扇区的状态使能。
+     file_last_byte<=file_size-32'd1;
+     if(game_session)begin
+      cluster<=cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
+      if((cluster & 32'h0fffffff)<2 || (cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<48)begin
+       format_error<=1;busy<=0;done<=1;state<=HOLD;
+      end
+     end
+    end
     WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
     DATA:begin
       if(sd_data_valid && file_pos<file_size)begin
@@ -250,6 +298,8 @@ module fat32_wav_reader #(
         if(header_pos==0) base_header_error<=header_byte_invalid(header_pos,sd_data);
         else if(header_byte_invalid(header_pos,sd_data)) base_header_error<=1'b1;
         case(header_pos)
+         4:riff_size[7:0]<=sd_data;5:riff_size[15:8]<=sd_data;
+         6:riff_size[23:16]<=sd_data;7:riff_size[31:24]<=sd_data;
          36:chunk_id0<=sd_data;37:chunk_id1<=sd_data;
          38:chunk_id2<=sd_data;39:chunk_id3<=sd_data;
          40:chunk_size[7:0]<=sd_data;41:chunk_size[15:8]<=sd_data;
@@ -278,6 +328,15 @@ module fat32_wav_reader #(
         // release the arbiter so BMP requests (including key-driven changes)
         // can proceed immediately.
         format_error_pending<=!base_header_valid;
+        if(game_session)begin
+         if(!base_header_valid || chunk_id0!="d" || chunk_id1!="a" || chunk_id2!="t" || chunk_id3!="a" ||
+            {sd_data,chunk_size[23:0]}==0 || chunk_size[1:0]!=0 || file_size<44 ||
+            {sd_data,chunk_size[23:0]}!=file_size-32'd44 || riff_size!=file_size-32'd8)begin
+          format_ok<=0;format_error<=1;format_error_pending<=1;
+         end else begin
+          song_frames<={2'd0,sd_data,chunk_size[23:2]};song_frames_valid<=1;
+         end
+        end
        end
        end
        else if(format_ok && !data_found)begin
@@ -314,10 +373,18 @@ module fat32_wav_reader #(
       sd_sec_read<=0;
        if(format_error_pending)begin
        busy<=0; done<=1; format_error_pending<=0; state<=HOLD;
-       end else if(file_pos+1>=file_size)begin
+       end else if(file_pos>=file_size || (sd_data_valid && file_pos==file_last_byte))begin
        // Repeat playback from the beginning after the file's declared size.
        cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_ok<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;state<=WAIT;
+       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;
+       if(game_session)begin
+        busy<=0;state<=HOLD;
+        if(!song_frames_valid ||
+           !((wav_data_remaining==0 && pcm_index==0) ||
+             (sd_data_valid && wav_data_remaining==1 && pcm_index==3)))format_error<=1;
+        else stream_eof<=1;
+       end
+       else begin format_ok<=0;state<=WAIT;end
       end else if(sector_in_cluster+1<spc)begin sector_in_cluster<=sector_in_cluster+1;sector<=sector+1;state<=WAIT;end
       else begin state<=ST_FAT;end
      end
@@ -330,9 +397,12 @@ module fat32_wav_reader #(
      end
      if(sd_sec_read_end)begin
       sd_sec_read<=0;
-      if(fat_next>=32'h0ffffff8||fat_next<2)begin
+      if((fat_next&32'h0fffffff)>=32'h0ffffff8||(fat_next&32'h0fffffff)<2 ||
+         (game_session && (fat_next&32'h0fffffff)>=32'h0ffffff0))begin
        cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_ok<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;state<=WAIT;
+       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;
+       if(game_session)begin busy<=0;format_error<=1;state<=HOLD;end
+       else begin format_ok<=0;state<=WAIT;end
       end else begin cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;calc_action<=CALC_NEXT_FILE;state<=CALC_OFFSET;end
      end
     end
@@ -346,7 +416,8 @@ module fat32_wav_reader #(
      end
      if(sd_sec_read_end)begin
       sd_sec_read<=0;
-      if(fat_next>=32'h0ffffff8 || fat_next<2)begin
+      if((fat_next&32'h0fffffff)>=32'h0ffffff8 || (fat_next&32'h0fffffff)<2 ||
+         (game_session && (fat_next&32'h0fffffff)>=32'h0ffffff0))begin
        busy<=0; done<=1; state<=HOLD;
       end else begin
        cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;

@@ -2,7 +2,8 @@
 // NOREG disables the EXTRA output register; it is not a FWFT interface.
 module pcm_audio_player #(
     parameter integer PIXEL_CLOCK_HZ = 25_000_000,
-    parameter integer SAMPLE_RATE_HZ = 48_000
+    parameter integer SAMPLE_RATE_HZ = 48_000,
+    parameter integer PREFETCH_PAUSED = 0
 ) (
     input wire clk, input wire rst,
     input wire [31:0] fifo_dout, input wire fifo_empty,
@@ -10,7 +11,11 @@ module pcm_audio_player #(
     input wire [1:0] playback_mode_async,
     output reg fifo_re, output reg audio_valid,
     output reg [23:0] left_pcm, output reg [23:0] right_pcm,
-    output reg underrun
+    output reg underrun,
+    // 只有实际 PCM 帧送到 HDMI 时才发脉冲；静音音量也算有效歌曲帧。
+    output reg sample_emitted, output reg sample_missing,
+    output reg [31:0] sample_index, output reg [31:0] emitted_count,
+    output wire prefetch_ready
 );
     localparam [31:0] CLOCK_RATE = PIXEL_CLOCK_HZ;
     localparam [31:0] SAMPLE_RATE = SAMPLE_RATE_HZ;
@@ -23,6 +28,7 @@ module pcm_audio_player #(
     reg [2:0] volume_meta, volume_sync;
     reg [1:0] playback_mode_meta, playback_mode_sync;
     localparam [1:0] MODE_STOP=2'd0, MODE_PLAY=2'd1, MODE_PAUSE=2'd2;
+    assign prefetch_ready = sample_ready;
 
     function [23:0] scale_pcm;
         input [15:0] sample;
@@ -54,6 +60,8 @@ module pcm_audio_player #(
             read_pending<=1'b0; sample_ready<=1'b0; sample_buffer<=32'd0;
             volume_meta<=3'd4; volume_sync<=3'd4;
             playback_mode_meta<=MODE_STOP; playback_mode_sync<=MODE_STOP;
+            sample_emitted<=1'b0; sample_missing<=1'b0;
+            sample_index<=32'd0; emitted_count<=32'd0;
         end else begin
             volume_meta<=volume_level_async; volume_sync<=volume_meta;
             playback_mode_meta<=playback_mode_async; playback_mode_sync<=playback_mode_meta;
@@ -61,13 +69,17 @@ module pcm_audio_player #(
             fifo_re<=1'b0;
             // Keep HDMI/ACR at 48 kHz even while muted.
             audio_valid<=sample_tick;
+            sample_emitted<=1'b0; sample_missing<=1'b0;
             if (playback_mode_sync == MODE_STOP) begin
                 fifo_re<=!fifo_empty;
                 read_pending<=1'b0; sample_ready<=1'b0; underrun<=1'b0;
                 left_pcm<=24'd0; right_pcm<=24'd0;
+                emitted_count<=32'd0; sample_index<=32'd0;
             end else if (playback_mode_sync == MODE_PAUSE) begin
                 // Complete a read already issued before the pause edge.
-                read_pending<=1'b0;
+                read_pending<=PREFETCH_PAUSED ? (fifo_re && !fifo_empty) : 1'b0;
+                if(PREFETCH_PAUSED && !sample_ready && !read_pending && !fifo_re && !fifo_empty)
+                    fifo_re<=1'b1;
                 if (read_pending) begin sample_buffer<=fifo_dout; sample_ready<=1'b1; end
                 left_pcm<=24'd0; right_pcm<=24'd0;
             end else begin
@@ -76,6 +88,8 @@ module pcm_audio_player #(
                 if (read_pending) begin sample_buffer<=fifo_dout; sample_ready<=1'b1; end
                 if (sample_tick) begin
                     if (sample_ready) begin
+                        sample_emitted<=1'b1; sample_index<=emitted_count;
+                        emitted_count<=emitted_count+32'd1;
                         left_pcm<=scale_pcm(sample_buffer[15:0],volume_sync);
                         right_pcm<=scale_pcm(sample_buffer[31:16],volume_sync);
                         sample_ready<=1'b0;
@@ -83,6 +97,7 @@ module pcm_audio_player #(
                         // SD 加载或缺数据时补零，保持采样时序，避免发出提示方波。
                         left_pcm<=24'd0; right_pcm<=24'd0;
                         underrun<=1'b1;
+                        sample_missing<=1'b1;
                     end
                 end
             end

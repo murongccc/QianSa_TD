@@ -7,6 +7,7 @@ integer n,j;
 reg [31:0] expected, cluster_delta, cluster_size;
 always #5 clk=~clk;
 fat32_wav_reader dut(
+ .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
  .clk(clk),.rst(rst),.sd_init_done(1'b0),.enable(1'b0),
  .sd_data(8'd0),.sd_data_valid(1'b0),.sd_sec_read_end(1'b0),
  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(level),
