@@ -1,5 +1,15 @@
 # SD_to_Video 当前状态
 
+## 音游第三阶段：四轨判定引擎（2026-10-03）
+
+- 新增独立 `rhythm_game_engine`、`rhythm_judge_core`、`rhythm_auto_input`：每轨八槽、两秒活动预取、带偏移/负预滚采样时间、锁存时间的四轨事件、Tap/Hold、AUTO/TEST/外部输入选择、等级计数、连击/最大连击及精确百万分。
+- Hold 头部仅记录等级，尾部或松开时整体计一次；±50/100/150 ms 及尾部提前 50 ms 边界按采样帧判定。暂停/欠载以 run=0 冻结判定，恢复检查 down；分数采用 36 拍整数长除法，无 DSP。done 等待最终分数更新，但音乐完成及结果页仍由后续会话控制器负责。
+- 四项局部仿真通过，0 错误/0 告警：外部输入边界/和弦/偏移/暂停/Hold/容量/复位及混合等级 666666 分；65535 音符计数/绕环/满分；真实 Dell's Normal 全曲 AUTO 413 Perfect、combo 413、1000000 分，TEST 413 Miss、0 分。
+- 独立引擎综合 LUT 1917、REG 350、BRAM/DSP 0，队列使用分布式 RAM，0 错误/0 告警；25 MHz setup WNS +18.154 ns/TNS 0、hold +0.674 ns/TNS 0，Fmax 45.775 MHz。仅时钟约束，STA coverage 75.46%，不等于板级时序通过。
+- **尚未接入板级工程，不能在板上启动游戏。** 本次未改顶层/管脚/时钟/IP，未 P&R/生成 bitstream，第二阶段板级资源与负时序结论继续有效。下一阶段接入会话控制、PCM 时间及四轨界面。既有工程/PLL/debug 改动和历史目录保留；彩线未关闭。
+- 详见 [第三阶段记录](docs/rhythm-stage3-2026-10-03.md)，日志 `prj/log/rhythm_stage3_regression/` 与 `rhythm_stage3_engine_syn/`。
+
+
 ## 音游第二阶段：读取与采样同步基础（2026-10-03）
 
 - 新增共享 FAT32 卷的 `fat32_chart_reader.v`、128×64 双时钟 `rhythm_chart_buffer.v` 和独立加载组件 `rhythm_sd_resources.v`；精确查找 GAME.BIN，校验 R4B1/记录/文件长度/排序/Hold 重叠，支持碎片簇链与整扇区预留。
