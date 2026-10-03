@@ -27,5 +27,6 @@ module tb_rhythm_max_score;
             $fatal(1,"maximum count/score failed");
         $display("PASS maximum 65535 notes, ring wrap, combo and exact 1000000 score");$finish;
     end
-    initial begin #100000000;$fatal(1,"maximum score timeout");end
+    // 窄 RAM 每条记录分四拍访问，65535 次串行握手的仿真预算相应增加。
+    initial begin #400000000;$fatal(1,"maximum score timeout at %0d, perfect=%0d",i,p);end
 endmodule

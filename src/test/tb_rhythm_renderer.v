@@ -6,6 +6,7 @@ module tb_rhythm_renderer;
     reg [3:0] state=6;wire [4:0] vi;
     reg vv;reg [31:0] start,finish;
     wire capture,frame_active,on;wire [23:0] color,rgb;
+    wire [9:0] observed_progress=renderer.progress;
     wire [5:0] meta_address;reg [7:0] meta_data=0;reg [7:0] meta_memory[0:63];
     always @(posedge clk)meta_data<=meta_memory[meta_address];
     reg [191:0] title=0;reg [127:0] difficulty=0;
@@ -67,7 +68,7 @@ module tb_rhythm_renderer;
         begin
             @(negedge clk);song_time=time_value;song_frames=frames_value;vs=1;
             @(negedge clk);vs=0;repeat(4000)@(negedge clk);
-            if(capture || renderer.progress!=expected_progress)$fatal(1,"DSP progress high-word/negative boundary %0d",renderer.progress);
+            if(capture || observed_progress!=expected_progress)$fatal(1,"DSP progress high-word/negative boundary %0d",observed_progress);
         end
     endtask
     initial begin

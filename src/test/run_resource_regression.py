@@ -44,13 +44,14 @@ def main():
         run(name,[binaries['vsim'],'-c','-lib',library,top,*parameters,'-do','src/test/run_pcm_audio_player.do'],True)
     run('reference_tables',[sys.executable,'src/test/generate_reference_fft_tables.py','--check'],True)
     video=compile_group('video',[
+        args.td_root/'sim_release/eg4/eg_logic_bram.v',
         'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/video_presentation.v',
         'src/image_controls.v','src/media_session_controller.v',output/'baseline_fft.v',
-        *[f'src/test/{name}.v' for name in ['tb_fft_resource_equivalence','tb_reference_fft_spectrum',
+        *[f'src/test/{name}.v' for name in ['tb_fft_bank_32k','tb_fft_resource_equivalence','tb_reference_fft_spectrum',
           'tb_reference_dynamics','tb_reference_ring','tb_video_presentation',
           'tb_video_presentation_startup','tb_image_controls','tb_reference_wav']]])
     if not args.skip_video:
-        for top in ['tb_fft_resource_equivalence','tb_reference_dynamics','tb_reference_ring',
+        for top in ['tb_fft_bank_32k','tb_fft_resource_equivalence','tb_reference_dynamics','tb_reference_ring',
                 'tb_image_controls','tb_video_presentation_startup']:
             simulate(top,video,top)
         simulate('video_compat',video,'tb_video_presentation')

@@ -31,7 +31,7 @@ module rhythm_game_engine #(parameter integer SHARED_VIEW=0,parameter integer BL
     wire use_auto=input_mode==2'd0;
     wire use_external=input_mode==2'd2;
     assign event_ready=use_external && core_ready;
-    rhythm_auto_input #(.SERIAL_HEAD(SHARED_VIEW),.SERIAL_LATENCY(BLOCK_QUEUE)) auto_input(
+    rhythm_auto_input #(.SERIAL_HEAD(SHARED_VIEW),.SERIAL_LATENCY(BLOCK_QUEUE ? 8 : 0)) auto_input(
         .serial_valid(view_valid),.serial_time(view_start),.serial_lane(auto_lane),.clk(clk),.rst_n(rst_n),.run(run && (!BLOCK_QUEUE || auto_guard[1])),.enable(use_auto),
         .song_time(song_time),.head_valid(head_valid),.head_time(head_time),.holding_mask(holding_mask),
         .event_valid(auto_valid),.event_ready(core_ready && use_auto),.event_time(auto_time),

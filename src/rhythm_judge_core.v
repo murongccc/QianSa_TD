@@ -29,6 +29,7 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     reg [3:0] captured_press, captured_release;
     wire [4:0] address = {lane,read_ptr[lane]};
     wire [31:0] current_start,current_end;
+    wire queue_write_busy,queue_current_ready;
     reg memory_wait;
     wire signed [33:0] now_time = processing_event ? {captured_time[32],captured_time} : {song_time[32],song_time};
     wire signed [33:0] delta = now_time - $signed({2'b00,current_start});
@@ -40,7 +41,7 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     reg [1:0] grade;
     always @* begin
         retire=1'b0; begin_hold=1'b0; grade=2'd0;
-        if(run && used[lane]!=0 && (!BLOCK_QUEUE || !memory_wait)) begin
+        if(run && used[lane]!=0 && (!BLOCK_QUEUE || (!memory_wait && queue_current_ready))) begin
             if(holding[lane]) begin
                 if(processing_event && captured_release[lane]) begin
                     retire=1'b1;
@@ -64,9 +65,9 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     wire [1:0] incoming_lane = note_data[57:56];
     wire incoming_due = incoming_start<=horizon;
     wire actual_retire;
-    assign note_ready = !done && incoming_due && (used[incoming_lane]<4'd8 || (actual_retire && lane==incoming_lane));
+    assign note_ready = !done && !queue_write_busy && incoming_due && (used[incoming_lane]<4'd8 || (actual_retire && lane==incoming_lane));
     wire enqueue = note_valid && note_ready;
-    assign event_ready = run && !processing_event && !done && (!BLOCK_QUEUE || !memory_wait);
+    assign event_ready = run && !processing_event && !done && (!BLOCK_QUEUE || (!memory_wait && queue_current_ready));
     wire accept_event = event_valid && event_ready;
     // 新事件优先于后台扫描，避免松开电平先触发失败而丢失该事件的原始时间。
     assign actual_retire = retire && !accept_event;
@@ -80,22 +81,65 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     end endgenerate
     wire [31:0] incoming_end=incoming_start[31:0]+{8'd0,note_data[55:32]};
     generate if(BLOCK_QUEUE)begin: block_queue
-        wire [63:0] current_word,view_word;
-        reg delayed_view_valid;
-        rhythm_block_ram #(.WIDTH(64),.ADDRESS_BITS(5),.DEPTH(32)) judge_ram(
-            .write_clk(clk),.write_enable(enqueue && rst_n),.write_address({incoming_lane,write_ptr[incoming_lane]}),.write_data({incoming_end,incoming_start[31:0]}),
-            .read_clk(clk),.read_address(address),.read_data(current_word));
-        rhythm_block_ram #(.WIDTH(64),.ADDRESS_BITS(5),.DEPTH(32)) view_ram(
-            .write_clk(clk),.write_enable(enqueue && rst_n),.write_address({incoming_lane,write_ptr[incoming_lane]}),.write_data({incoming_end,incoming_start[31:0]}),
-            .read_clk(clk),.read_address({view_lane,view_slot}),.read_data(view_word));
+        // 每条 {结束时间,开始时间} 拆成四个 16 位字，两份镜像各占一片 BRAM9K。
+        // 接收拍写字 0，后续三拍写字 1..3；期间反压生产端并隔离所有旧缓存。
+        reg write_busy;
+        reg [1:0] write_phase,read_phase;
+        reg [4:0] write_record,judge_read_tag,view_read_tag,judge_complete_tag,view_complete_tag;
+        reg [47:0] write_shift;
+        reg [63:0] current_word,view_word;
+        reg read_started,cache_valid;
+        wire [4:0] wanted_view={view_lane,view_slot};
+        wire [6:0] packed_write_address={enqueue ? {incoming_lane,write_ptr[incoming_lane]} : write_record,enqueue ? 2'd0 : write_phase};
+        wire [15:0] packed_write_data=enqueue ? incoming_start[15:0] : write_shift[15:0];
+        wire [15:0] judge_q,view_q;
+        assign queue_write_busy=write_busy;
+        assign queue_current_ready=cache_valid && !write_busy && judge_complete_tag==address && judge_read_tag==address;
+        rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(16),.ADDRESS_BITS(7),.DEPTH(128)) judge_ram(
+            .write_clk(clk),.write_enable((enqueue || write_busy) && rst_n),.write_address(packed_write_address),.write_data(packed_write_data),
+            .read_clk(clk),.read_address({read_phase==2'd0 ? address : judge_read_tag,read_phase}),.read_data(judge_q));
+        rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(16),.ADDRESS_BITS(7),.DEPTH(128)) view_ram(
+            .write_clk(clk),.write_enable((enqueue || write_busy) && rst_n),.write_address(packed_write_address),.write_data(packed_write_data),
+            .read_clk(clk),.read_address({read_phase==2'd0 ? wanted_view : view_read_tag,read_phase}),.read_data(view_q));
         always @(posedge clk or negedge rst_n)begin
-            if(!rst_n)delayed_view_valid<=0;else delayed_view_valid<=view_is_valid;
+            if(!rst_n)begin
+                write_busy<=0;write_phase<=0;write_record<=0;write_shift<=0;
+                read_phase<=0;read_started<=0;cache_valid<=0;
+                judge_read_tag<=0;view_read_tag<=0;judge_complete_tag<=0;view_complete_tag<=0;
+                current_word<=0;view_word<=0;
+            end else begin
+                if(enqueue)begin
+                    write_busy<=1;write_phase<=1;write_record<={incoming_lane,write_ptr[incoming_lane]};
+                    write_shift<={incoming_end,incoming_start[31:16]};
+                end else if(write_busy)begin
+                    write_shift<={16'd0,write_shift[47:16]};write_phase<=write_phase+2'd1;
+                    if(write_phase==2'd3)write_busy<=0;
+                end
+                if(write_busy || enqueue)begin read_phase<=0;read_started<=0;cache_valid<=0;end
+                else begin
+                    read_phase<=read_phase+2'd1;
+                    case(read_phase)
+                        2'd0:begin
+                            current_word[63:48]<=judge_q;view_word[63:48]<=view_q;
+                            judge_complete_tag<=judge_read_tag;view_complete_tag<=view_read_tag;
+                            cache_valid<=read_started;read_started<=1;
+                            judge_read_tag<=address;view_read_tag<=wanted_view;
+                        end
+                        2'd1:begin current_word[15:0]<=judge_q;view_word[15:0]<=view_q;end
+                        2'd2:begin current_word[31:16]<=judge_q;view_word[31:16]<=view_q;end
+                        2'd3:begin current_word[47:32]<=judge_q;view_word[47:32]<=view_q;end
+                    endcase
+                end
+            end
         end
         assign current_start=current_word[31:0];assign current_end=current_word[63:32];
-        assign view_start=view_word[31:0];assign view_end=view_word[63:32];assign view_valid=delayed_view_valid;
+        // 标签同时校验完成记录和正在装配记录，地址突变时不暴露半条音符。
+        assign view_start=view_word[31:0];assign view_end=view_word[63:32];
+        assign view_valid=view_is_valid && cache_valid && !write_busy && view_complete_tag==wanted_view && view_read_tag==wanted_view;
         // 同步存储模式必须与引擎 SHARED_VIEW 搭配，AUTO 通过串行查询口读取队头。
         assign head_time=128'd0;
     end else begin: distributed_queue
+        assign queue_write_busy=1'b0;assign queue_current_ready=1'b1;
         reg [31:0] starts[0:31],ends[0:31];
         always @(posedge clk)if(enqueue && rst_n)begin
             starts[{incoming_lane,write_ptr[incoming_lane]}]<=incoming_start[31:0];
@@ -164,7 +208,7 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
                     captured_time<=event_time;captured_press<=press_mask;captured_release<=release_mask;
                     lane<=0;memory_wait<=1;processing_event<=1'b1;
                 end else if(BLOCK_QUEUE && memory_wait)memory_wait<=0;
-                else begin
+                else if(!BLOCK_QUEUE || queue_current_ready)begin
                     memory_wait<=BLOCK_QUEUE;lane<=lane+2'd1;
                     if(processing_event && lane==2'd3)processing_event<=1'b0;
                     if(begin_hold)begin holding[lane]<=1'b1;hold_grade[lane]<=grade;end

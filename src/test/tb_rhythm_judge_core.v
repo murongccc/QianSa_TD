@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 module tb_rhythm_judge_core;
+    parameter BLOCK_QUEUE=0;
     reg clk=0;always #20 clk=~clk;
     reg rst_n=0,run=0,chart_eof=0,note_valid=0,event_valid=0;
     reg signed [32:0] song_time=0,event_time=0;
@@ -14,7 +15,7 @@ module tb_rhythm_judge_core;
     wire [3:0] head_valid,holding_mask;
     wire [127:0] head_time;
     reg [4:0] view_index=0;wire view_valid;wire [31:0] view_start,view_end;
-    rhythm_game_engine dut(1'b0,2'd2,clk,rst_n,run,song_time,chart_offset,total_notes,chart_eof,
+    rhythm_game_engine #(.BLOCK_QUEUE(BLOCK_QUEUE)) dut(1'b0,2'd2,clk,rst_n,run,song_time,chart_offset,total_notes,chart_eof,
         note_valid,note_data,note_ready,event_valid,event_ready,event_time,press_mask,release_mask,down_mask,
         head_valid,head_time,holding_mask,view_index,view_valid,view_start,view_end,
         result_valid,result_lane,result_grade,perfect_count,good_count,bad_count,miss_count,combo,max_combo,score,done,overflow);
@@ -33,7 +34,7 @@ module tb_rhythm_judge_core;
         input signed [32:0] timestamp;input [3:0] press;input [3:0] release_bits;input [3:0] down;
         begin @(negedge clk);event_time=timestamp;press_mask=press;release_mask=release_bits;down_mask=down;event_valid=1;
             @(posedge clk);while(!event_ready)@(posedge clk);
-            @(negedge clk);event_valid=0;repeat(6)@(negedge clk);end
+            @(negedge clk);event_valid=0;repeat(BLOCK_QUEUE ? 50 : 6)@(negedge clk);end
     endtask
     task check;
         input [1:0] grade;input [19:0] expected_score;
@@ -89,6 +90,7 @@ module tb_rhythm_judge_core;
         reset;chart_offset=4800;song_time=-96000;note_data=64'd20000;note_valid=1;
         repeat(4)@(negedge clk);if(note_ready || head_valid!=0)$fatal(1,"early activation");
         song_time=-71200;@(posedge clk);while(!note_ready)@(posedge clk);@(negedge clk);note_valid=0;
+        if(BLOCK_QUEUE)repeat(16)@(negedge clk);
         if(!view_valid || view_start!=24800 || view_end!=24800)$fatal(1,"offset/view");
         chart_eof=1;run=0;event_valid=1;event_time=24800;press_mask=1;down_mask=1;
         repeat(8)@(negedge clk);if(event_ready || perfect_count!=0)$fatal(1,"pause event accepted");

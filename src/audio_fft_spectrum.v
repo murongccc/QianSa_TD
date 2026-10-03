@@ -841,13 +841,25 @@ module fft_spectrum_bank_ram #(
     input wire [31:0] write_data,
     input wire re,
     input wire [ADDR_W-1:0] read_addr,
-    output reg [31:0] read_data
+    output wire [31:0] read_data
 );
+generate if(DEPTH==2048)begin: bank_32k
+    // 两个 2048x32 数据区迁入 BRAM32K，读使能和原同步一拍语义保持。
+    EG_LOGIC_BRAM #(.DATA_WIDTH_A(32),.DATA_WIDTH_B(32),.ADDR_WIDTH_A(ADDR_W),.ADDR_WIDTH_B(ADDR_W),
+        .DATA_DEPTH_A(DEPTH),.DATA_DEPTH_B(DEPTH),.MODE("PDPW"),.REGMODE_A("NOREG"),.REGMODE_B("NOREG"),
+        .WRITEMODE_A("NORMAL"),.WRITEMODE_B("NORMAL"),.RESETMODE("SYNC"),.IMPLEMENT("32K"),.INIT_FILE("NONE"),.FILL_ALL("NONE")) ram(
+        .dia(write_data),.dib(32'd0),.addra(write_addr),.addrb(read_addr),.cea(we),.ceb(re),
+        .ocea(1'b0),.oceb(1'b1),.clka(clk),.clkb(clk),.wea(1'b1),.web(1'b0),.bea(1'b0),.beb(1'b0),
+        .rsta(1'b0),.rstb(1'b0),.doa(),.dob(read_data));
+end else begin: inferred_bank
+reg [31:0] held_data;
+assign read_data=held_data;
 (* ram_style = "bram" *) reg [31:0] memory [0:DEPTH-1];
 always @(posedge clk) begin
     if (we) memory[write_addr] <= write_data;
-    if (re) read_data <= memory[read_addr];
+    if (re) held_data <= memory[read_addr];
 end
+end endgenerate
 endmodule
 
 

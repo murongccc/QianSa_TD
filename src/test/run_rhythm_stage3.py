@@ -29,7 +29,7 @@ def main():
 
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
-    tests = ['tb_rhythm_judge_core', 'tb_rhythm_max_score']
+    tests = ['tb_rhythm_judge_core', 'tb_rhythm_packed_queue', 'tb_rhythm_max_score']
     if args.real_chart.exists():
         data = args.real_chart.read_bytes()
         if len(data) != 3368 or data[:4] != b'R4B1':
@@ -40,12 +40,15 @@ def main():
         tests.append('tb_rhythm_song')
     else:
         print('SKIP real song: asset not present', flush=True)
-    sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine']
+    sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine',
+               'rhythm_font', 'rhythm_hud', 'rhythm_game_renderer']
     run('compile', [binaries['vlog'], '-work', library,
                     'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)
+    run('judge_packed', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_judge_core',
+                         '-gBLOCK_QUEUE=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
     if 'tb_rhythm_song' in tests:
         run('song_test', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_song',
                           '-gAUTO_MODE=0', '-do', 'src/test/run_pcm_audio_player.do'], True)

@@ -18,6 +18,8 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg [2:0] work;
     localparam IDLE=3'd0,COPY=3'd1,SETUP=3'd2,DIVIDE=3'd3,STORE=3'd4,PROGRESS=3'd5,PUBLISH=3'd6;
     reg [4:0] index;
+    // 每次换槽最多等七拍完整读回；初次快照还要容纳三拍在途写入。
+    reg [3:0] copy_wait;
     reg [3:0] hold_snapshot;
     reg signed [32:0] time_snapshot;
     reg [31:0] frames_snapshot;
@@ -116,7 +118,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     always @(posedge clk or posedge rst)begin
         if(rst)begin
             vs_d<=0;de_d<=0;x<=0;y<=0;frame_enabled<=0;base_pixel_on<=0;base_pixel_rgb<=0;text_area_d<=0;glyph_col_d<=0;glyph_row_d<=0;
-            work<=IDLE;index<=0;hold_snapshot<=0;time_snapshot<=0;frames_snapshot<=0;
+            work<=IDLE;index<=0;copy_wait<=0;hold_snapshot<=0;time_snapshot<=0;frames_snapshot<=0;
             which_end<=0;negative<=0;head_y<=0;front_bank<=0;dividend<=0;quotient<=0;remainder<=0;progress_remaining<=0;left<=0;progress<=0;
             row_busy<=0;row_wait<=0;row_index<=0;row_y<=0;row_heads<=0;row_bodies<=0;line_heads<=0;line_bodies<=0;
         end else begin
@@ -128,11 +130,11 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             if(frame_start)begin
                 y<=0;frame_enabled<=enabled;line_heads<=0;line_bodies<=0;row_busy<=0;
                 if(enabled)begin
-                    work<=COPY;index<=0;which_end<=0;hold_snapshot<=holding_mask;time_snapshot<=song_time;frames_snapshot<=song_frames;
+                    work<=COPY;index<=0;copy_wait<=4'd11;which_end<=0;hold_snapshot<=holding_mask;time_snapshot<=song_time;frames_snapshot<=song_frames;
                 end
             end else begin
                 case(work)
-                    COPY:work<=SETUP;
+                    COPY:if(copy_wait!=0)copy_wait<=copy_wait-4'd1;else work<=SETUP;
                     SETUP:begin dividend<=magnitude>34'd96000 ? 17'd96000 : magnitude[16:0];quotient<=0;remainder<=0;left<=17;negative<=difference[33];work<=DIVIDE;end
                     DIVIDE:begin
                         dividend<=dividend<<1;quotient<=quotient_next;left<=left-6'd1;
@@ -141,7 +143,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                     end
                     STORE:if(!which_end)begin head_y<=(index[2:0]==0 && hold_snapshot[index[4:3]]) ? 10'd384 : converted_y;which_end<=1;work<=SETUP;end
                         else begin
-                            which_end<=0;if(index==31)work<=PROGRESS;else begin index<=index+5'd1;work<=COPY;end
+                            which_end<=0;if(index==31)work<=PROGRESS;else begin index<=index+5'd1;copy_wait<=4'd7;work<=COPY;end
                         end
                     PROGRESS:begin
                         progress_remaining<=time_snapshot<0 || frames_snapshot==0 ? 41'd0 : progress_numerator;
