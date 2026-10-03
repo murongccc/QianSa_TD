@@ -6,7 +6,7 @@ module tb_rhythm_max_score;
     reg signed [32:0] song_time=0;
     wire note_ready,done,overflow;
     wire [15:0] p,g,b,m,combo,max_combo;wire [19:0] score;
-    rhythm_game_engine dut(.input_mode(2'd0),.clk(clk),.rst_n(rst_n),.run(1'b1),.song_time(song_time),.chart_offset(32'sd0),
+    rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) dut(.view_capture(1'b0),.input_mode(2'd0),.clk(clk),.rst_n(rst_n),.run(1'b1),.song_time(song_time),.chart_offset(32'sd0),
         .total_notes(16'd65535),.chart_eof(chart_eof),.note_valid(note_valid),.note_data(note_data),.note_ready(note_ready),
         .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
         .head_valid(),.head_time(),.holding_mask(),.view_index(5'd0),.view_valid(),.view_start(),.view_end(),

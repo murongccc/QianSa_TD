@@ -8,9 +8,17 @@ module sd_media_pipeline #(
     // Board builds use 640x480.  Parameters make the complete BMP/FIFO/
     // scaler/session path practical to exercise in a small RTL regression.
     parameter integer SCALER_OUT_WIDTH = 640,
-    parameter integer SCALER_OUT_HEIGHT = 480
+    parameter integer SCALER_OUT_HEIGHT = 480,
+    parameter integer ENABLE_RHYTHM = 0
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
+    input wire [5:0] game_metadata_address,output wire [7:0] game_metadata_data,output wire game_metadata_valid,
+    input wire game_clk,game_reset,game_enable,game_cancel,game_mode,freeze_media,
+    input wire game_note_ready,output wire game_note_valid,output wire [63:0] game_note_data,
+    output wire game_ready,game_cancelled,game_audio_eof,game_chart_eof,media_quiet,
+    output wire [3:0] game_error,output wire [31:0] game_frames,game_audio_level,
+    output wire [15:0] game_notes,output wire signed [31:0] game_offset,
+    output wire [191:0] game_title,output wire [127:0] game_difficulty,
     input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     output wire [3:0] state_code, input wire [15:0] bmp_width, input wire [15:0] bmp_height,
     output wire [15:0] parsed_width, output wire [15:0] parsed_height,
@@ -28,11 +36,18 @@ module sd_media_pipeline #(
     input wire audio_reader_enable, input wire audio_reader_reset,
     output wire audio_reader_busy, output wire audio_reader_done
 );
+wire session_ready;
 wire sd_sec_read; wire [31:0] sd_sec_read_addr; wire [7:0] sd_sec_read_data;
 // rst_sd 原先直接驱动本层所有异步复位端。这里把最终释放限定在本层：
 // 断言仍然异步，撤销则在本地保持 16 个时钟并三级同步，避免顶层大扇出
 // reset-removal 路径的极小裕量使 BMP/缩放器启动状态不确定。
 wire rst_local;
+reg [3:0] game_control_meta,game_control_sync;
+always @(posedge clk or posedge rst_local)begin
+    if(rst_local)begin game_control_meta<=0;game_control_sync<=0;end
+    else begin game_control_meta<={freeze_media,game_mode,game_cancel,game_enable};game_control_sync<=game_control_meta;end
+end
+
 domain_reset_sync #(.COUNTER_WIDTH(5), .HOLD_CYCLES(16)) u_reset_local (
     .clk         (clk),
     .async_reset (rst),
@@ -150,16 +165,57 @@ assign state_code = !sd_init_qualified ? 4'd0 :
                     (bmp_state_code == 4'd1 && media_count != 3'd0) ?
                     {1'b0, media_count} : bmp_state_code;
 
-sd_sector_arbiter u_sd_arbiter (
-    .chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
-    .clk(clk), .rst(rst_local), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
-    .audio_req(audio_sd_read), .audio_addr(audio_sd_addr),
-    .audio_urgent(audio_urgent),
-    .sd_req(sd_read_mux), .sd_addr(sd_addr_mux),
-    .sd_valid(sd_sec_read_data_valid), .sd_done(sd_sec_read_end),
-    .bmp_valid(sd_valid_bmp), .bmp_done(sd_end_bmp),
-    .audio_valid(sd_valid_audio), .audio_done(sd_end_audio)
+generate if(ENABLE_RHYTHM)begin: rhythm_resources
+    wire clear_sd;wire [3:0] resource_error;
+    assign game_error=(game_control_sync[2] && catalog_done && !catalog_volume_valid) ? 4'd2 : resource_error;
+    domain_reset_sync #(.COUNTER_WIDTH(4),.HOLD_CYCLES(8)) clear_sync(
+        .clk(clk),.async_reset(rst_local | game_reset),.reset(clear_sd));
+    rhythm_sd_resources #(.REUSE_MEDIA(1)) resources(
+        .metadata_address(game_metadata_address),.metadata_data(game_metadata_data),
+        .clk(clk),.note_clk(game_clk),.rst(clear_sd),.enable(game_control_sync[0] && session_ready),
+        .cancel(game_control_sync[1]),.game_mode(game_control_sync[2]),
+        .volume_valid(catalog_volume_valid),.volume_fat_start(catalog_fat_start),.volume_data_start(catalog_data_start),
+        .volume_root_cluster(catalog_root_cluster),.volume_sectors_per_cluster(catalog_sectors_per_cluster),
+        .bmp_req(sd_sec_read),.bmp_addr(sd_sec_read_addr),.bmp_valid(sd_valid_bmp),.bmp_done(sd_end_bmp),
+        .sd_req(sd_read_mux),.sd_addr(sd_addr_mux),.sd_data(sd_sec_read_data),.sd_valid(sd_sec_read_data_valid),.sd_done(sd_sec_read_end),
+        .audio_fifo_we(audio_fifo_we),.audio_fifo_data(audio_fifo_din_int),.audio_fifo_full(audio_fifo_full),
+        .audio_read_toggle(audio_read_toggle),.audio_fifo_level(audio_fifo_level),
+        .note_ready(game_note_ready),.note_valid(game_note_valid),.note_data(game_note_data),
+        .header_valid(game_metadata_valid),.song_frames(game_frames),.note_count(game_notes),.hold_count(),.offset_samples(game_offset),
+        .title(game_title),.difficulty(game_difficulty),.resources_ready(game_ready),.cancelled(game_cancelled),
+        .audio_eof(game_audio_eof),.chart_eof(game_chart_eof),.error_code(resource_error),
+        .wav_busy(audio_busy),.wav_done(audio_done),.wav_found(audio_file_found),.wav_format_ok(audio_format_ok),.wav_format_error(audio_format_error));
+end else begin: legacy_resources
+    assign game_metadata_valid=0;assign game_metadata_data=0;
+    assign game_note_valid=0;assign game_note_data=0;assign game_ready=0;assign game_cancelled=0;
+    assign game_audio_eof=0;assign game_chart_eof=0;assign game_error=0;assign game_frames=0;assign game_notes=0;
+    assign game_offset=0;assign game_title=0;assign game_difficulty=0;
+    sd_sector_arbiter u_sd_arbiter (
+        .chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
+        .clk(clk), .rst(rst_local), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
+        .audio_req(audio_sd_read), .audio_addr(audio_sd_addr), .audio_urgent(audio_urgent),
+        .sd_req(sd_read_mux), .sd_addr(sd_addr_mux), .sd_valid(sd_sec_read_data_valid), .sd_done(sd_sec_read_end),
+        .bmp_valid(sd_valid_bmp), .bmp_done(sd_end_bmp), .audio_valid(sd_valid_audio), .audio_done(sd_end_audio));
+// 图片目录器已经解析同一卷；播放重启复用稳定元数据，避免重复引导扇区硬件。
+fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
+    .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
+    .clk(clk), .rst(rst_local | audio_reader_reset), .sd_init_done(sd_init_qualified),
+    .enable(display_valid && audio_reader_enable),
+    .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),
+    .sd_data(sd_data_audio), .sd_data_valid(sd_valid_audio),
+    .sd_sec_read_end(sd_end_audio), .fifo_we(audio_fifo_we), .fifo_din(audio_fifo_din_int),
+    .fifo_full(audio_fifo_full), .audio_read_toggle(audio_read_toggle),
+    .audio_fifo_level(audio_fifo_level),
+    .busy(audio_busy), .done(audio_done), .file_found(audio_file_found), .format_ok(audio_format_ok),
+    .format_error(audio_format_error),
+    .volume_valid(catalog_volume_valid), .volume_fat_start(catalog_fat_start),
+    .volume_data_start(catalog_data_start), .volume_root_cluster(catalog_root_cluster),
+    .volume_sectors_per_cluster(catalog_sectors_per_cluster)
 );
+
+end endgenerate
+assign game_audio_level=audio_fifo_level;
+assign media_quiet=session_ready && !sd_sec_read;
 
 always @(posedge clk or posedge rst_local) begin
     if (rst_local) begin
@@ -213,7 +269,8 @@ always @(posedge clk or posedge rst_local) begin
     end
 end
 
-media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3)) u_session (
+media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3),.ENABLE_FREEZE(ENABLE_RHYTHM)) u_session (
+    .freeze(game_control_sync[3]),.session_ready(session_ready),
     .clk(clk),.rst(rst_local),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
     .candidate_valid(catalog_candidate_valid),
@@ -290,23 +347,6 @@ always @(posedge clk or posedge rst_local) begin
     else if (!load_inflight) scaler_started <= 1'b0;
     else if (scaler_start) scaler_started <= 1'b1;
 end
-
-// 图片目录器已经解析同一卷；播放重启复用稳定元数据，避免重复引导扇区硬件。
-fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
-    .game_mode(1'b0),.cancel(1'b0),.song_frames(),.song_frames_valid(),.stream_eof(),.cancelled(),
-    .clk(clk), .rst(rst_local | audio_reader_reset), .sd_init_done(sd_init_qualified),
-    .enable(display_valid && audio_reader_enable),
-    .sd_sec_read(audio_sd_read), .sd_sec_read_addr(audio_sd_addr),
-    .sd_data(sd_data_audio), .sd_data_valid(sd_valid_audio),
-    .sd_sec_read_end(sd_end_audio), .fifo_we(audio_fifo_we), .fifo_din(audio_fifo_din_int),
-    .fifo_full(audio_fifo_full), .audio_read_toggle(audio_read_toggle),
-    .audio_fifo_level(audio_fifo_level),
-    .busy(audio_busy), .done(audio_done), .file_found(audio_file_found), .format_ok(audio_format_ok),
-    .format_error(audio_format_error),
-    .volume_valid(catalog_volume_valid), .volume_fat_start(catalog_fat_start),
-    .volume_data_start(catalog_data_start), .volume_root_cluster(catalog_root_cluster),
-    .volume_sectors_per_cluster(catalog_sectors_per_cluster)
-);
 
 // Test substitution is explicit and never defines a second sd_card_top.
 `ifdef MEDIA_STARTUP_MODEL

@@ -8,6 +8,7 @@ import subprocess
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name')
+    parser.add_argument('--rhythm', action='store_true', help='include integrated rhythm RTL source set')
     parser.add_argument('--route', action='store_true')
     parser.add_argument('--parent')
     parser.add_argument('--td', default='E:/AnLuTD/bin/td_commands_prompt.exe')
@@ -21,6 +22,17 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
     for name in ['SD_to_Video.tcl', 'SD_to_Video.prj', 'settings.cfg']:
         shutil.copyfile(template/name, dest/name)
+    if args.rhythm:
+        project_path=dest/'SD_to_Video.prj'
+        project=project_path.read_text(encoding='utf-8')
+        sources=['rhythm_block_ram','fat32_chart_reader','rhythm_chart_buffer','rhythm_sd_resources','rhythm_judge_core',
+                 'rhythm_auto_input','rhythm_game_engine','rhythm_session_controller','rhythm_font','rhythm_hud','rhythm_game_renderer']
+        first_order=1+max(map(int,re.findall(r'Name="CompileOrder" Val="(\d+)"',project)),default=0)
+        for index,name in enumerate(sources):
+            if 'src/'+name+'.v' not in project:
+                entry=f'<File Path="{(root/"src"/(name+".v")).as_posix()}"><FileInfo><Attr Name="UsedInSyn" Val="true"/><Attr Name="UsedInP&amp;R" Val="true"/><Attr Name="BelongTo" Val="design_1"/><Attr Name="CompileOrder" Val="{first_order+index}"/></FileInfo></File>'.replace('P&amp;R','P&R')
+                project=project.replace('</Verilog>',entry+'\n</Verilog>',1)
+        project_path.write_text(project,encoding='utf-8')
     settings = (dest/'settings.cfg').read_text()
     if args.route:
         if not args.parent:

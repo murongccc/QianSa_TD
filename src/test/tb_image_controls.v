@@ -19,6 +19,7 @@ reg select_toggle_before;
 always #5 clk = ~clk;
 
 image_controls #(.CLK_FREQ_HZ(1000), .DEBOUNCE_MS(2)) dut (
+    .freeze(1'b0),
     .clk(clk), .rst(rst),
     .key_inc_n(key_inc_n), .key_dec_n(key_dec_n),
     .sw_sel_b(sw_sel_b), .sw_sel_a(sw_sel_a),

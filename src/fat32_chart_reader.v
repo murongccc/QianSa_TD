@@ -15,14 +15,17 @@ module fat32_chart_reader #(
     output reg [15:0] note_count, output reg [15:0] hold_count,
     output reg signed [31:0] offset_samples,
     output reg [191:0] title, output reg [127:0] difficulty,
+    output wire metadata_we,output wire [5:0] metadata_address,output wire [7:0] metadata_data,
     output reg busy, output reg eof, output reg cancelled,
     output reg [3:0] error_code
 );
     localparam [3:0] IDLE=0,CALC=1,MULT=2,ADDRESS=3,DIR_REQ=4,DIR_DATA=5,
                      FILE_WAIT=6,FILE_DATA=7,FAT_REQ=8,FAT_DATA=9,FINISHED=10,VERIFY_EOF=11;
     reg [3:0] state;
-    reg [31:0] fat_start,data_start,cluster,sector,file_size,file_pos;
-    reg [31:0] file_last_byte;
+    reg [31:0] fat_start,data_start,cluster,sector;
+    // 65535 条记录加头部小于 1 MiB，目录高位必须先拒绝再截位。
+    reg [19:0] file_size,file_pos;reg oversized_file;
+    reg [19:0] file_last_byte;
     reg [7:0] spc,sector_in_cluster;
     reg [31:0] shift_value,product;
     reg [2:0] multiply_bit;
@@ -31,15 +34,14 @@ module fat32_chart_reader #(
     reg [31:0] next_cluster,entry_cluster,entry_size;
     reg [7:0] entry_first,entry_attr;
     reg [15:0] directory_sectors;
-    reg [31:0] magic,rate,count_full,holds_full,expected_file_size;
+    reg [15:0] count_full,holds_full;reg [19:0] expected_file_size;
     reg [15:0] seen_notes,seen_holds;
     reg length_ok,counts_ok;
     reg header_bad;
     reg [55:0] record;
-    reg [31:0] previous_time,last_start[0:3],last_end[0:3];
+    reg [31:0] previous_time,last_end[0:3];
     reg [1:0] previous_lane;
     reg [3:0] lane_seen;
-    integer lane;
     wire [1:0] record_lane=sd_data[1:0];
     wire [31:0] record_start=record[31:0];
     wire [23:0] record_duration=record[55:32];
@@ -49,23 +51,27 @@ module fat32_chart_reader #(
         record_end[32] || shifted_start<0 || shifted_end>=$signed({2'b00,song_frames}) ||
         seen_notes>=count_full[15:0] ||
         (seen_notes!=0 && (record_start<previous_time || (record_start==previous_time && record_lane<=previous_lane))) ||
-        (lane_seen[record_lane] && (record_start==last_start[record_lane] || record_start<last_end[record_lane]));
+        (lane_seen[record_lane] && (record_start<last_end[record_lane]));
 
+    assign metadata_we=state==FILE_DATA && sd_valid && file_pos>=24 && file_pos<64 && error_code==0 && !cancel && !cancel_pending;
+    assign metadata_address=file_pos[5:0]-6'd24;
+    assign metadata_data=sd_data;
     // 接受音符的单拍同时提交到 FIFO 和轻量校验历史，避免取消/解析状态的
     // 长使能链直接驱动四轨 32 位寄存器。下一条记录至少相隔八个字节。
     always @(posedge clk or posedge rst)begin
         if(rst)begin
             seen_notes<=0;seen_holds<=0;previous_time<=0;previous_lane<=0;lane_seen<=0;
-            for(lane=0;lane<4;lane=lane+1)begin last_start[lane]<=0;last_end[lane]<=0;end
         end else if(note_we)begin
             seen_notes<=seen_notes+16'd1;
             if(note_data[58])seen_holds<=seen_holds+16'd1;
             previous_time<=note_data[31:0];previous_lane<=note_data[57:56];
             lane_seen[note_data[57:56]]<=1;
-            last_start[note_data[57:56]]<=note_data[31:0];
-            last_end[note_data[57:56]]<=note_data[31:0]+{8'd0,note_data[55:32]};
         end
     end
+
+    // 不复位 RAM 内容，lane_seen 保证首次记录不读取旧历史。
+    always @(posedge clk)if(!rst && note_we)
+        last_end[note_data[57:56]]<=note_data[31:0]+{8'd0,note_data[55:32]};
 
     always @(posedge clk or posedge rst) begin
         if(rst)begin
@@ -73,12 +79,12 @@ module fat32_chart_reader #(
             header_valid<=0;song_frames<=0;note_count<=0;hold_count<=0;offset_samples<=0;
             title<=0;difficulty<=0;busy<=0;eof<=0;cancelled<=0;error_code<=0;
             fat_start<=0;data_start<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;
-            file_last_byte<=0;
+            file_last_byte<=0;oversized_file<=0;
             spc<=0;sector_in_cluster<=0;shift_value<=0;product<=0;multiply_bit<=0;
             directory<=1;entry_match<=0;found<=0;dir_end<=0;cancel_pending<=0;
             byte_pos<=0;fat_offset<=0;next_cluster<=0;entry_cluster<=0;entry_size<=0;
             entry_first<=0;entry_attr<=0;directory_sectors<=0;
-            magic<=0;rate<=0;count_full<=0;holds_full<=0;
+            count_full<=0;holds_full<=0;
             expected_file_size<=0;length_ok<=0;counts_ok<=0;
             header_bad<=0;record<=0;
             record_end<=0;shifted_start<=0;shifted_end<=0;
@@ -129,7 +135,7 @@ module fat32_chart_reader #(
                             31:if(!found && !dir_end && entry_match && entry_first!=8'he5 &&
                                   entry_attr!=8'h0f && (entry_attr & 8'h18)==0)begin
                                 found<=1;cluster<=entry_cluster & 32'h0fffffff;
-                                file_size<={sd_data,entry_size[23:0]};
+                                file_size<=entry_size[19:0];oversized_file<=sd_data!=0 || entry_size[23:20]!=0;
                             end
                             default:;
                         endcase
@@ -138,8 +144,8 @@ module fat32_chart_reader #(
                         sd_req<=0;directory_sectors<=directory_sectors+16'd1;
                         if(found)begin
                             directory<=0;sector_in_cluster<=0;
-                            file_last_byte<=file_size-32'd1;
-                            if(cluster<2 || cluster>=32'h0ffffff0 || file_size<72)begin error_code<=4'd2;busy<=0;state<=FINISHED;end
+                            file_last_byte<=file_size-20'd1;
+                            if(oversized_file || cluster<2 || cluster>=32'h0ffffff0 || file_size<72)begin error_code<=4'd2;busy<=0;state<=FINISHED;end
                             else state<=CALC;
                         end else if(dir_end || directory_sectors>=MAX_DIRECTORY_SECTORS-1)begin
                             error_code<=4'd1;busy<=0;state<=FINISHED;
@@ -151,35 +157,52 @@ module fat32_chart_reader #(
                 FILE_WAIT:if(reserve_ready)begin sd_req<=1;sd_addr<=sector;state<=FILE_DATA;end
                 FILE_DATA:begin
                     if(sd_valid && file_pos<file_size && error_code==0)begin
-                        file_pos<=file_pos+32'd1;
+                        file_pos<=file_pos+20'd1;
                         if(file_pos<64)begin
-                            if(file_pos<4)magic[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<8)rate[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<12)song_frames[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<16)count_full[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<20)holds_full[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<24)offset_samples[file_pos[1:0]*8 +:8]<=sd_data;
-                            else if(file_pos<48)title[(file_pos-24)*8 +:8]<=sd_data;
-                            else difficulty[(file_pos-48)*8 +:8]<=sd_data;
+                            if(file_pos<8)begin
+                                // 魔数与固定采样率逐字节校验，不保存两组 32 位移位寄存器。
+                                case(file_pos[2:0])
+                                    0:if(sd_data!=8'h52)header_bad<=1;
+                                    1:if(sd_data!=8'h34)header_bad<=1;
+                                    2:if(sd_data!=8'h42)header_bad<=1;
+                                    3:if(sd_data!=8'h31)header_bad<=1;
+                                    4:if(sd_data!=8'h80)header_bad<=1;
+                                    5:if(sd_data!=8'hbb)header_bad<=1;
+                                    default:if(sd_data!=0)header_bad<=1;
+                                endcase
+                            end
+                            else if(file_pos<12)song_frames<={sd_data,song_frames[31:8]};
+                            else if(file_pos<16)begin
+                                if(file_pos<14)count_full<={sd_data,count_full[15:8]};
+                                else if(sd_data!=0)header_bad<=1;
+                            end
+                            else if(file_pos<20)begin
+                                if(file_pos<18)holds_full<={sd_data,holds_full[15:8]};
+                                else if(sd_data!=0)header_bad<=1;
+                            end
+                            else if(file_pos<24)offset_samples<={sd_data,offset_samples[31:8]};
+                            else if(file_pos<48)title<={sd_data,title[191:8]};
+                            else difficulty<={sd_data,difficulty[127:8]};
                             // 头部剩余字节提供多个计算拍，不把长度加法串到最终校验路径。
-                            if(file_pos==16)expected_file_size<=32'd64+(count_full<<3);
+                            if(file_pos==16)expected_file_size<=20'd64+{1'b0,count_full[15:0],3'd0};
                             if(file_pos==18)length_ok<=file_size==expected_file_size;
-                            if(file_pos==20)counts_ok<=count_full!=0 && count_full[31:16]==0 && holds_full<=count_full;
+                            if(file_pos==20)counts_ok<=count_full!=0 && holds_full<=count_full;
                             if(file_pos==47 && sd_data!=0)header_bad<=1;
                             if(file_pos==63)begin
-                                if(magic!=32'h31423452 || rate!=48000 || song_frames==0 ||
+                                if(song_frames==0 ||
                                    !counts_ok || !length_ok || header_bad || sd_data!=0)error_code<=4'd3;
                                 else begin header_valid<=1;note_count<=count_full[15:0];hold_count<=holds_full[15:0];end
                             end
                         end else if(file_pos[2:0]!=7)begin
-                            record[file_pos[2:0]*8 +:8]<=sd_data;
+                            if(file_pos[2:0]<4)record[31:0]<={sd_data,record[31:8]};
+                            else record[55:32]<={sd_data,record[55:40]};
                             // 用记录字节采集间隔分开两级加法，再在第七字节判定。
                             // 第四字节到来时头部已稳定，第六字节使用当前持续时间高字节。
                             if(file_pos[2:0]==4)
                                 shifted_start<=$signed({2'b00,record_start})+$signed({{2{offset_samples[31]}},offset_samples});
                             if(file_pos[2:0]==6)begin
-                                record_end<={1'b0,record_start}+{9'd0,sd_data,record[47:32]};
-                                shifted_end<=shifted_start+$signed({10'd0,sd_data,record[47:32]});
+                                record_end<={1'b0,record_start}+{9'd0,sd_data,record[55:40]};
+                                shifted_end<=shifted_start+$signed({10'd0,sd_data,record[55:40]});
                             end
                         end
                         else if(record_bad)error_code<=4'd4;

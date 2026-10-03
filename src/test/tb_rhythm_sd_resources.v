@@ -17,8 +17,10 @@ module tb_rhythm_sd_resources;
     reg [31:0] value;
     always #5 clk=~clk;
     always #13 nclk=~nclk;
-    rhythm_sd_resources dut(
-        .clk(clk),.note_clk(nclk),.rst(rst),.enable(enable),.cancel(cancel),
+    rhythm_sd_resources #(.REUSE_MEDIA(1)) dut(
+        .metadata_address(6'd0),.metadata_data(),
+    .game_mode(scenario!=11),.wav_busy(),.wav_done(),.wav_found(),.wav_format_ok(),.wav_format_error(),
+    .clk(clk),.note_clk(nclk),.rst(rst),.enable(enable),.cancel(cancel),
         .volume_valid(1'b1),.volume_fat_start(32'd100),.volume_data_start(32'd200),
         .volume_root_cluster(32'd2),.volume_sectors_per_cluster(8'd1),
         .bmp_req(breq),.bmp_addr(32'd999),.bmp_valid(bvalid),.bmp_done(bdone),
@@ -48,7 +50,7 @@ module tb_rhythm_sd_resources;
                         10:sector_byte=entry==1?"N":"V";
                         26:sector_byte=entry==1?3:entry==2?20:5;
                         28,29,30,31:begin
-                            word_value=scenario==10?512:entry==1?1104:12044;
+                            word_value=(scenario==12 && entry==1)?32'h100450:scenario==10?512:entry==1?1104:12044;
                             sector_byte=(word_value>>((field-28)*8));
                         end
                         default:;
@@ -56,6 +58,10 @@ module tb_rhythm_sd_resources;
                     if(scenario==2 && entry==2 && field==0)sector_byte="Y";
                     if(scenario==9 && entry==1 && field==0)sector_byte="Y";
                 end
+                if(scenario==11 && entry==0)begin
+                    case(field)0:sector_byte="G";1:sector_byte="A";2:sector_byte="M";3:sector_byte="E";26:sector_byte=20;default:begin end endcase
+                end
+                if(scenario==11 && entry==2 && field<8)sector_byte=field==0 ? "X" : " ";
             end else if(address==100)begin
                 cluster_number=index/4;
                 word_value=32'hffffffff;
@@ -66,6 +72,9 @@ module tb_rhythm_sd_resources;
             end else if(address==201 || address==207 || address==205)begin
                 offset=(address==201?0:address==207?512:1024)+index;
                 if(offset<1104)sector_byte=image[offset];
+                if(scenario==13 && offset==14)sector_byte=1;
+                if(scenario==14 && offset==6)sector_byte=1;
+                if(scenario==15 && offset==19)sector_byte=1;
                 if(scenario==1 && offset==0)sector_byte="X";
                 if(scenario==4 && offset==16)sector_byte=11;
                 if(scenario==5 && offset==71)sector_byte=8'h08;
@@ -158,6 +167,9 @@ module tb_rhythm_sd_resources;
         // 所有非音频客户端公平，音频结束后 BMP 仍可获准。
         breq=1;wait(bdone);@(negedge clk);breq=0;repeat(5)@(negedge clk);
         cancel=1;wait(cancelled);repeat(5)@(negedge clk);
+        scenario=12;reset_session;wait(error!=0);
+        if(error!=2)$fatal(1,"oversized chart directory size was truncated");
+        cancel=1;wait(cancelled);repeat(4)@(negedge clk);
         $display("PASS fragmented charts, exact GAME.WAV, reserve, dual-clock backpressure, one-shot EOF");
         for(scenario=1;scenario<10;scenario=scenario+1)begin
             reset_session;
@@ -183,6 +195,17 @@ module tb_rhythm_sd_resources;
         wait(aeof && ceof && consumed==56);repeat(10)@(negedge clk);
         if(error!=0 || audio_count!=117)$fatal(1,"coincident last-byte/done lost final sample or record");
         $display("PASS exact sector boundary with simultaneous last-byte and done");
+        cancel=1;wait(cancelled);scenario=11;reset_session;
+        wait(dut.u_wav.file_found);
+        if(dut.u_wav.pos<96)$fatal(1,"media selected GAME.WAV instead of ordinary WAV");
+        wait(ready);if(nvalid || error || ceof || dut.header_valid)$fatal(1,"media started chart parser");
+        cancel=1;wait(cancelled);
+        $display("PASS shared media reader excludes GAME.WAV and chart, preserves cancel");
+        for(scenario=13;scenario<=15;scenario=scenario+1)begin
+            reset_session;wait(error!=0);
+            if(error!=3)$fatal(1,"streamed header validation %0d error %0d",scenario,error);
+            cancel=1;wait(cancelled);repeat(4)@(negedge clk);
+        end
         $display("PASS resource errors, fragmented FAT high bits, cancellation and restart");$finish;
     end
     initial begin

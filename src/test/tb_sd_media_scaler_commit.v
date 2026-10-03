@@ -2,6 +2,7 @@
 `ifdef MEDIA_STARTUP_MODEL
 
 module tb_sd_media_scaler_commit;
+    parameter RHYTHM=0;
     reg clk = 1'b0;
     reg rst = 1'b1;
     reg write_finish_toggle = 1'b0;
@@ -15,11 +16,13 @@ module tb_sd_media_scaler_commit;
     always #5 clk = ~clk;
 
     sd_media_pipeline #(
-        .CLK_FREQ_HZ(100_000_000), .SCAN_START_SECTOR(0),
+        .ENABLE_RHYTHM(RHYTHM),.CLK_FREQ_HZ(100_000_000), .SCAN_START_SECTOR(0),
         .SCAN_MAX_SECTOR(0), .SCAN_TARGET_COUNT(3'd1),
         .SCALER_OUT_WIDTH(4), .SCALER_OUT_HEIGHT(4)
     ) dut (
-        .clk(clk), .rst(rst), .key_next(1'b1), .key_auto(1'b0),
+        .game_metadata_address(6'd0),.game_metadata_data(),.game_metadata_valid(),
+    .game_clk(clk),.game_reset(1'b0),.game_enable(1'b0),.game_cancel(RHYTHM!=0),.game_mode(RHYTHM!=0),.freeze_media(RHYTHM!=0),.game_note_ready(1'b0),.game_note_valid(),.game_note_data(),.game_ready(),.game_cancelled(),.game_audio_eof(),.game_chart_eof(),.media_quiet(),.game_error(),.game_frames(),.game_audio_level(),.game_notes(),.game_offset(),.game_title(),.game_difficulty(),
+    .clk(clk), .rst(rst), .key_next(1'b1), .key_auto(1'b0),
         .uart_command_async(3'd0), .uart_command_toggle_async(1'b0),
         .state_code(state_code), .bmp_width(16'd0), .bmp_height(16'd0),
         .parsed_width(), .parsed_height(), .parsed_top_down(),
@@ -55,6 +58,13 @@ module tb_sd_media_scaler_commit;
         repeat (4) @(negedge clk);
         rst = 1'b0;
         wait(display_valid);
+        repeat(8)@(negedge clk);
+        // 首显提交可先于不可暂停扇区的最后字节，退场必须等待 SD 请求排空。
+        if(RHYTHM)begin
+            wait(dut.game_cancelled && dut.media_quiet);
+            repeat(4)@(negedge clk);
+            if(dut.sd_read_mux)$fatal(1,"shared shell started a request after cancellation");
+        end
         if (write_pixels != 16)
             $fatal(1, "frame committed with %0d pixels", write_pixels);
         $display("PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit");

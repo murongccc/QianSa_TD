@@ -8,7 +8,7 @@ module tb_rhythm_song;
     wire event_valid,event_ready;wire signed [32:0] event_time;
     wire [3:0] press,down,heads,holding;wire [127:0] times;
     wire [15:0] p,g,b,m,combo,max_combo;wire [19:0] score;
-    rhythm_game_engine dut(.input_mode(AUTO_MODE!=0 ? 2'd0 : 2'd1),.clk(clk),.rst_n(rst_n),.run(1'b1),.song_time(song_time),.chart_offset(32'sd0),
+    rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) dut(.view_capture(1'b0),.input_mode(AUTO_MODE!=0 ? 2'd0 : 2'd1),.clk(clk),.rst_n(rst_n),.run(1'b1),.song_time(song_time),.chart_offset(32'sd0),
         .total_notes(16'd413),.chart_eof(position==413),.note_valid(position<413),.note_data(notes[position<413?position:412]),.note_ready(note_ready),
         .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
         .head_valid(heads),.head_time(times),.holding_mask(holding),.view_index(5'd0),.view_valid(),.view_start(),.view_end(),

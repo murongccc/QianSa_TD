@@ -76,8 +76,10 @@ def main():
         'src/test/eg_logic_mult_model.v','src/SD/bmp_bilinear_scaler.v','src/SD/bmp_read.v',
         'src/domain_reset_sync.v','src/fat32_bmp_catalog.v','src/fat32_wav_reader.v',
         'src/sd_sector_arbiter.v','src/media_session_controller.v','src/sd_media_pipeline.v',
+        'src/fat32_chart_reader.v','src/rhythm_chart_buffer.v','src/rhythm_sd_resources.v','src/rhythm_block_ram.v',
         'src/test/tb_sd_media_scaler_commit.v'],['+define+MEDIA_STARTUP_MODEL'])
     simulate('media_scaler_commit',integration,'tb_sd_media_scaler_commit')
+    simulate('media_rhythm_shell',integration,'tb_sd_media_scaler_commit',['-gRHYTHM=1'])
     if args.wav_samples:
         sample_path=args.wav_samples.resolve()
         count=sum(1 for line in sample_path.open() if line.strip())

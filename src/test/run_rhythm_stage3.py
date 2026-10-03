@@ -40,9 +40,9 @@ def main():
         tests.append('tb_rhythm_song')
     else:
         print('SKIP real song: asset not present', flush=True)
-    sources = ['rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine']
+    sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine']
     run('compile', [binaries['vlog'], '-work', library,
-                    *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
+                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)

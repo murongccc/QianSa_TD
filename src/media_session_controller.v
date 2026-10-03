@@ -1,6 +1,7 @@
 module media_session_controller #(
     parameter integer CLK_FREQ_HZ = 100_000_000,
-    parameter integer AUTO_PERIOD_SECONDS = 3
+    parameter integer AUTO_PERIOD_SECONDS = 3,
+    parameter integer ENABLE_FREEZE = 0
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
     // uart_command_async and its toggle originate in the 50 MHz UART domain.
@@ -8,6 +9,7 @@ module media_session_controller #(
     input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     input wire scan_done, input wire candidate_valid, input wire [2:0] media_count, input wire loader_ready,
     input wire frame_commit, input wire load_abort,
+    input wire freeze, output wire session_ready,
     // The video domain toggles this only after it has consumed the requested
     // slot on a frame boundary.  It is synchronized below before use.
     input wire display_switch_applied_toggle_async,
@@ -45,8 +47,11 @@ reg key_auto_meta, key_auto_sync;
 wire uart_command_event = (uart_toggle_sync != uart_toggle_seen);
 wire [31:0] auto_limit = auto_period_cycles;
 wire auto_due = (auto_count >= auto_limit - 1);
-wire manual_request = key_next_press ||
-                      (uart_command_event && uart_command_sync == UART_CMD_NEXT);
+reg next_armed,next_meta,next_sync;
+wire frozen = ENABLE_FREEZE && freeze;
+assign session_ready=scan_done && !candidate_valid && !load_inflight && !display_switch_inflight;
+wire manual_request = !frozen && next_armed && (key_next_press ||
+                      (uart_command_event && uart_command_sync == UART_CMD_NEXT));
 
 function [2:0] next_media;
     input [2:0] current; input [2:0] count;
@@ -85,10 +90,10 @@ endfunction
 
 wire have_ready_slot = |slot_ready;
 wire [2:0] requested_next_slot = next_ready_slot(display_slot, slot_ready);
-wire manual_switch_start = display_valid && !display_switch_inflight &&
+wire manual_switch_start = !frozen && display_valid && !display_switch_inflight &&
                            (manual_next_pending != 3'd0) &&
                            (requested_next_slot != display_slot);
-wire auto_switch_start = display_valid && !display_switch_inflight &&
+wire auto_switch_start = !frozen && display_valid && !display_switch_inflight &&
                          !manual_switch_start && auto_next_pending &&
                          (requested_next_slot != display_slot);
 
@@ -97,6 +102,7 @@ media_key_press_debounce #(.CLK_FREQ_HZ(CLK_FREQ_HZ), .DEBOUNCE_MS(20)) u_key_ne
 );
 always @(posedge clk or posedge rst) begin
     if (rst) begin
+        next_armed<=1;next_meta<=1;next_sync<=1;
         load_start<=1'b0; load_media_index<=3'd0; write_slot<=3'd0; display_slot<=3'd0;
         display_switch_toggle<=1'b0;
         display_valid<=1'b0; auto_play_enabled<=1'b0; load_inflight<=1'b0;
@@ -109,6 +115,9 @@ always @(posedge clk or posedge rst) begin
         uart_toggle_meta<=1'b0; uart_toggle_sync<=1'b0; uart_toggle_seen<=1'b0;
         key_auto_meta<=1'b0; key_auto_sync<=1'b0;
     end else begin
+        if(frozen)uart_toggle_seen<=uart_toggle_sync;
+        if(frozen)next_armed<=0;else if(next_sync)next_armed<=1;
+        next_meta<=key_next;next_sync<=next_meta;
         // Two flip-flops for the held command bus and event toggle.  The UART
         // source changes the bus before toggling the event and keeps it until
         // the next command, giving the destination two full clocks to settle.
@@ -150,7 +159,7 @@ always @(posedge clk or posedge rst) begin
                 manual_next_pending <= manual_next_pending - 3'd1;
             end
 
-            if (uart_command_event) begin
+            if (uart_command_event && !frozen) begin
                 uart_toggle_seen <= uart_toggle_sync;
                 case (uart_command_sync)
                     UART_CMD_AUTO_TOGGLE: if (media_count > 3'd1) begin
@@ -170,12 +179,12 @@ always @(posedge clk or posedge rst) begin
             // the carousel, but do not overwrite a UART toggle command in the
             // same clock; the old unconditional assignment could cancel a
             // just-accepted command and made the mode appear disabled.
-            if (!(uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE))
+            if (!frozen && !(uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE))
                 auto_play_enabled <= key_auto_sync && (media_count > 3'd1);
             if ((uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE) ||
                          (uart_command_event && (uart_command_sync >= UART_CMD_PERIOD_1S))) begin
                 // The command handler above has already reset auto_count.
-            end else if (key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
+            end else if (!frozen && key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
                 if (auto_due) begin auto_count<=32'd0; auto_next_pending<=1'b1; end
                 else auto_count<=auto_count+32'd1;
             end else auto_count<=32'd0;
@@ -221,6 +230,8 @@ always @(posedge clk or posedge rst) begin
                 if (auto_switch_start)
                     auto_next_pending <= 1'b0;
             end
+
+            if(frozen)begin manual_next_pending<=0;auto_next_pending<=0;auto_play_enabled<=0;auto_count<=0;end
 
             // Keep each discovered source permanently assigned to its own
             // SDRAM frame slot.  A ready frame is therefore never re-read

@@ -43,10 +43,10 @@ def main():
         tests.append('tb_rhythm_real_chart')
     else:
         print('SKIP real chart: asset not present; convert it first', flush=True)
-    sources = ['pcm_audio_player', 'fat32_wav_reader', 'fat32_chart_reader', 'rhythm_chart_buffer',
+    sources = ['rhythm_block_ram', 'pcm_audio_player', 'fat32_wav_reader', 'fat32_chart_reader', 'rhythm_chart_buffer',
                'sd_sector_arbiter', 'rhythm_sd_resources']
     run('compile', [binaries['vlog'], '-work', library,
-                    *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
+                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)

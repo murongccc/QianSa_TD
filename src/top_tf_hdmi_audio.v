@@ -204,6 +204,26 @@ always @(posedge video_clk or posedge rst_video) begin
         hdmi_color_phase <= hdmi_color_phase + 1'b1;
 end
 `endif
+wire [5:0] game_metadata_address;wire [7:0] game_metadata_data;wire game_metadata_valid;
+reg metadata_meta,metadata_sync;
+always @(posedge video_clk or posedge rst_video)begin
+    if(rst_video)begin metadata_meta<=0;metadata_sync<=0;end
+    else begin metadata_meta<=game_metadata_valid;metadata_sync<=metadata_meta;end
+end
+wire game_freeze,game_active,game_auto,game_clear,game_enable,game_cancel;
+wire engine_reset,engine_run,engine_load,game_capture;
+wire game_note_valid,game_note_ready;wire [63:0] game_note_data;
+wire game_ready,game_cancelled,game_audio_eof,game_chart_eof,media_quiet;
+wire [3:0] game_error,game_state,session_error;wire [31:0] resource_frames,game_fifo_level,song_frames;
+wire [15:0] resource_notes,total_notes;wire signed [31:0] resource_offset,chart_offset;
+wire [191:0] game_title;wire [127:0] game_difficulty;
+wire signed [32:0] game_time;
+wire [1:0] session_player_mode;
+wire sample_emitted,sample_missing,prefetch_ready;wire [31:0] sample_index,emitted_count;
+wire judge_done,queue_overflow,session_chart_eof;wire [19:0] game_score;
+wire [15:0] game_combo,game_max_combo,game_p,game_g,game_b,game_m;
+wire [4:0] game_view_index;wire game_view_valid;wire [31:0] game_view_start,game_view_end;
+wire [3:0] game_holding;wire game_frame_active,game_pixel_on;wire [23:0] game_pixel_rgb;
 wire        rst_audio_fifo;
 wire [2:0]  uart_brightness_level;
 wire [2:0]  uart_volume_level;
@@ -216,7 +236,7 @@ wire        uart_echo_valid;
 wire [7:0]  uart_echo_data;
 // 统一复位：TF 图像链路 + SDRAM + HDMI 音视频链路。
 assign rst_all = ~rst_n;
-assign rst_audio_fifo = rst_sd | rst_video;
+assign rst_audio_fifo = rst_sd | rst_video | game_clear;
 
 uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_control (
     .clk(clk), .rst(rst_clk), .uart_rxd(uart_rxd),
@@ -283,6 +303,7 @@ end
 
 // ===================== TF 多图扫描与缓存（双缓冲） =====================
 sd_media_pipeline #(
+    .ENABLE_RHYTHM(1),
     .CLK_FREQ_HZ       (100_000_000),
     .SCAN_START_SECTOR (32'd0),
     // Keep five discovered images in five independent SDRAM frame slots.
@@ -291,6 +312,12 @@ sd_media_pipeline #(
     .SCAN_MAX_SECTOR   (32'd131071),
     .SCAN_TARGET_COUNT (3'd5)
 ) sd_media_pipeline_m0(
+    .game_metadata_address(game_metadata_address),.game_metadata_data(game_metadata_data),.game_metadata_valid(game_metadata_valid),
+    .game_clk(video_clk),.game_reset(game_clear),.game_enable(game_enable),.game_cancel(game_cancel),.game_mode(game_active),.freeze_media(game_freeze),
+    .game_note_ready(game_note_ready && engine_load && !game_capture),.game_note_valid(game_note_valid),.game_note_data(game_note_data),
+    .game_ready(game_ready),.game_cancelled(game_cancelled),.game_audio_eof(game_audio_eof),.game_chart_eof(game_chart_eof),.media_quiet(media_quiet),
+    .game_error(game_error),.game_frames(resource_frames),.game_audio_level(game_fifo_level),.game_notes(resource_notes),.game_offset(resource_offset),
+    .game_title(),.game_difficulty(),
     .clk               (sd_card_clk),
     .rst               (rst_sd),
     .key_next          (key2),
@@ -625,13 +652,38 @@ sdram U3(
 
 // ===================== WAV PCM audio =====================
 
-audio_playback_control #(.CLK_FREQ_HZ(100_000_000), .DEBOUNCE_MS(20)) u_audio_playback_control (
-    // Button pause/resume control is intentionally disabled; SW1 is the
-    // only board control for the music run/stop function.
-    .clk(sd_card_clk), .rst(rst_sd), .play_pause_key_n(1'b1), .run_switch(swkey1),
-    .fifo_empty_async(audio_fifo_empty), .player_mode(audio_player_mode_sd),
-    .reader_enable(audio_reader_enable_sd), .reader_reset(audio_reader_reset_sd)
-);
+rhythm_session_controller u_game_session(
+    .clk(video_clk),.rst(rst_video),.game_switch(swkey3 && swkey4),.run_switch(swkey1),
+    .restart_key_n(key2),.pause_key_n(key3),.mode_key_n(key4),
+    .media_quiet_async(media_quiet),.resources_ready_async(game_ready),.cancelled_async(game_cancelled),
+    .audio_eof_async(game_audio_eof),.chart_eof_async(game_chart_eof),.error_async(game_error),
+    .frames_async(resource_frames),.fifo_level_async(game_fifo_level),.notes_async(resource_notes),.offset_async(resource_offset),
+    .sample_emitted(sample_emitted),.sample_missing(sample_missing),.prefetch_ready(prefetch_ready),.sample_index(sample_index),.emitted_count(emitted_count),
+    .judge_done(judge_done),.queue_overflow(queue_overflow),.freeze_media(game_freeze),.active_game(game_active),.auto_mode(game_auto),
+    .resource_reset(game_clear),.resource_enable(game_enable),.resource_cancel(game_cancel),.engine_reset(engine_reset),.engine_run(engine_run),.engine_load(engine_load),
+    .player_mode(session_player_mode),.song_time(game_time),.song_frames(song_frames),.total_notes(total_notes),.chart_offset(chart_offset),
+    .chart_eof(session_chart_eof),.state(game_state),.error_code(session_error));
+// 单一会话控制器替代旧媒体音频控制，确保切换时整扇区安全退场。
+assign audio_player_mode_sd=2'd0;
+assign audio_reader_enable_sd=1'b0;
+assign audio_reader_reset_sd=1'b0;
+
+rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) u_game_engine(
+    .view_capture(game_capture),
+    .input_mode(game_auto ? 2'd0 : 2'd1),.clk(video_clk),.rst_n(!engine_reset),.run(engine_run && !game_capture),
+    .song_time(game_time),.chart_offset(chart_offset),.total_notes(total_notes),.chart_eof(session_chart_eof),
+    .note_valid(game_note_valid && engine_load && !game_capture),.note_data(game_note_data),.note_ready(game_note_ready),
+    .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
+    .head_valid(),.head_time(),.holding_mask(game_holding),.view_index(game_view_index),.view_valid(game_view_valid),.view_start(game_view_start),.view_end(game_view_end),
+    .result_valid(),.result_lane(),.result_grade(),.perfect_count(game_p),.good_count(game_g),.bad_count(game_b),.miss_count(game_m),
+    .combo(game_combo),.max_combo(game_max_combo),.score(game_score),.done(judge_done),.queue_overflow(queue_overflow));
+rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) u_game_renderer(
+    .metadata_valid(metadata_sync),.metadata_address(game_metadata_address),.metadata_data(game_metadata_data),
+    .clk(video_clk),.rst(rst_video | game_clear),.enabled(game_active),.de(de),.vs(vs),.song_time(game_time),.song_frames(song_frames),
+    .state(game_state),.error_code(session_error),.auto_mode(game_auto),.score(game_score),.combo(game_combo),.max_combo(game_max_combo),
+    .perfect_count(game_p),.good_count(game_g),.bad_count(game_b),.miss_count(game_m),.title(192'd0),.difficulty(128'd0),
+    .view_index(game_view_index),.view_valid(game_view_valid),.view_start(game_view_start),.view_end(game_view_end),.holding_mask(game_holding),
+    .capture_busy(game_capture),.frame_enabled(game_frame_active),.pixel_on(game_pixel_on),.pixel_rgb(game_pixel_rgb));
 
 audio_fifo_32x4096 u_audio_fifo (
     .rst(rst_audio_fifo), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
@@ -639,20 +691,20 @@ audio_fifo_32x4096 u_audio_fifo (
     .empty_flag(audio_fifo_empty), .full_flag(audio_fifo_full)
 );
 
-pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000)) u_pcm_audio_player (
-    // 新增游戏计时输出在媒体顶层显式留空，游戏会话集成时再连接。
-    .sample_emitted(),.sample_missing(),.sample_index(),.emitted_count(),.prefetch_ready(),
-    .clk(video_clk), .rst(rst_video), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
+pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000),.PREFETCH_PAUSED(1)) u_pcm_audio_player (
+    // 实际输出帧驱动游戏时间，HDMI 补零不推进。
+    .sample_emitted(sample_emitted),.sample_missing(sample_missing),.sample_index(sample_index),.emitted_count(emitted_count),.prefetch_ready(prefetch_ready),
+    .clk(video_clk), .rst(rst_video | game_clear), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
     .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
     .volume_level_async(uart_volume_level),
-    .playback_mode_async(audio_player_mode_sd),
+    .playback_mode_async(session_player_mode),
     .right_pcm(audio_right_data), .underrun(audio_underrun)
 );
 
 // Export reads from the video-clock FIFO port as a safe event into the
 // SD-clock WAV reader.  This protects against a full FIFO mid-sector.
 always @(posedge video_clk or posedge rst_video) begin
-    if (rst_video)
+    if (rst_video || game_clear)
         audio_read_toggle <= 1'b0;
     else if (audio_fifo_re && !audio_fifo_empty)
         audio_read_toggle <= ~audio_read_toggle;
@@ -683,10 +735,12 @@ audio_arc_calculate #(
 
 // ===================== Presentation layer and RGB/DE to AXIS =====================
 video_presentation #(
+    .ENABLE_RHYTHM(1),
     .REFERENCE_SPECTRUM(1),
     .ACTIVE_WIDTH  (640),
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
+    .game_active(game_frame_active),.game_pixel_on(game_pixel_on),.game_pixel_rgb(game_pixel_rgb),
     .clk                (video_clk),
     .rst                (rst_video),
     .display_valid      (display_valid),
@@ -715,8 +769,8 @@ assign vout_data = vout_data_processed;
 assign axis_input_de = presentation_de_d2;
 assign axis_input_vs = presentation_vs_d2;
 
-image_controls u_image_controls (
-    .clk(clk), .rst(rst_clk), .key_inc_n(key3), .key_dec_n(key4),
+image_controls #(.ENABLE_GAME_GUARD(1)) u_image_controls (
+    .freeze(game_freeze || (swkey3 && swkey4)),.clk(clk), .rst(rst_clk), .key_inc_n(key3), .key_dec_n(key4),
     .sw_sel_b(swkey3), .sw_sel_a(swkey4),
     .brightness(image_brightness), .contrast(image_contrast), .sharpness(image_sharpness),
     .selected(image_selected), .select_toggle(image_select_toggle),

@@ -5,7 +5,7 @@
 module fat32_wav_reader #(
  parameter integer FIFO_SAFE_LEVEL=3968,
  parameter integer USE_SHARED_VOLUME=0,
- parameter integer ENABLE_GAME=0
+ parameter integer ENABLE_GAME=0, parameter integer EXCLUDE_GAME_WAV=0
 )(
  input wire clk,input wire rst,input wire sd_init_done,input wire enable,
  output reg sd_sec_read,output reg [31:0] sd_sec_read_addr,
@@ -245,7 +245,7 @@ module fat32_wav_reader #(
       // builds required the example alias WAN_CAN_.WAV, which silently
       // failed when the card contained music.wav or another valid name.
       if(pos[4:0]==31 && entry_ext[7:0]=="W"&&entry_ext[15:8]=="A"&&entry_ext[23:16]=="V"&&
-         (!game_session || (name_match && !game_dir_end)) &&
+         (game_session ? (name_match && !game_dir_end) : !(EXCLUDE_GAME_WAV && name_match)) &&
          entry_attr!=8'h0f&&((entry_attr&8'h18)==0)&&entry_first!=8'hE5&&entry_first!=0)begin
        file_found<=1;first_cluster<=entry_cluster;cluster<=entry_cluster;
        file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;

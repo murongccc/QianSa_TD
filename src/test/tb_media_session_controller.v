@@ -30,6 +30,7 @@ media_session_controller #(
     .CLK_FREQ_HZ(100),
     .AUTO_PERIOD_SECONDS(3)
 ) dut (
+    .freeze(1'b0),.session_ready(),
     .clk(clk), .rst(rst), .key_next(key_next), .key_auto(key_auto),
     .uart_command_async(uart_command_async),
     .uart_command_toggle_async(uart_command_toggle_async),

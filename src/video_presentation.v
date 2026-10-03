@@ -5,7 +5,7 @@ module video_presentation #(
     parameter integer ACTIVE_HEIGHT = 480,
     parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
-    parameter integer INITIAL_WARMUP_FRAMES = 8
+    parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
@@ -22,6 +22,7 @@ module video_presentation #(
     input wire [255:0] spectrum_bands,
     input wire [639:0] spectrum_bars,
     input wire [7:0] spectrum_radius,
+    input wire game_active,game_pixel_on,input wire [23:0] game_pixel_rgb,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
 );
@@ -274,6 +275,8 @@ ring_spectrum_renderer #(
 reg [23:0] adjusted_rgb_stage;
 reg base_valid_stage;
 reg param_osd_stage;
+reg game_stage;
+wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -297,7 +300,7 @@ always @(posedge clk or posedge rst) begin
         osd_count <= 27'd0;
         adjusted_rgb_stage <= 24'd0;
         base_valid_stage <= 1'b0;
-        param_osd_stage <= 1'b0;
+        param_osd_stage <= 1'b0;game_stage<=0;
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
@@ -364,10 +367,11 @@ always @(posedge clk or posedge rst) begin
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
-        param_osd_stage <= param_osd_pixel;
+        param_osd_stage <= param_osd_pixel;game_stage<=ENABLE_RHYTHM && game_active;
 
         // 第二级：参数 OSD/频谱优先于处理后的底图。
-        if (!base_valid_stage) rgb_out <= 24'd0;
+        if(game_stage)rgb_out<=game_pixel_on ? game_pixel_rgb : (base_valid_stage ? dimmed_rgb : 24'd0);
+        else if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;
         else rgb_out <= adjusted_rgb_stage;

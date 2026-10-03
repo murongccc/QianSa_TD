@@ -20,6 +20,7 @@ video_presentation #(
     .ACTIVE_WIDTH(4), .ACTIVE_HEIGHT(4), .OSD_DISPLAY_CYCLES(16),
     .INITIAL_WARMUP_FRAMES(3)
 ) dut (
+    .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),
     .clk(clk), .rst(rst), .display_valid(display_valid),
     .display_slot_async(display_slot_async),
     .display_switch_toggle_async(display_switch_toggle_async),

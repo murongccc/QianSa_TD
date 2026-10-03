@@ -16,7 +16,8 @@ module tb_rhythm_real_chart;
     always #5 clk=~clk;
     always #17 nclk=~nclk;
     fat32_chart_reader dut(
-        .clk(clk),.rst(rst),.enable(1'b1),.cancel(cancel),.volume_valid(1'b1),
+        .metadata_we(),.metadata_address(),.metadata_data(),
+    .clk(clk),.rst(rst),.enable(1'b1),.cancel(cancel),.volume_valid(1'b1),
         .volume_fat_start(32'd100),.volume_data_start(32'd200),
         .volume_root_cluster(32'd2),.volume_sectors_per_cluster(8'd1),
         .reserve_ready(reserve),.sd_req(req),.sd_addr(addr),.sd_data(data),.sd_valid(valid),.sd_done(done),

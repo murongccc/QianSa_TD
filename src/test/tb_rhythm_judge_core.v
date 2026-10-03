@@ -14,7 +14,7 @@ module tb_rhythm_judge_core;
     wire [3:0] head_valid,holding_mask;
     wire [127:0] head_time;
     reg [4:0] view_index=0;wire view_valid;wire [31:0] view_start,view_end;
-    rhythm_game_engine dut(2'd2,clk,rst_n,run,song_time,chart_offset,total_notes,chart_eof,
+    rhythm_game_engine dut(1'b0,2'd2,clk,rst_n,run,song_time,chart_offset,total_notes,chart_eof,
         note_valid,note_data,note_ready,event_valid,event_ready,event_time,press_mask,release_mask,down_mask,
         head_valid,head_time,holding_mask,view_index,view_valid,view_start,view_end,
         result_valid,result_lane,result_grade,perfect_count,good_count,bad_count,miss_count,combo,max_combo,score,done,overflow);
