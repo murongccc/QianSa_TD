@@ -22,6 +22,15 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
     for name in ['SD_to_Video.tcl', 'SD_to_Video.prj', 'settings.cfg']:
         shutil.copyfile(template/name, dest/name)
+    # GUI 运行目录可能仍含已删除旧文件；以当前工程的 Verilog 源集为准。
+    project_path = dest/'SD_to_Video.prj'
+    current_project = (root/'prj/SD_to_Video.al').read_text(encoding='utf-8')
+    source_set = re.search(r'<Verilog>.*?</Verilog>', current_project, re.S)[0]
+    source_set = re.sub(r'(<File Path=")([^"]+)(")',
+                        lambda m: m[1]+(root/'prj'/m[2]).resolve().as_posix()+m[3], source_set)
+    project = project_path.read_text(encoding='utf-8')
+    project = re.sub(r'<Verilog>.*?</Verilog>', lambda _: source_set, project, count=1, flags=re.S)
+    project_path.write_text(project, encoding='utf-8')
     if args.rhythm:
         project_path=dest/'SD_to_Video.prj'
         project=project_path.read_text(encoding='utf-8')

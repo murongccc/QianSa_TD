@@ -1,5 +1,6 @@
-// WAV file reader for the common SD SPI path.
-// 媒体模式读取根目录首个 WAV 并循环；可选游戏模式精确读取 GAME.WAV 并单次播放。
+// 共享 SD SPI 的规范 WAV 读取器，仅接受 44 字节头的 48 kHz/16 bit/双声道 PCM。
+// 媒体模式读取根目录首个 WAV 并循环；游戏模式精确读取 GAME.WAV 并单次播放。
+// fmt 必须为 16 字节且 data 紧随其后；不接受 LIST/JUNK、扩展 fmt 或尾随块。
 // The producer reserves room for a whole sector before requesting it, so an
 // unpausable SD sector never overflows the asynchronous audio FIFO.
 module fat32_wav_reader #(
@@ -25,7 +26,7 @@ module fat32_wav_reader #(
  output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -39,7 +40,7 @@ module fat32_wav_reader #(
  endfunction
  localparam integer FIFO_LEVEL_WIDTH=fifo_count_width(FIFO_SAFE_LEVEL+128);
  localparam [FIFO_LEVEL_WIDTH-1:0] FIFO_SAFE_COUNT=FIFO_SAFE_LEVEL;
- reg [3:0] state; reg [8:0] pos,fat_offset; reg [7:0] entry_first,entry_attr;
+ reg [4:0] state; reg [8:0] pos,fat_offset; reg [7:0] entry_first,entry_attr;
  reg [23:0] entry_ext,entry_size_low;
  reg [31:0] entry_cluster;
  reg [31:0] part,fat_start,data_start,root,first_cluster,first_sector,cluster,sector,file_size,file_pos,fat_next;
@@ -52,18 +53,13 @@ module fat32_wav_reader #(
  reg [2:0] multiply_bit;
  reg [15:0] reserved; reg [7:0] spc,fats,sector_in_cluster;
  reg [FIFO_LEVEL_WIDTH-1:0] fifo_level; reg read_meta,read_sync,read_seen;
- reg [1:0] pcm_index; reg [7:0] p0,p1,p2; reg [31:0] wav_data_remaining;
+ reg [1:0] pcm_index; reg [7:0] p0,p1,p2;
  reg base_header_error; reg [5:0] header_pos;
  reg name_match, game_session, cancel_pending;
- reg [31:0] riff_size;
- reg [31:0] file_last_byte;
+ reg [31:0] expected_riff_size,expected_data_size;
  reg game_dir_end;
  reg [15:0] game_dir_sectors;
  wire cancel_active=ENABLE_GAME && (cancel || cancel_pending);
- reg [7:0] chunk_id0,chunk_id1,chunk_id2,chunk_id3;
- reg [31:0] chunk_size,chunk_skip_remaining;
- reg [3:0] chunk_header_pos;
- reg data_found;
  reg format_error_pending;
  // 固定头字段流式校验；错误标志在每次新 RIFF 头开始时重新清零。
  function header_byte_invalid;
@@ -74,6 +70,10 @@ module fat32_wav_reader #(
     6'd1:header_byte_invalid=(value!="I");
     6'd2:header_byte_invalid=(value!="F");
     6'd3:header_byte_invalid=(value!="F");
+    6'd4:header_byte_invalid=(value!=expected_riff_size[7:0]);
+    6'd5:header_byte_invalid=(value!=expected_riff_size[15:8]);
+    6'd6:header_byte_invalid=(value!=expected_riff_size[23:16]);
+    6'd7:header_byte_invalid=(value!=expected_riff_size[31:24]);
     6'd8:header_byte_invalid=(value!="W");
     6'd9:header_byte_invalid=(value!="A");
     6'd10:header_byte_invalid=(value!="V");
@@ -92,19 +92,30 @@ module fat32_wav_reader #(
     6'd27:header_byte_invalid=(value!=8'd0);
     6'd34:header_byte_invalid=(value!=8'd16);
     6'd35:header_byte_invalid=(value!=8'd0);
-    6'd16:header_byte_invalid=game_session && value!=8'd16;
-    6'd17,6'd18,6'd19:header_byte_invalid=game_session && value!=8'd0;
-    6'd28:header_byte_invalid=game_session && value!=8'h00;
-    6'd29:header_byte_invalid=game_session && value!=8'hee;
-    6'd30:header_byte_invalid=game_session && value!=8'h02;
-    6'd31:header_byte_invalid=game_session && value!=8'd0;
-    6'd32:header_byte_invalid=game_session && value!=8'd4;
-    6'd33:header_byte_invalid=game_session && value!=8'd0;
+    6'd16:header_byte_invalid=(value!=8'd16);
+    6'd17,6'd18,6'd19:header_byte_invalid=(value!=8'd0);
+    6'd28:header_byte_invalid=(value!=8'h00);
+    6'd29:header_byte_invalid=(value!=8'hee);
+    6'd30:header_byte_invalid=(value!=8'h02);
+    6'd31:header_byte_invalid=(value!=8'd0);
+    6'd32:header_byte_invalid=(value!=8'd4);
+    6'd33:header_byte_invalid=(value!=8'd0);
+    6'd36:header_byte_invalid=(value!="d");
+    6'd37:header_byte_invalid=(value!="a");
+    6'd38:header_byte_invalid=(value!="t");
+    6'd39:header_byte_invalid=(value!="a");
+    6'd40:header_byte_invalid=(value!=expected_data_size[7:0]);
+    6'd41:header_byte_invalid=(value!=expected_data_size[15:8]);
+    6'd42:header_byte_invalid=(value!=expected_data_size[23:16]);
+    6'd43:header_byte_invalid=(value!=expected_data_size[31:24]);
     default:header_byte_invalid=1'b0;
    endcase
   end
  endfunction
- wire base_header_valid=!base_header_error;
+ // 长度在目录事务结束后预计算，并逐字节检查，避免头末拍的宽减法/比较链。
+ // 43 是当前输入的长度高字节，仍须检查当前值；其余字段已累计到错误标志。
+ wire canonical_header_valid=!base_header_error && expected_data_size[1:0]==2'b00 &&
+                             sd_data==expected_data_size[31:24];
  wire read_event=read_sync!=read_seen;
  // 同一个加法器实现 +1/-1；减一用计数位宽内的全一补码。
  wire [FIFO_LEVEL_WIDTH-1:0] fifo_count_delta={{(FIFO_LEVEL_WIDTH-1){!fifo_we}},1'b1};
@@ -135,16 +146,13 @@ module fat32_wav_reader #(
    boot_fat0<=0;boot_fat1<=0;boot_fat2<=0;boot_fat3<=0;boot_fat4<=0;
    mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
    first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
-   pcm_index<=0;p0<=0;p1<=0;p2<=0;wav_data_remaining<=0;
+   pcm_index<=0;p0<=0;p1<=0;p2<=0;
    header_pos<=0;cluster_product<=0;multiply_bit<=0;
-   chunk_id0<=0;chunk_id1<=0;chunk_id2<=0;chunk_id3<=0;
-   chunk_size<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;data_found<=0;
    format_error_pending<=0;
    entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
    base_header_error<=0;
    name_match<=0;game_session<=0;cancel_pending<=0;cancelled<=0;
-   song_frames<=0;song_frames_valid<=0;stream_eof<=0;riff_size<=0;
-   file_last_byte<=0;
+   song_frames<=0;song_frames_valid<=0;stream_eof<=0;expected_riff_size<=0;expected_data_size<=0;
    game_dir_end<=0;game_dir_sectors<=0;
   end else begin
    fifo_we<=0; done<=0;
@@ -280,13 +288,13 @@ module fat32_wav_reader #(
     // the shared port can be reused for WAV data.
     DIR_FOUND:if(sd_sec_read_end)begin
      sd_sec_read<=0;calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;
-     // 目录结束时预计算末字节位置，避免 EOF 的减法串到每个扇区的状态使能。
-     file_last_byte<=file_size-32'd1;
-     if(game_session)begin
-      cluster<=cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
-      if((cluster & 32'h0fffffff)<2 || (cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<48)begin
-       format_error<=1;busy<=0;done<=1;state<=HOLD;
-      end
+     // 目录事务结束后预计算两个长度，头解析不再执行宽减法。
+     expected_riff_size<=file_size-32'd8;
+     expected_data_size<=file_size-32'd44;
+     cluster<=cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
+     // 最小有效文件包含 44 字节头和一个完整的 4 字节立体声采样帧。
+     if((cluster & 32'h0fffffff)<32'd2 || (cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<32'd48)begin
+      format_error<=1;busy<=0;done<=1;state<=HOLD;
      end
     end
     WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
@@ -294,100 +302,47 @@ module fat32_wav_reader #(
       if(sd_data_valid && file_pos<file_size)begin
        file_pos<=file_pos+1;
        if(header_pos<44)begin
-        // 43 是当前输入的长度高字节；其他 chunk 字段已在前拍稳定。
+        // 固定字段与两个完整 32 位长度都逐字节校验，不保存输入图头。
         if(header_pos==0) base_header_error<=header_byte_invalid(header_pos,sd_data);
         else if(header_byte_invalid(header_pos,sd_data)) base_header_error<=1'b1;
-        case(header_pos)
-         4:riff_size[7:0]<=sd_data;5:riff_size[15:8]<=sd_data;
-         6:riff_size[23:16]<=sd_data;7:riff_size[31:24]<=sd_data;
-         36:chunk_id0<=sd_data;37:chunk_id1<=sd_data;
-         38:chunk_id2<=sd_data;39:chunk_id3<=sd_data;
-         40:chunk_size[7:0]<=sd_data;41:chunk_size[15:8]<=sd_data;
-         42:chunk_size[23:16]<=sd_data;
-         default: ;
-        endcase
         header_pos<=header_pos+1;
        if(header_pos==43)begin
-        format_ok<=base_header_valid;
-        format_error<=!base_header_valid;
-        if (chunk_id0=="d"&&chunk_id1=="a"&&chunk_id2=="t"&&chunk_id3=="a") begin
-         data_found<=1;
-         wav_data_remaining<={sd_data,chunk_size[23:0]};
-        end else begin
-         // The first non-standard chunk header may already be inside the
-         // initial 44-byte read (for example LIST at offsets 36..43).
-         // Seed the chunk skipper with that header; subsequent bytes are its
-         // payload and the next chunk header will be parsed normally.
-         data_found<=0; wav_data_remaining<=0; chunk_header_pos<=0;
-         chunk_size<={sd_data,chunk_size[23:0]};
-         chunk_skip_remaining<={sd_data,chunk_size[23:0]} +
-                               ((({sd_data,chunk_size[23:0]}) & 32'd1)!=0);
-        end
-        // A malformed/unsupported WAV must not be scanned to EOF.  Keep the
-        // current SD transaction alive until its sector-end pulse, then
-        // release the arbiter so BMP requests (including key-driven changes)
-        // can proceed immediately.
-        format_error_pending<=!base_header_valid;
-        if(game_session)begin
-         if(!base_header_valid || chunk_id0!="d" || chunk_id1!="a" || chunk_id2!="t" || chunk_id3!="a" ||
-            {sd_data,chunk_size[23:0]}==0 || chunk_size[1:0]!=0 || file_size<44 ||
-            {sd_data,chunk_size[23:0]}!=file_size-32'd44 || riff_size!=file_size-32'd8)begin
-          format_ok<=0;format_error<=1;format_error_pending<=1;
-         end else begin
-          song_frames<={2'd0,sd_data,chunk_size[23:2]};song_frames_valid<=1;
-         end
+        format_ok<=canonical_header_valid;
+        format_error<=!canonical_header_valid;
+        // 错误后仍排空已接受的整扇区，再释放仲裁器；期间不发布 PCM。
+        format_error_pending<=!canonical_header_valid;
+        if(game_session && canonical_header_valid)begin
+         song_frames<={2'd0,expected_data_size[31:2]};song_frames_valid<=1;
         end
        end
        end
-       else if(format_ok && !data_found)begin
-         // WAV permits LIST/JUNK/fact and other chunks between fmt and data.
-         // Consume each chunk's 4-byte ID and 32-bit little-endian length,
-         // then skip its payload (including the optional odd-byte pad).
-         if (chunk_skip_remaining!=0) begin
-           chunk_skip_remaining<=chunk_skip_remaining-1;
-         end else if (chunk_header_pos<8) begin
-           case (chunk_header_pos)
-             0: chunk_id0<=sd_data; 1: chunk_id1<=sd_data;
-             2: chunk_id2<=sd_data; 3: chunk_id3<=sd_data;
-             4: chunk_size[7:0]<=sd_data; 5: chunk_size[15:8]<=sd_data;
-             6: chunk_size[23:16]<=sd_data;
-             7: begin
-               chunk_size[31:24]<=sd_data;
-               if (chunk_id0=="d"&&chunk_id1=="a"&&chunk_id2=="t"&&chunk_id3=="a") begin
-                 data_found<=1; wav_data_remaining<={sd_data,chunk_size[23:0]};
-               end else begin
-                 chunk_skip_remaining<={sd_data,chunk_size[23:0]} +
-                                        ((({sd_data,chunk_size[23:0]}) & 32'd1)!=0);
-               end
-               chunk_header_pos<=0;
-             end
-           endcase
-           if (chunk_header_pos<7) chunk_header_pos<=chunk_header_pos+1;
-         end
-       end else if(format_ok && wav_data_remaining!=0)begin
+       // 规范 data 恰好覆盖 [44,file_size)，外层 file_pos 边界即可限制 PCM。
+       // 无需再维护与文件位置重复的 32 位 data 剩余计数器。
+       else if(format_ok)begin
          case(pcm_index)0:p0<=sd_data;1:p1<=sd_data;2:p2<=sd_data;3:begin fifo_din<={sd_data,p2,p1,p0};fifo_we<=1;end endcase
-         pcm_index<=pcm_index+1;wav_data_remaining<=wav_data_remaining-1;
+         pcm_index<=pcm_index+1;
       end
       end
      if(sd_sec_read_end)begin
-      sd_sec_read<=0;
+      sd_sec_read<=0;state<=DATA_END;
+     end
+    end
+    DATA_END:begin
+       // 在 done 下一拍检查，包含末字节同拍更新的头错误、文件位置和 PCM 相位。
+       // 切断 SD 返回数据经头校验直接驱动扇区地址使能的组合路径。
        if(format_error_pending)begin
        busy<=0; done<=1; format_error_pending<=0; state<=HOLD;
-       end else if(file_pos>=file_size || (sd_data_valid && file_pos==file_last_byte))begin
+       end else if(file_pos>=file_size)begin
        // Repeat playback from the beginning after the file's declared size.
        cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;
-       if(game_session)begin
-        busy<=0;state<=HOLD;
-        if(!song_frames_valid ||
-           !((wav_data_remaining==0 && pcm_index==0) ||
-             (sd_data_valid && wav_data_remaining==1 && pcm_index==3)))format_error<=1;
-        else stream_eof<=1;
-       end
+       header_pos<=0;pcm_index<=0;format_error_pending<=0;done<=1;
+       if(!format_ok || pcm_index!=2'd0 ||
+          (game_session && !song_frames_valid))begin
+        busy<=0;format_ok<=0;format_error<=1;state<=HOLD;
+       end else if(game_session)begin busy<=0;stream_eof<=1;state<=HOLD;end
        else begin format_ok<=0;state<=WAIT;end
       end else if(sector_in_cluster+1<spc)begin sector_in_cluster<=sector_in_cluster+1;sector<=sector+1;state<=WAIT;end
       else begin state<=ST_FAT;end
-     end
     end
     ST_FAT:begin fat_offset<=cluster[6:0]<<2;pos<=0;sd_sec_read_addr<=fat_start+(cluster>>7);sd_sec_read<=1;state<=ST_FATDATA;end
     ST_FATDATA:begin
@@ -398,11 +353,9 @@ module fat32_wav_reader #(
      if(sd_sec_read_end)begin
       sd_sec_read<=0;
       if((fat_next&32'h0fffffff)>=32'h0ffffff8||(fat_next&32'h0fffffff)<2 ||
-         (game_session && (fat_next&32'h0fffffff)>=32'h0ffffff0))begin
-       cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;wav_data_remaining<=0;format_error_pending<=0;data_found<=0;chunk_skip_remaining<=0;chunk_header_pos<=0;done<=1;
-       if(game_session)begin busy<=0;format_error<=1;state<=HOLD;end
-       else begin format_ok<=0;state<=WAIT;end
+         (fat_next&32'h0fffffff)>=32'h0ffffff0)begin
+       // 文件尚未到 EOF 却遇到簇链结束，媒体和游戏都报截断，不循环错误文件。
+       sd_sec_read<=0;busy<=0;format_ok<=0;format_error<=1;done<=1;state<=HOLD;
       end else begin cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;calc_action<=CALC_NEXT_FILE;state<=CALC_OFFSET;end
      end
     end

@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-04",
+  "format": "44-byte RIFF PCM, 48000 Hz, stereo, 16 bit; fmt size 16; data matches directory size",
+  "before": {
+    "directory": "prj/log/lut_sd_accepted_syn",
+    "resources": {
+      "lut": 19261,
+      "reg": 12315,
+      "bram": 50,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_media_pipeline": {
+        "lut": 7762,
+        "reg": 4621
+      },
+      "fat32_wav_reader": {
+        "lut": 1743,
+        "reg": 848
+      }
+    },
+    "timing_ns": {
+      "Setup WNS": -0.243,
+      "Setup TNS": -9.545,
+      "Hold WNS": 0.471,
+      "Hold TNS": 0.0
+    },
+    "first_paths": {
+      "sd_card_clk": {
+        "slack": "-0.243ns",
+        "Begin Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/file_pos_reg[12].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/chunk_header_pos_reg[0].d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "Data Path Delay": "10.127ns (cell 3.528ns (34%), net 6.599ns (66%))",
+        "Logic Level": "8 ( LUT3=4  LUT4=3  LUT2=1 )"
+      },
+      "ext_mem_clk_sft": {
+        "slack": "-0.213ns",
+        "Begin Point": "U3/sdram_syn_6.osclk (rising edge triggered by clock ext_mem_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "End Point": "U3/sdram.we_n (rising edge triggered by clock ext_mem_clk_sft  { rise@5.000000ns  fall@0.000000ns  period=10.000000 })",
+        "Data Path Delay": "5.213ns (cell 5.213ns (100%), net 0.000ns (0%))",
+        "Logic Level": "0"
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "error_count": 0
+  },
+  "after": {
+    "directory": "prj/log/wav_canonical_accepted_syn",
+    "resources": {
+      "lut": 18671,
+      "reg": 12190,
+      "bram": 50,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_media_pipeline": {
+        "lut": 7173,
+        "reg": 4496
+      },
+      "fat32_wav_reader": {
+        "lut": 1164,
+        "reg": 723
+      }
+    },
+    "timing_ns": {
+      "Setup WNS": -0.363,
+      "Setup TNS": -8.115,
+      "Hold WNS": 0.471,
+      "Hold TNS": 0.0
+    },
+    "first_paths": {
+      "sd_card_clk": {
+        "slack": "-0.363ns",
+        "Begin Point": "sd_media_pipeline_m0/u_bmp_catalog/scan_done_reg.clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/cluster_reg[28].d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "Data Path Delay": "10.247ns (cell 3.544ns (34%), net 6.703ns (66%))",
+        "Logic Level": "8 ( LUT2=5  LUT5=1  LUT4=1  LUT3=1 )"
+      },
+      "ext_mem_clk_sft": {
+        "slack": "-0.213ns",
+        "Begin Point": "U3/sdram_syn_6.osclk (rising edge triggered by clock ext_mem_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+        "End Point": "U3/sdram.we_n (rising edge triggered by clock ext_mem_clk_sft  { rise@5.000000ns  fall@0.000000ns  period=10.000000 })",
+        "Data Path Delay": "5.213ns (cell 5.213ns (100%), net 0.000ns (0%))",
+        "Logic Level": "0"
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "error_count": 0
+  },
+  "physical_pack": {
+    "directory": "prj/log/wav_canonical_pack",
+    "status": "failed",
+    "error": "PHY-9009",
+    "area_option": "-packarea",
+    "mslices": 5495,
+    "lslices": 5495,
+    "mslice_capacity": 4900,
+    "mslice_excess": 595,
+    "before_mslices": 5649,
+    "delta_mslices": -154,
+    "single_lut": 1701,
+    "single_seq": 2099,
+    "route_completed": false,
+    "bitstream_generated": false
+  },
+  "verification": {
+    "canonical_vectors": 122,
+    "stage2_simulations": 13,
+    "stage4_simulations": 5,
+    "media_scaler_integration_simulations": 18,
+    "converter_tests": 3,
+    "existing_game_wav_frames": 4323421,
+    "simulation_errors": 0,
+    "canonical_simulation_warnings": 0,
+    "stage2_unconnected_port_warnings": 11,
+    "stage4_unconnected_port_warnings": 3,
+    "fifo_integration_warnings_per_simulation": 12
+  }
+}

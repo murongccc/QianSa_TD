@@ -59,7 +59,7 @@ def main():
         simulate('video_reference',video,'tb_video_presentation',['-gREFERENCE_SPECTRUM=1'])
         simulate('reference2048',video,'tb_reference_fft_spectrum',['-gFFT_POINTS=2048'])
     media_tests=['tb_fat32_wav_reader','tb_fat32_wav_reader_direct_volume','tb_wav_reader_resource_opt',
-                 'tb_wav_streaming_headers','tb_sd_media_audio_start','tb_fat32_bmp_catalog',
+                 'tb_wav_canonical_headers','tb_sd_media_audio_start','tb_fat32_bmp_catalog',
                  'tb_fat32_bmp_catalog_five','tb_bmp_catalog_fat_capture','tb_bmp_read_resource_opt',
                  'tb_bmp_read_v5_header','tb_bmp_read_fat_chain','tb_media_session_controller']
     media=compile_group('media',['src/fat32_wav_reader.v','src/fat32_bmp_catalog.v',

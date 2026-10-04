@@ -30,7 +30,7 @@ def main():
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
     tests = ['tb_chart_volume_validation', 'tb_rhythm_sd_resources', 'tb_rhythm_pcm_clock', 'tb_rhythm_arbiter', 'tb_pcm_audio_player',
-             'tb_wav_streaming_headers', 'tb_fat32_wav_reader', 'tb_fat32_wav_reader_direct_volume',
+             'tb_wav_canonical_headers', 'tb_fat32_wav_reader', 'tb_fat32_wav_reader_direct_volume',
              'tb_wav_reader_resource_opt', 'tb_sd_sector_arbiter']
     if args.real_chart.exists():
         data = args.real_chart.read_bytes()

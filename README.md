@@ -2,6 +2,25 @@
 
 安路 EG4S20 FPGA 图片播放与 HDMI 音频工程。
 
+## SD 音乐格式（2026-10-04 起）
+
+板级 WAV 读取器仅接受 **44 字节头、48 kHz、16 bit、双声道、无压缩 PCM**。
+`fmt ` 长度必须为 16，`data` 必须紧随其后；RIFF/data 长度必须与 FAT32
+目录项中的文件大小一致，数据非空且包含完整的 4 字节立体声采样帧。
+不再接受 LIST/JUNK/fact、扩展 fmt 或尾随块；错误文件在当前扇区排空后停止，
+不会将附加块当成 PCM 播放。FAT32 分区/直接卷、碎片簇链、媒体循环及游戏单次播放保留。
+
+普通音乐先转换后复制到 SD 根目录，转换工具会重采样并显式生成规范头：
+
+```powershell
+python src/python/normalize_wav.py "原音乐.mp3" "输出目录/MUSIC.WAV"
+```
+
+工具需要 FFmpeg，默认查找 PATH 或 `E:/ffmpeg/bin/ffmpeg.exe`，也可用
+`--ffmpeg` 指定位置。已有输出默认不覆盖；明确需要替换时使用 `--force`。
+请勿将普通媒体音乐命名为 `GAME.WAV`，该名称保留给音游资源。
+`osz_to_game.py` 生成的 `GAME.WAV` 已符合本格式，无需再次转换。
+
 ## BMP 分辨率与双线性缩放
 
 `src/SD/bmp_read.v` 从 BMP 文件头的 BITMAPINFOHEADER 小端字段解析原始
