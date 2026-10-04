@@ -20,7 +20,7 @@ module fat32_chart_reader #(
     output reg [3:0] error_code
 );
     localparam [3:0] IDLE=0,CALC=1,MULT=2,ADDRESS=3,DIR_REQ=4,DIR_DATA=5,
-                     FILE_WAIT=6,FILE_DATA=7,FAT_REQ=8,FAT_DATA=9,FINISHED=10,VERIFY_EOF=11;
+                     FILE_WAIT=6,FILE_DATA=7,FAT_REQ=8,FAT_DATA=9,FINISHED=10,VERIFY_EOF=11,FAT_CHECK=12;
     reg [3:0] state;
     reg [31:0] fat_start,data_start,cluster,sector;
     // 65535 条记录加头部小于 1 MiB，目录高位必须先拒绝再截位。
@@ -227,16 +227,19 @@ module fat32_chart_reader #(
                 end
                 FAT_DATA:begin
                     if(sd_valid)begin
-                        if(byte_pos>=fat_offset && byte_pos<fat_offset+10'd4)
-                            next_cluster[(byte_pos-fat_offset)*8 +:8]<=sd_data;
+                        if(byte_pos[8:2]==fat_offset[8:2])
+                            next_cluster<={sd_data,next_cluster[31:8]};
                         byte_pos<=byte_pos+9'd1;
                     end
                     if(sd_done)begin
-                        sd_req<=0;
-                        if((next_cluster&32'h0fffffff)<2 || (next_cluster&32'h0fffffff)>=32'h0ffffff0)begin
-                            busy<=0;error_code<=directory?4'd1:4'd5;state<=FINISHED;
-                        end else begin cluster<=next_cluster & 32'h0fffffff;sector_in_cluster<=0;state<=CALC;end
+                        sd_req<=0;state<=FAT_CHECK;
                     end
+                end
+                // 与末字节同拍结束时，固定移位组装在这一拍已经完整。
+                FAT_CHECK:begin
+                    if((next_cluster&32'h0fffffff)<2 || (next_cluster&32'h0fffffff)>=32'h0ffffff0)begin
+                        busy<=0;error_code<=directory?4'd1:4'd5;state<=FINISHED;
+                    end else begin cluster<=next_cluster & 32'h0fffffff;sector_in_cluster<=0;state<=CALC;end
                 end
                 FINISHED:begin end
                 VERIFY_EOF:if(!note_we)begin

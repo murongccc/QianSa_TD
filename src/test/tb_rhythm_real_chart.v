@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // 真实 GAME.BIN 七个数据扇区，碎片 FAT 链，异步消费与逐条比较。
 module tb_rhythm_real_chart;
+    parameter integer FAT_EDGE=0;
     reg clk=0,nclk=0,rst=1,valid=0,done=0,nready=0,cancel=0;
     reg [7:0] data=0;
     wire req,we,hvalid,eof,cancelled,reserve,nvalid,overflow;
@@ -42,23 +43,30 @@ module tb_rhythm_real_chart;
             if(active_addr==200)begin
                 case(i)
                     0:data="G";1:data="A";2:data="M";3:data="E";4,5,6,7:data=" ";
-                    8:data="B";9:data="I";10:data="N";26:data=3;28:data=8'h28;29:data=8'h0d;
+                    8:data="B";9:data="I";10:data="N";26:data=FAT_EDGE ? 127 : 3;28:data=8'h28;29:data=8'h0d;
                     default:;
                 endcase
             end else if(active_addr==100)begin
                 cluster=i/4;
                 // 3→5→7→9→11→13→15；高四位无关，必须屏蔽。
                 next_cluster=(cluster>=3 && cluster<15 && cluster%2==1)?32'hf0000000+cluster+2:32'hffffffff;
+                if(FAT_EDGE && cluster==127)next_cluster=32'h01000005;
                 data=next_cluster>>((i%4)*8);
+            end else if(FAT_EDGE && active_addr==131172)begin
+                if(i/4==5)data=32'd7>>((i%4)*8);
             end else begin
                 sector_index=(active_addr-201)/2;
-                if(active_addr<201 || active_addr>213 || active_addr%2==0)$fatal(1,"bad fragment request %0d",active_addr);
+                if(FAT_EDGE && active_addr==325)sector_index=0;
+                else if(FAT_EDGE && active_addr==16777419)sector_index=1;
+                else if(active_addr<201 || active_addr>213 || active_addr%2==0)$fatal(1,"bad fragment request %0d",active_addr);
                 position=sector_index*512+i;
                 if(position<3368)data=image[position];
             end
-            valid=1;@(negedge clk);valid=0;repeat(i%4)@(negedge clk);
+            valid=1;done=FAT_EDGE && i==511;@(negedge clk);valid=0;done=0;
+            if(!(FAT_EDGE && i==511))repeat(i%4)@(negedge clk);
         end
-        done=1;@(negedge clk);done=0;wait(!req);@(negedge clk);
+        if(!FAT_EDGE)begin done=1;@(negedge clk);done=0;end
+        wait(!req);@(negedge clk);
     end
     initial begin
         $readmemh("prj/log/rhythm_stage2_regression/real_chart.hex",image);

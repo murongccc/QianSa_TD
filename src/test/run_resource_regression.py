@@ -44,6 +44,7 @@ def main():
         run(name,[binaries['vsim'],'-c','-lib',library,top,*parameters,'-do','src/test/run_pcm_audio_player.do'],True)
     run('reference_tables',[sys.executable,'src/test/generate_reference_fft_tables.py','--check'],True)
     video=compile_group('video',[
+        'src/test/eg_logic_mult_model.v',
         args.td_root/'sim_release/eg4/eg_logic_bram.v',
         'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/video_presentation.v',
         'src/image_controls.v','src/media_session_controller.v',output/'baseline_fft.v',
@@ -65,6 +66,7 @@ def main():
         'src/SD/bmp_read.v','src/media_session_controller.v',*[f'src/test/{name}.v' for name in media_tests]])
     for top in media_tests:simulate(top,media,top)
     simulate('wav_shared_volume',media,'tb_fat32_wav_reader',['-gUSE_SHARED_VOLUME=1'])
+    simulate('bmp_last_fat_byte',media,'tb_bmp_read_fat_chain',['-gFAT_EDGE=1'])
     scaler=compile_group('scaler',['src/SD/bmp_bilinear_scaler.v','src/test/eg_logic_mult_model.v',
         'src/test/tb_bmp_bilinear_scaler.v','src/test/tb_bmp_scaler_resource_opt.v'])
     simulate('scaler_boundaries',scaler,'tb_bmp_scaler_resource_opt')

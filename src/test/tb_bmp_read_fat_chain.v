@@ -1,6 +1,11 @@
 `timescale 1ns/1ps
 
 module tb_bmp_read_fat_chain;
+parameter integer FAT_EDGE=0;
+localparam [31:0] FIRST_CLUSTER=FAT_EDGE ? 32'd127 : 32'd5;
+localparam [31:0] FIRST_SECTOR=32'd1000+FIRST_CLUSTER-32'd2;
+localparam [31:0] NEXT_CLUSTER=FAT_EDGE ? 32'h01000007 : 32'd7;
+localparam [31:0] NEXT_SECTOR=32'd1000+NEXT_CLUSTER-32'd2;
 reg clk=0,rst=1,load_start=0,write_req_ack=0,sd_valid=0,sd_end=0;
 reg [7:0] sd_data=0;
 wire ready,write_req,sd_read,load_failed;
@@ -22,7 +27,7 @@ bmp_read dut(
     .sd_sec_read_end(sd_end),.pixel_valid(pixel_valid),.pixel_ready(1'b1),.pixel_data(),.pixel_last(),
     .frame_last(frame_last),.sector_ready(1'b1),.load_failed(load_failed),.bmp_data_wr_en(),.bmp_data(),
     // 目录长度可大于 BMP 头 bfSize；测试不应误拒绝尾部附加数据的合法 BMP。
-    .load_file_mode(1'b1),.load_first_cluster(32'd5),.load_file_size(32'd658),
+    .load_file_mode(1'b1),.load_first_cluster(FIRST_CLUSTER),.load_file_size(32'd658),
     .fat_start_sector(32'd1000),.first_data_sector(32'd1000),.sectors_per_cluster(8'd1)
 );
 
@@ -32,7 +37,7 @@ function [7:0] sector_byte;
     begin
         sector_byte=0;
         // cluster 5 data sector: 1000 + (5 - 2) = 1003.
-        if(addr==32'd1003) begin
+        if(addr==FIRST_SECTOR) begin
             if(index==0) sector_byte="B"; if(index==1) sector_byte="M";
             if(index==2) sector_byte=8'h8e; if(index==3) sector_byte=8'd2; // 654 bytes
             if(index==10) sector_byte=8'd54;
@@ -43,7 +48,7 @@ function [7:0] sector_byte;
             if(index==28) sector_byte=8'd24;
         end else if(addr==32'd1000) begin
             // FAT[5] 位于偏移 20，下一簇为 7。
-            if(index==20) sector_byte=8'd7;
+            if(index[8:2]==FIRST_CLUSTER[6:0])sector_byte=NEXT_CLUSTER>>(index[1:0]*8);
         end
     end
 endfunction
@@ -55,7 +60,10 @@ always @(posedge clk) begin
         0: if(sd_read) begin transport_addr<=sd_addr; transport_index<=0; transport_state<=1; end
         1: begin
             sd_data<=sector_byte(transport_addr,transport_index); sd_valid<=1;
-            if(transport_index==10'd511) transport_state<=2;
+            if(transport_index==10'd511)begin
+                if(FAT_EDGE)begin sd_end<=1;transport_state<=3;end
+                else transport_state<=2;
+            end
             else transport_index<=transport_index+1'b1;
         end
         2: begin sd_end<=1; transport_state<=3; end
@@ -63,7 +71,7 @@ always @(posedge clk) begin
         default: transport_state<=0;
     endcase
     if(sd_read && sd_addr==32'd1000) saw_fat=1;
-    if(sd_read && sd_addr==32'd1005) saw_second_cluster=1;
+    if(sd_read && sd_addr==NEXT_SECTOR) saw_second_cluster=1;
 end
 
 initial begin

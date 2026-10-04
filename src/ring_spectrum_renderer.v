@@ -3,7 +3,8 @@
 module ring_spectrum_renderer #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer REFERENCE_MODE = 0,
-    parameter integer ACTIVE_HEIGHT = 480
+    parameter integer ACTIVE_HEIGHT = 480,
+    parameter integer DSP_GEOMETRY = 1
 )(
     input wire clk,
     input wire rst,
@@ -64,16 +65,79 @@ wire [17:0] minor256 = {2'd0,minor,8'd0};
 // 每个八分圆分为 10 根柱，以常数乘法选择最近中心线，无浮点或除法。
 // BEGIN GENERATED TABLES
 // 此区由 src/test/generate_ring_visual_tables.py 生成；角度为 Q8 正切。
-wire [17:0] bound0 = (major_wide << 1) + (major_wide << 3);
-wire [17:0] bound1 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4);
-wire [17:0] bound2 = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 5);
-wire [17:0] bound3 = (major_wide << 3) + (major_wide << 6);
-wire [17:0] bound4 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6);
-wire [17:0] bound5 = (major_wide << 1) + (major_wide << 2) + (major_wide << 4) + (major_wide << 5) + (major_wide << 6);
-wire [17:0] bound6 = (major_wide << 0) + (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 7);
-wire [17:0] bound7 = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 7);
-wire [17:0] bound8 = (major_wide << 1) + (major_wide << 3) + (major_wide << 6) + (major_wide << 7);
-wire [17:0] bound9 = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6) + (major_wide << 7);
+wire [17:0] bound0;
+wire [17:0] bound1;
+wire [17:0] bound2;
+wire [17:0] bound3;
+wire [17:0] bound4;
+wire [17:0] bound5;
+wire [17:0] bound6;
+wire [17:0] bound7;
+wire [17:0] bound8;
+wire [17:0] bound9;
+generate if(DSP_GEOMETRY)begin: dsp_bounds
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound0_mul(
+    .p(bound0),.a({1'b0,major}),.b(9'd10),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound1_mul(
+    .p(bound1),.a({1'b0,major}),.b(9'd30),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound2_mul(
+    .p(bound2),.a({1'b0,major}),.b(9'd51),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound3_mul(
+    .p(bound3),.a({1'b0,major}),.b(9'd72),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound4_mul(
+    .p(bound4),.a({1'b0,major}),.b(9'd94),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound5_mul(
+    .p(bound5),.a({1'b0,major}),.b(9'd118),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound6_mul(
+    .p(bound6),.a({1'b0,major}),.b(9'd143),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound7_mul(
+    .p(bound7),.a({1'b0,major}),.b(9'd171),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound8_mul(
+    .p(bound8),.a({1'b0,major}),.b(9'd202),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound9_mul(
+    .p(bound9),.a({1'b0,major}),.b(9'd237),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+end else begin: lut_bounds
+assign bound0 = (major_wide << 1) + (major_wide << 3);
+assign bound1 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4);
+assign bound2 = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 5);
+assign bound3 = (major_wide << 3) + (major_wide << 6);
+assign bound4 = (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6);
+assign bound5 = (major_wide << 1) + (major_wide << 2) + (major_wide << 4) + (major_wide << 5) + (major_wide << 6);
+assign bound6 = (major_wide << 0) + (major_wide << 1) + (major_wide << 2) + (major_wide << 3) + (major_wide << 7);
+assign bound7 = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 7);
+assign bound8 = (major_wide << 1) + (major_wide << 3) + (major_wide << 6) + (major_wide << 7);
+assign bound9 = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6) + (major_wide << 7);
+end endgenerate
 wire [3:0] octant_position =
     (minor256 < bound0) ? 4'd0 :
     (minor256 < bound1) ? 4'd1 :
@@ -86,23 +150,48 @@ wire [3:0] octant_position =
     (minor256 < bound8) ? 4'd8 :
     (minor256 < bound9) ? 4'd9 :
     4'd10;
-reg [17:0] axis_product;
+wire [17:0] axis_product;
+generate if(DSP_GEOMETRY)begin: dsp_axis
+reg [8:0] coefficient;
+always @* case(octant_position)
+    4'd0: coefficient=9'd0;
+    4'd1: coefficient=9'd20;
+    4'd2: coefficient=9'd41;
+    4'd3: coefficient=9'd61;
+    4'd4: coefficient=9'd83;
+    4'd5: coefficient=9'd106;
+    4'd6: coefficient=9'd130;
+    4'd7: coefficient=9'd157;
+    4'd8: coefficient=9'd186;
+    4'd9: coefficient=9'd219;
+    4'd10: coefficient=9'd256;
+    default: coefficient=9'd256;
+endcase
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
+    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) axis_product_mul(
+    .p(axis_product),.a({1'b0,major}),.b(coefficient),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
+end else begin: lut_axis
+reg [17:0] product;
+assign axis_product=product;
 always @* begin
     case (octant_position)
-        4'd0: axis_product = 18'd0;
-        4'd1: axis_product = (major_wide << 2) + (major_wide << 4);
-        4'd2: axis_product = (major_wide << 0) + (major_wide << 3) + (major_wide << 5);
-        4'd3: axis_product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5);
-        4'd4: axis_product = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 6);
-        4'd5: axis_product = (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6);
-        4'd6: axis_product = (major_wide << 1) + (major_wide << 7);
-        4'd7: axis_product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 7);
-        4'd8: axis_product = (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5) + (major_wide << 7);
-        4'd9: axis_product = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6) + (major_wide << 7);
-        4'd10: axis_product = (major_wide << 8);
-        default: axis_product = major_wide << 8;
+        4'd0: product = 18'd0;
+        4'd1: product = (major_wide << 2) + (major_wide << 4);
+        4'd2: product = (major_wide << 0) + (major_wide << 3) + (major_wide << 5);
+        4'd3: product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5);
+        4'd4: product = (major_wide << 0) + (major_wide << 1) + (major_wide << 4) + (major_wide << 6);
+        4'd5: product = (major_wide << 1) + (major_wide << 3) + (major_wide << 5) + (major_wide << 6);
+        4'd6: product = (major_wide << 1) + (major_wide << 7);
+        4'd7: product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 7);
+        4'd8: product = (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5) + (major_wide << 7);
+        4'd9: product = (major_wide << 0) + (major_wide << 1) + (major_wide << 3) + (major_wide << 4) + (major_wide << 6) + (major_wide << 7);
+        4'd10: product = (major_wide << 8);
+        default: product = major_wide << 8;
     endcase
 end
+end endgenerate
 function [7:0] visual_mapping;
     input [6:0] index;
     begin

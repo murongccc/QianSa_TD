@@ -1,5 +1,6 @@
 // 消隐内共享 BCD 转换器并写字符 RAM；像素侧只读一字节，避免多组数值桶形选择器。
-module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_CHARACTERS=0)(
+module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_CHARACTERS=0,
+    parameter integer TEXT_ROM=1)(
     input wire clk,input wire rst,input wire frame_start,
     input wire [3:0] state,error_code,input wire auto_mode,
     input wire [19:0] score,input wire [15:0] combo,max_combo,perfect_count,good_count,bad_count,miss_count,
@@ -38,15 +39,115 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         endcase
     end
     wire [7:0] next_address=address+8'd1;
+    wire [7:0] static_char;
+    generate if(TEXT_ROM)begin: static_text
+        reg [7:0] text_rom[0:1023];
+        reg [7:0] text_data;
+        integer text_index;
+        initial begin
+            for(text_index=0;text_index<1024;text_index=text_index+1)text_rom[text_index]=8'h20;
+// BEGIN HUD TEXT ROM
+            text_rom[32]=8'h43;
+            text_rom[33]=8'h4f;
+            text_rom[34]=8'h4d;
+            text_rom[35]=8'h42;
+            text_rom[36]=8'h4f;
+            text_rom[48]=8'h41;
+            text_rom[49]=8'h55;
+            text_rom[50]=8'h54;
+            text_rom[51]=8'h4f;
+            text_rom[128]=8'h45;
+            text_rom[144]=8'h50;
+            text_rom[160]=8'h47;
+            text_rom[176]=8'h42;
+            text_rom[192]=8'h4d;
+            text_rom[208]=8'h43;
+            text_rom[288]=8'h43;
+            text_rom[289]=8'h4f;
+            text_rom[290]=8'h4d;
+            text_rom[291]=8'h42;
+            text_rom[292]=8'h4f;
+            text_rom[304]=8'h54;
+            text_rom[305]=8'h45;
+            text_rom[306]=8'h53;
+            text_rom[307]=8'h54;
+            text_rom[384]=8'h45;
+            text_rom[400]=8'h50;
+            text_rom[416]=8'h47;
+            text_rom[432]=8'h42;
+            text_rom[448]=8'h4d;
+            text_rom[464]=8'h43;
+            text_rom[544]=8'h53;
+            text_rom[545]=8'h54;
+            text_rom[546]=8'h4f;
+            text_rom[547]=8'h50;
+            text_rom[549]=8'h2d;
+            text_rom[551]=8'h53;
+            text_rom[552]=8'h57;
+            text_rom[553]=8'h31;
+            text_rom[555]=8'h53;
+            text_rom[556]=8'h54;
+            text_rom[557]=8'h41;
+            text_rom[558]=8'h52;
+            text_rom[559]=8'h54;
+            text_rom[576]=8'h4c;
+            text_rom[577]=8'h4f;
+            text_rom[578]=8'h41;
+            text_rom[579]=8'h44;
+            text_rom[580]=8'h49;
+            text_rom[581]=8'h4e;
+            text_rom[582]=8'h47;
+            text_rom[592]=8'h52;
+            text_rom[593]=8'h45;
+            text_rom[594]=8'h41;
+            text_rom[595]=8'h44;
+            text_rom[596]=8'h59;
+            text_rom[624]=8'h50;
+            text_rom[625]=8'h41;
+            text_rom[626]=8'h55;
+            text_rom[627]=8'h53;
+            text_rom[628]=8'h45;
+            text_rom[629]=8'h44;
+            text_rom[640]=8'h42;
+            text_rom[641]=8'h55;
+            text_rom[642]=8'h46;
+            text_rom[643]=8'h46;
+            text_rom[644]=8'h45;
+            text_rom[645]=8'h52;
+            text_rom[646]=8'h49;
+            text_rom[647]=8'h4e;
+            text_rom[648]=8'h47;
+            text_rom[672]=8'h52;
+            text_rom[673]=8'h45;
+            text_rom[674]=8'h53;
+            text_rom[675]=8'h55;
+            text_rom[676]=8'h4c;
+            text_rom[677]=8'h54;
+            text_rom[688]=8'h45;
+            text_rom[689]=8'h52;
+            text_rom[690]=8'h52;
+            text_rom[691]=8'h4f;
+            text_rom[692]=8'h52;
+// END HUD TEXT ROM
+        end
+        // 顺序填充时预取下一地址，状态文本占独立的 16x16 区域。
+        wire [9:0] text_address=(next_address>=112 && next_address<128) ?
+            {2'b10,saved_state,next_address[3:0]} : {1'b0,!saved_auto,next_address};
+        always @(posedge clk)text_data<=text_rom[text_address];
+        assign static_char=address==0 ? 8'h20 : text_data;
+    end else begin: logic_text
+        assign static_char=8'h20;
+    end endgenerate
     assign metadata_address=(next_address>=64 && next_address<88) ? {1'b0,next_address[4:0]} :
         ((next_address>=96 && next_address<109) ? 6'd24+{2'd0,next_address[3:0]} : 6'd0);
     reg [7:0] initial_char;
     always @*begin
-        initial_char=" ";
+        initial_char=TEXT_ROM ? static_char : 8'h20;
         if(address>=64 && address<88)initial_char=STREAM_METADATA ? (metadata_valid ? metadata_data : 8'h20) : title[{address[4:0],3'd0} +:8];
         else if(address>=96 && address<109)initial_char=STREAM_METADATA ? (metadata_valid ? metadata_data : 8'h20) : difficulty[{address[3:0],3'd0} +:8];
-        else if(address>=112 && address<128)initial_char=status_text[{~address[3:0],3'b111} -:8];
-        else case(address)
+        else if(address==129)initial_char=saved_error<10 ? 8'h30+{4'd0,saved_error} : "A";
+        else if(!TEXT_ROM && address>=112 && address<128)initial_char=status_text[{~address[3:0],3'b111} -:8];
+        else if(!TEXT_ROM)case(address)
             32:initial_char="C";33:initial_char="O";34:initial_char="M";35:initial_char="B";36:initial_char="O";
             48:initial_char=saved_auto ? "A" : "T";49:initial_char=saved_auto ? "U" : "E";
             50:initial_char=saved_auto ? "T" : "S";51:initial_char=saved_auto ? "O" : "T";

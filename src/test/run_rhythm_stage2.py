@@ -29,7 +29,7 @@ def main():
 
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
-    tests = ['tb_rhythm_sd_resources', 'tb_rhythm_pcm_clock', 'tb_rhythm_arbiter', 'tb_pcm_audio_player',
+    tests = ['tb_chart_volume_validation', 'tb_rhythm_sd_resources', 'tb_rhythm_pcm_clock', 'tb_rhythm_arbiter', 'tb_pcm_audio_player',
              'tb_wav_streaming_headers', 'tb_fat32_wav_reader', 'tb_fat32_wav_reader_direct_volume',
              'tb_wav_reader_resource_opt', 'tb_sd_sector_arbiter']
     if args.real_chart.exists():
@@ -52,6 +52,9 @@ def main():
                    '-do', 'src/test/run_pcm_audio_player.do'], True)
     run('wav_shared_volume', [binaries['vsim'], '-c', '-lib', library, 'tb_fat32_wav_reader',
                              '-gUSE_SHARED_VOLUME=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
+    if 'tb_rhythm_real_chart' in tests:
+        run('chart_last_fat_byte', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_real_chart',
+                                  '-gFAT_EDGE=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
 
 
 if __name__ == '__main__':

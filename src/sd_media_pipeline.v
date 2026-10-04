@@ -64,8 +64,9 @@ wire [31:0] audio_fifo_level;
 wire audio_urgent = audio_reader_enable && display_valid &&
                     (audio_fifo_level < 32'd1024);
 wire sd_read_mux; wire [31:0] sd_addr_mux;
-wire [7:0] sd_data_bmp = sd_sec_read_data;
-wire [7:0] sd_data_audio = sd_sec_read_data;
+wire [7:0] sd_data_bmp;
+wire [7:0] sd_data_audio=sd_data_bmp;
+wire sd_response_busy;
 wire sd_valid_bmp, sd_end_bmp, sd_valid_audio, sd_end_audio;
 wire catalog_done, catalog_candidate_valid, catalog_volume_valid;
 wire [31:0] catalog_first_cluster, catalog_file_size, catalog_fat_start, catalog_data_start;
@@ -171,6 +172,7 @@ generate if(ENABLE_RHYTHM)begin: rhythm_resources
     domain_reset_sync #(.COUNTER_WIDTH(4),.HOLD_CYCLES(8)) clear_sync(
         .clk(clk),.async_reset(rst_local | game_reset),.reset(clear_sd));
     rhythm_sd_resources #(.REUSE_MEDIA(1)) resources(
+        .bmp_data(sd_data_bmp),.response_busy(sd_response_busy),
         .metadata_address(game_metadata_address),.metadata_data(game_metadata_data),
         .clk(clk),.note_clk(game_clk),.rst(clear_sd),.enable(game_control_sync[0] && session_ready),
         .cancel(game_control_sync[1]),.game_mode(game_control_sync[2]),
@@ -190,7 +192,8 @@ end else begin: legacy_resources
     assign game_note_valid=0;assign game_note_data=0;assign game_ready=0;assign game_cancelled=0;
     assign game_audio_eof=0;assign game_chart_eof=0;assign game_error=0;assign game_frames=0;assign game_notes=0;
     assign game_offset=0;assign game_title=0;assign game_difficulty=0;
-    sd_sector_arbiter u_sd_arbiter (
+    sd_sector_arbiter #(.REGISTER_RESPONSE(1)) u_sd_arbiter (
+        .sd_data(sd_sec_read_data),.response_data(sd_data_bmp),.response_busy(sd_response_busy),
         .chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
         .clk(clk), .rst(rst_local), .bmp_req(sd_sec_read), .bmp_addr(sd_sec_read_addr),
         .audio_req(audio_sd_read), .audio_addr(audio_sd_addr), .audio_urgent(audio_urgent),
@@ -215,7 +218,7 @@ fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
 
 end endgenerate
 assign game_audio_level=audio_fifo_level;
-assign media_quiet=session_ready && !sd_sec_read;
+assign media_quiet=session_ready && !sd_sec_read && !sd_response_busy;
 
 always @(posedge clk or posedge rst_local) begin
     if (rst_local) begin

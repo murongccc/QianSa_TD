@@ -1,0 +1,682 @@
+[
+  {
+    "directory": "prj/log/rhythm_ram_final_syn",
+    "resources": {
+      "lut": 19566,
+      "reg": 12365,
+      "bram9k": 33,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 18
+    },
+    "modules": {
+      "sd_sector_arbiter": {
+        "lut": 76,
+        "registers": 39,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_chart_reader": {
+        "lut": 1243,
+        "registers": 829,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_wav_reader": {
+        "lut": 1749,
+        "registers": 848,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_bmp_catalog": {
+        "lut": 1187,
+        "registers": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "bmp_read": {
+        "lut": 1436,
+        "registers": 724,
+        "bram": 0,
+        "dsp": 0
+      },
+      "bmp_bilinear_scaler": {
+        "lut": 1289,
+        "registers": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "rhythm_hud": {
+        "lut": 735,
+        "registers": 148,
+        "bram": 1,
+        "dsp": 0
+      },
+      "ring_spectrum_renderer": {
+        "lut": 1474,
+        "registers": 70,
+        "bram": 0,
+        "dsp": 2
+      }
+    },
+    "clocks": {
+      "clk0": {
+        "frequency_mhz": 25.0,
+        "fmax_mhz": 30.605,
+        "setup_wns_ns": 7.326,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk1": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 97.172,
+        "setup_wns_ns": -0.291,
+        "setup_tns_ns": -3.609,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk2": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 111.037,
+        "setup_wns_ns": 0.994,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.626,
+        "hold_tns_ns": 0.0
+      },
+      "clk3": {
+        "frequency_mhz": 50.0,
+        "fmax_mhz": 132.591,
+        "setup_wns_ns": 12.458,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.694,
+        "hold_tns_ns": 0.0
+      },
+      "clk4": {
+        "frequency_mhz": 125.0,
+        "fmax_mhz": 408.497,
+        "setup_wns_ns": 5.552,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.674,
+        "hold_tns_ns": 0.0
+      },
+      "clk5": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 95.914,
+        "setup_wns_ns": -0.213,
+        "setup_tns_ns": -3.408,
+        "hold_wns_ns": 8.364,
+        "hold_tns_ns": 0.0
+      }
+    },
+    "setup_wns_ns": -0.291,
+    "setup_tns_ns": -7.017,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "sta_coverage_percent": 99.93,
+    "warnings": {
+      "HDL-5007": 9,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 6,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "first_sd_path": {
+      "Slack": "-0.291ns",
+      "Begin Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_arbiter/state_reg[1].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "End Point": "sd_media_pipeline_m0/u_bmp_read/top_down_reg.d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "Data Path Delay": "10.175ns (cell 3.528ns (34%), net 6.647ns (66%))",
+      "Logic Level": "8 ( LUT3=4  LUT2=3  LUT4=1 )"
+    }
+  },
+  {
+    "directory": "prj/log/lut_sd_candidate_syn",
+    "resources": {
+      "lut": 19261,
+      "reg": 12315,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_sector_arbiter": {
+        "lut": 118,
+        "registers": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_chart_reader": {
+        "lut": 1258,
+        "registers": 833,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_wav_reader": {
+        "lut": 1743,
+        "registers": 848,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_bmp_catalog": {
+        "lut": 1229,
+        "registers": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "bmp_read": {
+        "lut": 1368,
+        "registers": 655,
+        "bram": 0,
+        "dsp": 0
+      },
+      "bmp_bilinear_scaler": {
+        "lut": 1312,
+        "registers": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "rhythm_hud": {
+        "lut": 659,
+        "registers": 148,
+        "bram": 2,
+        "dsp": 0
+      },
+      "ring_spectrum_renderer": {
+        "lut": 1220,
+        "registers": 70,
+        "bram": 0,
+        "dsp": 8
+      }
+    },
+    "clocks": {
+      "clk0": {
+        "frequency_mhz": 25.0,
+        "fmax_mhz": 29.128,
+        "setup_wns_ns": 5.669,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk1": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 97.628,
+        "setup_wns_ns": -0.243,
+        "setup_tns_ns": -6.137,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk2": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 111.037,
+        "setup_wns_ns": 0.994,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.626,
+        "hold_tns_ns": 0.0
+      },
+      "clk3": {
+        "frequency_mhz": 50.0,
+        "fmax_mhz": 118.54,
+        "setup_wns_ns": 11.564,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.694,
+        "hold_tns_ns": 0.0
+      },
+      "clk4": {
+        "frequency_mhz": 125.0,
+        "fmax_mhz": 408.497,
+        "setup_wns_ns": 5.552,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.674,
+        "hold_tns_ns": 0.0
+      },
+      "clk5": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 95.914,
+        "setup_wns_ns": -0.213,
+        "setup_tns_ns": -3.408,
+        "hold_wns_ns": 8.364,
+        "hold_tns_ns": 0.0
+      }
+    },
+    "setup_wns_ns": -0.243,
+    "setup_tns_ns": -9.545,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "sta_coverage_percent": 99.93,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "first_sd_path": {
+      "Slack": "-0.243ns",
+      "Begin Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/file_pos_reg[12].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/chunk_header_pos_reg[0].d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "Data Path Delay": "10.127ns (cell 3.528ns (34%), net 6.599ns (66%))",
+      "Logic Level": "8 ( LUT3=4  LUT4=3  LUT2=1 )"
+    }
+  },
+  {
+    "directory": "prj/log/lut_sd_final_syn",
+    "resources": {
+      "lut": 19255,
+      "reg": 12316,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_sector_arbiter": {
+        "lut": 118,
+        "registers": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_chart_reader": {
+        "lut": 1266,
+        "registers": 833,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_wav_reader": {
+        "lut": 1731,
+        "registers": 849,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_bmp_catalog": {
+        "lut": 1226,
+        "registers": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "bmp_read": {
+        "lut": 1373,
+        "registers": 655,
+        "bram": 0,
+        "dsp": 0
+      },
+      "bmp_bilinear_scaler": {
+        "lut": 1313,
+        "registers": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "rhythm_hud": {
+        "lut": 656,
+        "registers": 148,
+        "bram": 2,
+        "dsp": 0
+      },
+      "ring_spectrum_renderer": {
+        "lut": 1213,
+        "registers": 70,
+        "bram": 0,
+        "dsp": 8
+      }
+    },
+    "clocks": {
+      "clk0": {
+        "frequency_mhz": 25.0,
+        "fmax_mhz": 30.909,
+        "setup_wns_ns": 7.647,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk1": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 91.592,
+        "setup_wns_ns": -0.918,
+        "setup_tns_ns": -4.975,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk2": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 111.037,
+        "setup_wns_ns": 0.994,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.626,
+        "hold_tns_ns": 0.0
+      },
+      "clk3": {
+        "frequency_mhz": 50.0,
+        "fmax_mhz": 118.497,
+        "setup_wns_ns": 11.561,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.694,
+        "hold_tns_ns": 0.0
+      },
+      "clk4": {
+        "frequency_mhz": 125.0,
+        "fmax_mhz": 408.497,
+        "setup_wns_ns": 5.552,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.674,
+        "hold_tns_ns": 0.0
+      },
+      "clk5": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 95.914,
+        "setup_wns_ns": -0.213,
+        "setup_tns_ns": -3.408,
+        "hold_wns_ns": 8.364,
+        "hold_tns_ns": 0.0
+      }
+    },
+    "setup_wns_ns": -0.918,
+    "setup_tns_ns": -8.383,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "sta_coverage_percent": 99.93,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "first_sd_path": {
+      "Slack": "-0.918ns",
+      "Begin Point": "sd_media_pipeline_m0/u_bmp_catalog/sectors_per_cluster_reg[0].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_chart/state_reg[0].d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "Data Path Delay": "10.802ns (cell 4.526ns (41%), net 6.276ns (59%))",
+      "Logic Level": "10 ( LUT4=5  LUT3=2  ADDER=2  LUT5=1 )"
+    }
+  },
+  {
+    "directory": "prj/log/lut_sd_release_syn",
+    "resources": {
+      "lut": 19222,
+      "reg": 12316,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_sector_arbiter": {
+        "lut": 118,
+        "registers": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_chart_reader": {
+        "lut": 1269,
+        "registers": 833,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_wav_reader": {
+        "lut": 1689,
+        "registers": 849,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_bmp_catalog": {
+        "lut": 1225,
+        "registers": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "bmp_read": {
+        "lut": 1372,
+        "registers": 655,
+        "bram": 0,
+        "dsp": 0
+      },
+      "bmp_bilinear_scaler": {
+        "lut": 1310,
+        "registers": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "rhythm_hud": {
+        "lut": 654,
+        "registers": 148,
+        "bram": 2,
+        "dsp": 0
+      },
+      "ring_spectrum_renderer": {
+        "lut": 1217,
+        "registers": 70,
+        "bram": 0,
+        "dsp": 8
+      }
+    },
+    "clocks": {
+      "clk0": {
+        "frequency_mhz": 25.0,
+        "fmax_mhz": 30.73,
+        "setup_wns_ns": 7.458,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk1": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 92.678,
+        "setup_wns_ns": -0.79,
+        "setup_tns_ns": -18.084,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk2": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 111.037,
+        "setup_wns_ns": 0.994,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.626,
+        "hold_tns_ns": 0.0
+      },
+      "clk3": {
+        "frequency_mhz": 50.0,
+        "fmax_mhz": 118.54,
+        "setup_wns_ns": 11.564,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.694,
+        "hold_tns_ns": 0.0
+      },
+      "clk4": {
+        "frequency_mhz": 125.0,
+        "fmax_mhz": 408.497,
+        "setup_wns_ns": 5.552,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.674,
+        "hold_tns_ns": 0.0
+      },
+      "clk5": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 95.914,
+        "setup_wns_ns": -0.213,
+        "setup_tns_ns": -3.408,
+        "hold_wns_ns": 8.364,
+        "hold_tns_ns": 0.0
+      }
+    },
+    "setup_wns_ns": -0.79,
+    "setup_tns_ns": -21.492,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "sta_coverage_percent": 99.93,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "first_sd_path": {
+      "Slack": "-0.790ns",
+      "Begin Point": "sd_media_pipeline_m0/game_control_sync_reg[1].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_chart/expected_file_size_reg[3].ce (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "Data Path Delay": "10.632ns (cell 3.497ns (32%), net 7.135ns (68%))",
+      "Logic Level": "8 ( LUT2=4  LUT4=2  LUT3=2 )"
+    }
+  },
+  {
+    "directory": "prj/log/lut_sd_accepted_syn",
+    "resources": {
+      "lut": 19261,
+      "reg": 12315,
+      "bram9k": 34,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 24
+    },
+    "modules": {
+      "sd_sector_arbiter": {
+        "lut": 118,
+        "registers": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_chart_reader": {
+        "lut": 1258,
+        "registers": 833,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_wav_reader": {
+        "lut": 1743,
+        "registers": 848,
+        "bram": 0,
+        "dsp": 0
+      },
+      "fat32_bmp_catalog": {
+        "lut": 1229,
+        "registers": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "bmp_read": {
+        "lut": 1368,
+        "registers": 655,
+        "bram": 0,
+        "dsp": 0
+      },
+      "bmp_bilinear_scaler": {
+        "lut": 1312,
+        "registers": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "rhythm_hud": {
+        "lut": 659,
+        "registers": 148,
+        "bram": 2,
+        "dsp": 0
+      },
+      "ring_spectrum_renderer": {
+        "lut": 1220,
+        "registers": 70,
+        "bram": 0,
+        "dsp": 8
+      }
+    },
+    "clocks": {
+      "clk0": {
+        "frequency_mhz": 25.0,
+        "fmax_mhz": 29.128,
+        "setup_wns_ns": 5.669,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk1": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 97.628,
+        "setup_wns_ns": -0.243,
+        "setup_tns_ns": -6.137,
+        "hold_wns_ns": 0.471,
+        "hold_tns_ns": 0.0
+      },
+      "clk2": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 111.037,
+        "setup_wns_ns": 0.994,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.626,
+        "hold_tns_ns": 0.0
+      },
+      "clk3": {
+        "frequency_mhz": 50.0,
+        "fmax_mhz": 118.54,
+        "setup_wns_ns": 11.564,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.694,
+        "hold_tns_ns": 0.0
+      },
+      "clk4": {
+        "frequency_mhz": 125.0,
+        "fmax_mhz": 408.497,
+        "setup_wns_ns": 5.552,
+        "setup_tns_ns": 0.0,
+        "hold_wns_ns": 0.674,
+        "hold_tns_ns": 0.0
+      },
+      "clk5": {
+        "frequency_mhz": 100.0,
+        "fmax_mhz": 95.914,
+        "setup_wns_ns": -0.213,
+        "setup_tns_ns": -3.408,
+        "hold_wns_ns": 8.364,
+        "hold_tns_ns": 0.0
+      }
+    },
+    "setup_wns_ns": -0.243,
+    "setup_tns_ns": -9.545,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "sta_coverage_percent": 99.93,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "first_sd_path": {
+      "Slack": "-0.243ns",
+      "Begin Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/file_pos_reg[12].clk (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "End Point": "sd_media_pipeline_m0/rhythm_resources$resources/u_wav/chunk_header_pos_reg[0].d (rising edge triggered by clock sd_card_clk  { rise@0.000000ns  fall@5.000000ns  period=10.000000 })",
+      "Data Path Delay": "10.127ns (cell 3.528ns (34%), net 6.599ns (66%))",
+      "Logic Level": "8 ( LUT3=4  LUT4=3  LUT2=1 )"
+    }
+  }
+]

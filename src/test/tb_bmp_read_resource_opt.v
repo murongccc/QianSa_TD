@@ -12,6 +12,8 @@ wire [15:0] parsed_width, parsed_height;
 integer case_width, case_height, case_stride, seen_pixels;
 integer expected_col, expected_row;
 reg [31:0] height_bits, case_size;
+reg [31:0] compression_bits=0;
+reg [15:0] depth_bits=24;
 reg check_pixels=0;
 reg [23:0] expected_pixel;
 
@@ -48,7 +50,8 @@ function [7:0] image_byte;
             18,19,20,21: image_byte=case_width >> ((offset-18)*8);
             22,23,24,25: image_byte=height_bits >> ((offset-22)*8);
             26: image_byte=8'd1;
-            28: image_byte=8'd24;
+            28,29: image_byte=depth_bits >> ((offset-28)*8);
+            30,31,32,33: image_byte=compression_bits >> ((offset-30)*8);
             default: if(offset>=54 && offset<case_size) begin
                 payload=offset-54;
                 row_index=payload/case_stride;
@@ -156,6 +159,12 @@ task run_truncated_case;
 endtask
 
 initial begin
+    compression_bits=32'h00000001;run_case(1,1,1'b0);
+    compression_bits=32'h00000100;run_case(1,1,1'b0);
+    compression_bits=32'h00010000;run_case(1,1,1'b0);
+    compression_bits=32'h01000000;run_case(1,1,1'b0);
+    compression_bits=0;depth_bits=16'h0118;run_case(1,1,1'b0);
+    depth_bits=16'd32;run_case(1,1,1'b0);depth_bits=16'd24;
     run_case(1920,1080,1'b1);
     run_case(1919,2,1'b1);
     run_case(1,-1080,1'b1);
@@ -167,6 +176,12 @@ initial begin
     run_case(1,-1081,1'b0);
     run_case(32'h0001_0780,1,1'b0);
     run_case(1,32'h0001_0438,1'b0);
+    run_case(32'h0100_0001,1,1'b0);
+    run_case(1,32'h0100_0001,1'b0);
+    run_case(1,32'hffff_0001,1'b0);
+    run_case(1,32'hff00_ffff,1'b0);
+    run_case(1,32'h8000_0000,1'b0);
+    run_case(1,32'hffff_0000,1'b0);
     run_case(0,1,1'b0);
     run_case(1,0,1'b0);
     // 完整帧之后直接加载截断帧，验证每次加载都清除上一帧的完成标志。

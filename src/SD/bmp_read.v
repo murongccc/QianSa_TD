@@ -30,12 +30,14 @@ localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
            ST_LOAD_FAT=4'd7, ST_LOAD_FAT_CLUSTER=4'd8,
            ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10,
            ST_LOAD_FIRST_CLUSTER=4'd11, ST_LOAD_FIRST_OFFSET=4'd12,
-           ST_LOAD_FIRST_ADDR=4'd13;
+           ST_LOAD_FIRST_ADDR=4'd13, ST_LOAD_FAT_CAPTURE=4'd14;
 reg [3:0] state;
 reg [9:0] rd_cnt;
 reg [7:0] header_0, header_1;
-reg [31:0] file_len, pixel_offset, width, height, compression;
-reg [15:0] bit_count;
+reg [31:0] file_len, pixel_offset;
+reg [15:0] width, height;
+reg width_high_bad, height_high_zero, height_high_ones;
+reg bit_count_ok, compression_bad;
 reg top_down;
 reg [31:0] scan_sector, load_sector_latched, bmp_len_cnt;
 reg [1:0] bmp_byte_idx;
@@ -50,20 +52,19 @@ reg file_mode_latched;
 reg [31:0] file_cluster;
 reg [7:0] file_sector_in_cluster;
 reg [8:0] fat_offset;
-reg [7:0] fat_b0, fat_b1, fat_b2, fat_b3;
+reg [31:0] fat_entry;
 reg [8:0] fat_byte_cnt;
 reg [31:0] fat_next_cluster_reg, fat_cluster_offset, fat_data_sector_offset;
 reg [31:0] file_size_latched, fat_start_sector_latched, first_data_sector_latched;
 reg [7:0] sectors_per_cluster_latched;
 
-wire [31:0] abs_height = height[31] ? (~height + 32'd1) : height;
+wire [15:0] abs_height = top_down ? (~height + 16'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
                     (file_len >= 32'd54) && (pixel_offset >= 32'd54) &&
-                    (pixel_offset < file_len) && (width != 0) && (height != 0) &&
-                    (width <= 32'd1920) &&
-                    (((height[31] == 1'b0) && (height <= 32'd1080)) ||
-                     ((height[31] == 1'b1) && ((~height + 1'b1) <= 32'd1080))) &&
-                    (bit_count == 16'd24) && (compression == 0);
+                    (pixel_offset < file_len) && (width != 0) && (abs_height != 0) &&
+                    !width_high_bad && (width <= 16'd1920) &&
+                    (top_down ? height_high_ones : height_high_zero) && (abs_height <= 16'd1080) &&
+                    bit_count_ok && !compression_bad;
 wire [31:0] file_sector_count = (file_len == 0) ? 32'd1 : ((file_len + 511) >> 9);
 wire [31:0] next_scan_sector_if_match = scan_sector + file_sector_count;
 wire [31:0] next_scan_sector_if_miss = scan_sector + 1'b1;
@@ -93,7 +94,8 @@ end
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         header_0<=0; header_1<=0; file_len<=0; pixel_offset<=54; width<=0;
-        height<=0; compression<=0; bit_count<=0; top_down<=0; header_valid<=0;
+        height<=0; compression_bad<=0; bit_count_ok<=0; top_down<=0; header_valid<=0;
+        width_high_bad<=0;height_high_zero<=0;height_high_ones<=0;
     end else if (((state == ST_SCAN) || (state == ST_LOAD_HDR)) && sd_sec_read_data_valid) begin
         case (rd_cnt)
             0: begin header_0 <= sd_sec_read_data; header_valid <= 1'b0; end
@@ -108,18 +110,21 @@ always @(posedge clk or posedge rst) begin
             13: pixel_offset[31:24] <= sd_sec_read_data;
             18: width[7:0] <= sd_sec_read_data;
             19: width[15:8] <= sd_sec_read_data;
-            20: width[23:16] <= sd_sec_read_data;
-            21: width[31:24] <= sd_sec_read_data;
+            // 高位逐字节校验，不能把非法大尺寸截断成合法低位。
+            20: width_high_bad <= sd_sec_read_data!=8'd0;
+            21: width_high_bad <= width_high_bad || sd_sec_read_data!=8'd0;
             22: height[7:0] <= sd_sec_read_data;
             23: height[15:8] <= sd_sec_read_data;
-            24: height[23:16] <= sd_sec_read_data;
-            25: begin height[31:24] <= sd_sec_read_data; top_down <= sd_sec_read_data[7]; end
-            28: bit_count[7:0] <= sd_sec_read_data;
-            29: bit_count[15:8] <= sd_sec_read_data;
-            30: compression[7:0] <= sd_sec_read_data;
-            31: compression[15:8] <= sd_sec_read_data;
-            32: compression[23:16] <= sd_sec_read_data;
-            33: compression[31:24] <= sd_sec_read_data;
+            24: begin height_high_zero<=sd_sec_read_data==8'd0;height_high_ones<=sd_sec_read_data==8'hff;end
+            25: begin
+                height_high_zero<=height_high_zero && sd_sec_read_data==8'd0;
+                height_high_ones<=height_high_ones && sd_sec_read_data==8'hff;
+                top_down<=sd_sec_read_data[7];
+            end
+            28: bit_count_ok<=sd_sec_read_data==8'd24;
+            29: bit_count_ok<=bit_count_ok && sd_sec_read_data==8'd0;
+            30: compression_bad<=sd_sec_read_data!=8'd0;
+            31,32,33: compression_bad<=compression_bad || sd_sec_read_data!=8'd0;
             // All fields used by header_match have settled one byte earlier.
             // Register the result so the large validation expression is not
             // part of the sector-address and state clock-enable paths.
@@ -146,7 +151,7 @@ always @(posedge clk or posedge rst) begin
         // 不连接异步复位，避免该内部标志引入复位 hold 修复布线。
         load_failed<=0;
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
-        fat_offset<=0; fat_b0<=0; fat_b1<=0; fat_b2<=0; fat_b3<=0; fat_byte_cnt<=0;
+        fat_offset<=0; fat_entry<=0; fat_byte_cnt<=0;
         fat_next_cluster_reg<=0; fat_cluster_offset<=0; fat_data_sector_offset<=0;
         file_size_latched<=0; fat_start_sector_latched<=0; first_data_sector_latched<=0;
         sectors_per_cluster_latched<=0;
@@ -331,19 +336,21 @@ always @(posedge clk or posedge rst) begin
             ST_LOAD_FAT: begin
                 state_code<=4'ha; sd_sec_read<=1;
                 if (sd_sec_read_data_valid) begin
-                    if (fat_byte_cnt==fat_offset) fat_b0<=sd_sec_read_data;
-                    if (fat_byte_cnt==fat_offset+1'b1) fat_b1<=sd_sec_read_data;
-                    if (fat_byte_cnt==fat_offset+2'd2) fat_b2<=sd_sec_read_data;
-                    if (fat_byte_cnt==fat_offset+2'd3) fat_b3<=sd_sec_read_data;
+                    if (fat_byte_cnt[8:2]==fat_offset[8:2])
+                        fat_entry<={sd_sec_read_data,fat_entry[31:8]};
                     fat_byte_cnt<=fat_byte_cnt+1'b1;
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; fat_byte_cnt<=0;
                     // FAT 的四个字节先完整锁存，随后分三拍计算下一簇的
                     // 数据区地址。避免 FAT 数据寄存器直通可变乘法到 SD 地址。
-                    fat_next_cluster_reg<={fat_b3,fat_b2,fat_b1,fat_b0} & 32'h0fff_ffff;
-                    state<=ST_LOAD_FAT_CLUSTER;
+                    state<=ST_LOAD_FAT_CAPTURE;
                 end
+            end
+            // 结束脉冲允许与最后字节同拍；下一拍才使用完整四字节。
+            ST_LOAD_FAT_CAPTURE: begin
+                fat_next_cluster_reg<=fat_entry & 32'h0fff_ffff;
+                state<=ST_LOAD_FAT_CLUSTER;
             end
             ST_LOAD_FAT_CLUSTER: begin
                 state_code<=4'ha;

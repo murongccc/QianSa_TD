@@ -10,7 +10,7 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
     input wire [31:0] volume_fat_start,volume_data_start,volume_root_cluster,
     input wire [7:0] volume_sectors_per_cluster,
     input wire bmp_req,input wire [31:0] bmp_addr,
-    output wire bmp_valid,output wire bmp_done,
+    output wire bmp_valid,output wire bmp_done,output wire [7:0] bmp_data,output wire response_busy,
     output wire sd_req,output wire [31:0] sd_addr,
     input wire [7:0] sd_data,input wire sd_valid,input wire sd_done,
     output wire audio_fifo_we,output wire [31:0] audio_fifo_data,
@@ -42,7 +42,7 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
     end
     assign wav_format_error=wav_bad;
     // 共享端口可能还有 BMP 事务；总线空闲才允许会话复位。
-    assign cancelled=chart_cancelled && audio_cancelled && !sd_req;
+    assign cancelled=chart_cancelled && audio_cancelled && !response_busy;
     assign error_code=!game_session ? 4'd0 : chart_error!=0 ? chart_error : overflow ? 4'd6 :
         wav_missing ? 4'd7 : wav_bad ? 4'd8 :
         (header_valid && wav_frames_valid && song_frames!=wav_frames) ? 4'd9 : 4'd0;
@@ -54,7 +54,8 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
         if(rst)ready_latched<=0;else if(startup_ready)ready_latched<=1;
     end
     assign resources_ready=ready_latched && !cancel && !cancelled && error_code==0;
-    sd_sector_arbiter #(.ENABLE_CHART(1)) u_arbiter(
+    sd_sector_arbiter #(.ENABLE_CHART(1),.REGISTER_RESPONSE(1)) u_arbiter(
+        .sd_data(sd_data),.response_data(bmp_data),.response_busy(response_busy),
         .clk(clk),.rst(rst),.bmp_req(bmp_req),.bmp_addr(bmp_addr),
         .audio_req(audio_req),.audio_addr(audio_addr),.audio_urgent(audio_fifo_level<1024),
         .chart_req(chart_req),.chart_addr(chart_addr),.chart_valid(chart_valid),.chart_done(chart_done),
@@ -70,7 +71,7 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
         .volume_fat_start(volume_fat_start),.volume_data_start(volume_data_start),
         .volume_root_cluster(volume_root_cluster),.volume_sectors_per_cluster(volume_sectors_per_cluster),
         .reserve_ready(reserve_ready),.sd_req(chart_req),.sd_addr(chart_addr),
-        .sd_data(sd_data),.sd_valid(chart_valid),.sd_done(chart_done),
+        .sd_data(bmp_data),.sd_valid(chart_valid),.sd_done(chart_done),
         .note_we(note_we),.note_data(note_write_data),.header_valid(header_valid),.song_frames(song_frames),
         .note_count(note_count),.hold_count(hold_count),.offset_samples(offset_samples),
         .title(title),.difficulty(difficulty),.busy(),.eof(chart_eof),.cancelled(chart_cancelled),.error_code(chart_error));
@@ -82,7 +83,7 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
         .clk(clk),.rst(rst),.enable(enable),.sd_init_done(volume_valid),.game_mode(game_session),.cancel(cancel),
         .volume_valid(volume_valid),.volume_fat_start(volume_fat_start),.volume_data_start(volume_data_start),
         .volume_root_cluster(volume_root_cluster),.volume_sectors_per_cluster(volume_sectors_per_cluster),
-        .sd_sec_read(audio_req),.sd_sec_read_addr(audio_addr),.sd_data(sd_data),
+        .sd_sec_read(audio_req),.sd_sec_read_addr(audio_addr),.sd_data(bmp_data),
         .sd_data_valid(audio_valid),.sd_sec_read_end(audio_done),.fifo_we(audio_fifo_we),.fifo_din(audio_fifo_data),
         .fifo_full(audio_fifo_full),.audio_read_toggle(audio_read_toggle),.audio_fifo_level(audio_fifo_level),
         .busy(wav_busy),.done(wav_done),.file_found(wav_found),.format_ok(wav_format_ok),.format_error(wav_bad),
