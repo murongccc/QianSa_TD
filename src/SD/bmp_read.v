@@ -30,7 +30,7 @@ localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
            ST_LOAD_FAT=4'd7, ST_LOAD_FAT_CLUSTER=4'd8,
            ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10,
            ST_LOAD_FIRST_CLUSTER=4'd11, ST_LOAD_FIRST_OFFSET=4'd12,
-           ST_LOAD_FIRST_ADDR=4'd13, ST_LOAD_FAT_CAPTURE=4'd14;
+           ST_LOAD_FIRST_ADDR=4'd13, ST_LOAD_FAT_CAPTURE=4'd14, ST_LOAD_DATA_END=4'd15;
 reg [3:0] state;
 reg [9:0] rd_cnt;
 reg [7:0] header_0, header_1;
@@ -40,6 +40,7 @@ reg width_high_bad, height_high_zero, height_high_ones;
 reg bit_count_ok, compression_bad;
 reg top_down;
 reg [31:0] scan_sector, load_sector_latched, bmp_len_cnt;
+reg payload_started,payload_ended;
 reg [1:0] bmp_byte_idx;
 // 合法源图最大为 1920x1080，24 位像素的对齐行跨度不超过 5760 字节。
 reg [12:0] row_byte_cnt, row_stride;
@@ -54,9 +55,9 @@ reg [7:0] file_sector_in_cluster;
 reg [8:0] fat_offset;
 reg [31:0] fat_entry;
 reg [8:0] fat_byte_cnt;
-reg [31:0] fat_next_cluster_reg, fat_cluster_offset, fat_data_sector_offset;
+reg [31:0] fat_cluster_offset;
 reg [31:0] file_size_latched, fat_start_sector_latched, first_data_sector_latched;
-reg [7:0] sectors_per_cluster_latched;
+reg [7:0] sectors_per_cluster_latched, fat_shift_spc;
 
 wire [15:0] abs_height = top_down ? (~height + 16'd1) : height;
 wire header_match = (header_0 == "B") && (header_1 == "M") &&
@@ -65,11 +66,19 @@ wire header_match = (header_0 == "B") && (header_1 == "M") &&
                     !width_high_bad && (width <= 16'd1920) &&
                     (top_down ? height_high_ones : height_high_zero) && (abs_height <= 16'd1080) &&
                     bit_count_ok && !compression_bad;
-wire [31:0] file_sector_count = (file_len == 0) ? 32'd1 : ((file_len + 511) >> 9);
+// 图头长度在扫描结束前稳定；寄存扇区数切断宽加法后再比较的路径。
+reg [31:0] file_sector_count;
+always @(posedge clk or posedge rst)begin
+    if(rst)file_sector_count<=32'd1;
+    else file_sector_count<=(file_len==32'd0)?32'd1:((file_len+32'd511)>>9);
+end
 wire [31:0] next_scan_sector_if_match = scan_sector + file_sector_count;
 wire [31:0] next_scan_sector_if_miss = scan_sector + 1'b1;
-wire bmp_data_valid = sd_sec_read_data_valid && (bmp_len_cnt >= pixel_offset) &&
-                      (bmp_len_cnt < file_len);
+// 文件位置单调推进，两个命中标志替代逐字节的宽大小比较。
+wire pixel_offset_hit=(bmp_len_cnt==pixel_offset);
+wire file_end_hit=(bmp_len_cnt==file_len);
+wire bmp_data_valid = sd_sec_read_data_valid && (payload_started || pixel_offset_hit) &&
+                      !(payload_ended || file_end_hit);
 // 只在完整 32 位图头校验通过后使用已锁存尺寸，避免截断非法图头。
 wire [10:0] pixel_width = parsed_width[10:0];
 wire [10:0] pixel_height = parsed_height[10:0];
@@ -142,7 +151,7 @@ always @(posedge clk or posedge rst) begin
         state<=ST_IDLE; state_code<=0; sd_sec_read<=0; sd_sec_read_addr<=0;
         write_req<=0; scan_done<=0; scan_found_valid<=0; scan_found_sector<=0;
         scan_found_total<=0; scan_sector<=0; load_sector_latched<=0;
-        bmp_len_cnt<=0; row_byte_cnt<=0; row_stride<=0; bmp_byte_idx<=0;
+        bmp_len_cnt<=0;payload_started<=0;payload_ended<=0; row_byte_cnt<=0; row_stride<=0; bmp_byte_idx<=0;
         output_pixel_count<=0; b_byte<=0; g_byte<=0; src_col<=0; src_row<=0;
         pixel_valid<=0; pixel_data<=0; pixel_last<=0; frame_last<=0;
         bmp_data_wr_en<=0; bmp_data<=0;
@@ -152,7 +161,7 @@ always @(posedge clk or posedge rst) begin
         load_failed<=0;
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
         fat_offset<=0; fat_entry<=0; fat_byte_cnt<=0;
-        fat_next_cluster_reg<=0; fat_cluster_offset<=0; fat_data_sector_offset<=0;
+        fat_shift_spc<=0; fat_cluster_offset<=0;
         file_size_latched<=0; fat_start_sector_latched<=0; first_data_sector_latched<=0;
         sectors_per_cluster_latched<=0;
     end else if (!sd_init_done) begin
@@ -232,7 +241,7 @@ always @(posedge clk or posedge rst) begin
                 state_code<=3;
                 if (write_req_ack) begin
                     write_req<=0; state<=ST_LOAD_DATA; sd_sec_read<=1;
-                    bmp_len_cnt<=0; row_byte_cnt<=0;
+                    bmp_len_cnt<=0;payload_started<=0;payload_ended<=0; row_byte_cnt<=0;
                     row_stride<=(row_pixel_bytes+13'd3)&13'h1ffc;
                     bmp_byte_idx<=0; output_pixel_count<=0; src_col<=0; src_row<=0;
                 end
@@ -240,6 +249,8 @@ always @(posedge clk or posedge rst) begin
             ST_LOAD_DATA: begin
                 state_code<=4; sd_sec_read<=1;
                 if (sd_sec_read_data_valid) begin
+                    if(pixel_offset_hit)payload_started<=1;
+                    if(file_end_hit)payload_ended<=1;
                     if (bmp_data_valid) begin
                         if (bmp_pixel_byte_valid) begin
                             case (bmp_byte_idx)
@@ -267,15 +278,12 @@ always @(posedge clk or posedge rst) begin
                     end
                     bmp_len_cnt<=bmp_len_cnt+1'b1;
                 end
-                if (sd_sec_read_end) begin
-                    sd_sec_read<=0;
-                    if (bmp_len_cnt + 1'b1 >= file_len) begin
-                        // A syntactically valid header is still invalid if
-                        // the payload ends before a complete source frame.
-                        if (!frame_seen && !(bmp_pixel_byte_valid &&
-                            (bmp_byte_idx == 2) &&
-                            source_frame_last))
-                            load_failed<=1'b1;
+                if(sd_sec_read_end)begin sd_sec_read<=0;state<=ST_LOAD_DATA_END;end
+            end
+            ST_LOAD_DATA_END:begin
+                    // 消费最后字节更新后的计数和 frame_seen，末字节/done 可以同拍。
+                    if(payload_ended || file_end_hit)begin
+                        if(!frame_seen)load_failed<=1;
                         state<=ST_IDLE;
                     end
                     else if (file_mode_latched) begin
@@ -290,7 +298,6 @@ always @(posedge clk or posedge rst) begin
                             state<=ST_LOAD_FAT;
                         end
                     end else begin sd_sec_read_addr<=sd_sec_read_addr+1'b1; state<=ST_LOAD_THROT; end
-                end
             end
             ST_LOAD_THROT: begin
                 state_code<=4'ha;
@@ -303,24 +310,20 @@ always @(posedge clk or posedge rst) begin
                 state_code<=4'ha;
                 if (file_cluster<32'd2) begin load_failed<=1'b1; state<=ST_IDLE; end
                 else begin
-                    fat_cluster_offset<=file_cluster-32'd2;
+                    fat_cluster_offset<=file_cluster-32'd2;fat_shift_spc<=sectors_per_cluster_latched;
                     state<=ST_LOAD_FIRST_OFFSET;
                 end
             end
-            ST_LOAD_FIRST_OFFSET: begin
+            ST_LOAD_FIRST_OFFSET,ST_LOAD_FAT_OFFSET: begin
                 state_code<=4'ha;
-                case (sectors_per_cluster_latched)
-                    8'd1:   fat_data_sector_offset<=fat_cluster_offset;
-                    8'd2:   fat_data_sector_offset<=fat_cluster_offset<<1;
-                    8'd4:   fat_data_sector_offset<=fat_cluster_offset<<2;
-                    8'd8:   fat_data_sector_offset<=fat_cluster_offset<<3;
-                    8'd16:  fat_data_sector_offset<=fat_cluster_offset<<4;
-                    8'd32:  fat_data_sector_offset<=fat_cluster_offset<<5;
-                    8'd64:  fat_data_sector_offset<=fat_cluster_offset<<6;
-                    8'd128: fat_data_sector_offset<=fat_cluster_offset<<7;
-                    default: begin load_failed<=1'b1; fat_data_sector_offset<=0; end
+                case(fat_shift_spc)
+                    8'd1:state<=(state==ST_LOAD_FIRST_OFFSET)?ST_LOAD_FIRST_ADDR:ST_LOAD_FAT_ADDR;
+                    8'd2,8'd4,8'd8,8'd16,8'd32,8'd64,8'd128:begin
+                        fat_cluster_offset<={fat_cluster_offset[30:0],1'b0};
+                        fat_shift_spc<={1'b0,fat_shift_spc[7:1]};
+                    end
+                    default:begin load_failed<=1;state<=ST_IDLE;end
                 endcase
-                state<=ST_LOAD_FIRST_ADDR;
             end
             ST_LOAD_FIRST_ADDR: begin
                 state_code<=4'ha;
@@ -328,8 +331,8 @@ always @(posedge clk or posedge rst) begin
                     (sectors_per_cluster_latched & (sectors_per_cluster_latched-1'b1)) != 0) begin
                     load_failed<=1'b1; state<=ST_IDLE;
                 end else begin
-                    load_sector_latched<=first_data_sector_latched+fat_data_sector_offset;
-                    sd_sec_read_addr<=first_data_sector_latched+fat_data_sector_offset;
+                    load_sector_latched<=first_data_sector_latched+fat_cluster_offset;
+                    sd_sec_read_addr<=first_data_sector_latched+fat_cluster_offset;
                     state<=ST_LOAD_HDR;
                 end
             end
@@ -349,35 +352,19 @@ always @(posedge clk or posedge rst) begin
             end
             // 结束脉冲允许与最后字节同拍；下一拍才使用完整四字节。
             ST_LOAD_FAT_CAPTURE: begin
-                fat_next_cluster_reg<=fat_entry & 32'h0fff_ffff;
+                file_cluster<=fat_entry & 32'h0fff_ffff;
                 state<=ST_LOAD_FAT_CLUSTER;
             end
             ST_LOAD_FAT_CLUSTER: begin
                 state_code<=4'ha;
-                if (fat_next_cluster_reg>=32'h0fff_fff8 || fat_next_cluster_reg<32'd2) begin
+                if (file_cluster>=32'h0fff_fff8 || file_cluster<32'd2) begin
                     load_failed<=1'b1; state<=ST_IDLE;
                 end else begin
-                    file_cluster<=fat_next_cluster_reg;
                     file_sector_in_cluster<=0;
-                    fat_cluster_offset<=fat_next_cluster_reg-32'd2;
+                    fat_cluster_offset<=file_cluster-32'd2;
+                    fat_shift_spc<=sectors_per_cluster_latched;
                     state<=ST_LOAD_FAT_OFFSET;
                 end
-            end
-            ST_LOAD_FAT_OFFSET: begin
-                state_code<=4'ha;
-                // FAT32 的每簇扇区数是 1、2、4…128；使用固定移位替代乘法。
-                case (sectors_per_cluster_latched)
-                    8'd1:   fat_data_sector_offset<=fat_cluster_offset;
-                    8'd2:   fat_data_sector_offset<=fat_cluster_offset<<1;
-                    8'd4:   fat_data_sector_offset<=fat_cluster_offset<<2;
-                    8'd8:   fat_data_sector_offset<=fat_cluster_offset<<3;
-                    8'd16:  fat_data_sector_offset<=fat_cluster_offset<<4;
-                    8'd32:  fat_data_sector_offset<=fat_cluster_offset<<5;
-                    8'd64:  fat_data_sector_offset<=fat_cluster_offset<<6;
-                    8'd128: fat_data_sector_offset<=fat_cluster_offset<<7;
-                    default: begin load_failed<=1'b1; fat_data_sector_offset<=0; end
-                endcase
-                state<=ST_LOAD_FAT_ADDR;
             end
             ST_LOAD_FAT_ADDR: begin
                 state_code<=4'ha;
@@ -385,7 +372,7 @@ always @(posedge clk or posedge rst) begin
                     (sectors_per_cluster_latched & (sectors_per_cluster_latched-1'b1)) != 0) begin
                     load_failed<=1'b1; state<=ST_IDLE;
                 end else begin
-                    sd_sec_read_addr<=first_data_sector_latched+fat_data_sector_offset;
+                    sd_sec_read_addr<=first_data_sector_latched+fat_cluster_offset;
                     state<=ST_LOAD_THROT;
                 end
             end

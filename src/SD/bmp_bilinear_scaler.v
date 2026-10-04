@@ -57,9 +57,13 @@ reg [Y_PHASE_BITS-1:0] y_rem_step,y_phase;
 reg [8:0] fx_inv_q,fx_weight_q,fy_inv_q,fy_weight_q;
 reg [23:0] p00_q,p01_q,p10_q,p11_q;
 // 两个权重之和为 256，水平最大 255*256，垂直最大 255*65536。
-reg [15:0] h0_base_r,h0_base_g,h0_base_b,h1_base_r,h1_base_g,h1_base_b;
+// 三个阶段的基础乘积不同时存活，复用同一组 RGB 累加输入。
+reg [23:0] acc_r,acc_g,acc_b;
+wire [35:0] mul_p0,mul_p1,mul_p2;
 reg [15:0] h0_r,h0_g,h0_b,h1_r,h1_g,h1_b;
-reg [23:0] v_base_r,v_base_g,v_base_b;
+wire [23:0] sum_r=acc_r+mul_p0[23:0];
+wire [23:0] sum_g=acc_g+mul_p1[23:0];
+wire [23:0] sum_b=acc_b+mul_p2[23:0];
 reg [23:0] v_r,v_g,v_b;
 reg last_q,frame_last_q;
 
@@ -69,7 +73,7 @@ reg last_q,frame_last_q;
 // registered makes the resource-sharing intent unambiguous to synthesis.
 reg [17:0] mul_a0,mul_a1,mul_a2;
 reg [17:0] mul_b0,mul_b1,mul_b2;
-wire [35:0] mul_p0,mul_p1,mul_p2;
+
 
 // Do not leave the shared operators as generic '*' expressions: TD may clone
 // such expressions while optimizing the state-dependent operand muxes.  These
@@ -102,11 +106,17 @@ EG_LOGIC_MULT #(
 
 // A shared sequential divider computes the coordinate step only once per
 // frame.  Per-pixel mapping is then just fixed-point addition.
-reg [31:0] div_dividend,div_quotient;
+localparam integer DIV_INTEGER_BITS=(SRC_X_BITS>SRC_Y_BITS)?SRC_X_BITS:SRC_Y_BITS;
+localparam integer DIV_FP_BITS=DIV_INTEGER_BITS+16;
+localparam integer DIV_COUNT_BITS=count_width(DIV_FP_BITS-1);
+localparam [DIV_COUNT_BITS-1:0] DIV_LAST_BIT=DIV_FP_BITS-1;
+// 整数部分从 MSB 移出，后续自动补零；商共用一个写使能顺序移入。
+reg [DIV_INTEGER_BITS-1:0] div_integer;
+reg [DIV_FP_BITS-2:0] div_quotient;
 reg [DIVISOR_BITS-1:0] div_divisor;
 reg [DIVISOR_BITS:0] div_remainder;
-reg [5:0] div_bit;
-wire [DIVISOR_BITS:0] div_shift_remainder={div_remainder[DIVISOR_BITS-1:0],div_dividend[div_bit]};
+reg [DIV_COUNT_BITS-1:0] div_bit;
+wire [DIVISOR_BITS:0] div_shift_remainder={div_remainder[DIVISOR_BITS-1:0],div_integer[DIV_INTEGER_BITS-1]};
 wire div_subtract=(div_shift_remainder>={1'b0,div_divisor});
 wire [DIVISOR_BITS:0] div_next_remainder=div_subtract ?
     (div_shift_remainder-{1'b0,div_divisor}):div_shift_remainder;
@@ -164,13 +174,13 @@ always @(posedge clk or posedge rst) begin
   x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
   fx_inv_q<=0;fx_weight_q<=0;fy_inv_q<=0;fy_weight_q<=0;
   p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
-  h0_base_r<=0;h0_base_g<=0;h0_base_b<=0;h1_base_r<=0;h1_base_g<=0;h1_base_b<=0;
+  acc_r<=0;acc_g<=0;acc_b<=0;
   h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;
-  v_base_r<=0;v_base_g<=0;v_base_b<=0;v_r<=0;v_g<=0;v_b<=0;
+  v_r<=0;v_g<=0;v_b<=0;
   mul_a0<=0;mul_a1<=0;mul_a2<=0;mul_b0<=0;mul_b1<=0;mul_b2<=0;
   last_q<=0;frame_last_q<=0;
   dst_valid<=0;dst_pixel<=0;dst_last<=0;dst_frame_last<=0;dst_x<=0;dst_y<=0;
-  busy<=0;done<=0;div_dividend<=0;div_quotient<=0;div_divisor<=0;div_remainder<=0;div_bit<=0;
+  busy<=0;done<=0;div_integer<=0;div_quotient<=0;div_divisor<=0;div_remainder<=0;div_bit<=0;
  end else begin
   done<=0;
   if(abort) begin
@@ -184,22 +194,22 @@ always @(posedge clk or posedge rst) begin
     end
    end
    ST_DIV_X_INIT: begin
-    div_dividend<={sw-1'b1,16'h0000};div_divisor<=OUT_WIDTH-1;div_remainder<=0;div_quotient<=0;div_bit<=31;state<=ST_DIV_X_RUN;
+    div_integer<=sw-1'b1;div_divisor<=OUT_WIDTH-1;div_remainder<=0;div_quotient<=0;div_bit<=DIV_LAST_BIT;state<=ST_DIV_X_RUN;
    end
    ST_DIV_X_RUN: begin
-    div_remainder<=div_next_remainder;div_quotient[div_bit]<=div_subtract;
+    div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
     if(div_bit==0) begin
-     x_step<={div_quotient[X_FP_BITS-1:1],div_subtract};x_rem_step<=div_next_remainder[X_PHASE_BITS-1:0];state<=ST_DIV_Y_INIT;
+     x_step<={div_quotient[X_FP_BITS-2:0],div_subtract};x_rem_step<=div_next_remainder[X_PHASE_BITS-1:0];state<=ST_DIV_Y_INIT;
     end else div_bit<=div_bit-1'b1;
    end
    ST_DIV_Y_INIT: begin
     if(sh<=1) begin y_step<=0;y_rem_step<=0;state<=ST_CHECK;end
-    else begin div_dividend<={sh-1'b1,16'h0000};div_divisor<=OUT_HEIGHT-1;div_remainder<=0;div_quotient<=0;div_bit<=31;state<=ST_DIV_Y_RUN;end
+    else begin div_integer<=sh-1'b1;div_divisor<=OUT_HEIGHT-1;div_remainder<=0;div_quotient<=0;div_bit<=DIV_LAST_BIT;state<=ST_DIV_Y_RUN;end
    end
    ST_DIV_Y_RUN: begin
-    div_remainder<=div_next_remainder;div_quotient[div_bit]<=div_subtract;
+    div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
     if(div_bit==0) begin
-     y_step<={div_quotient[Y_FP_BITS-1:1],div_subtract};y_rem_step<=div_next_remainder[Y_PHASE_BITS-1:0];state<=ST_CHECK;
+     y_step<={div_quotient[Y_FP_BITS-2:0],div_subtract};y_rem_step<=div_next_remainder[Y_PHASE_BITS-1:0];state<=ST_CHECK;
     end else div_bit<=div_bit-1'b1;
    end
    ST_FILL: begin
@@ -245,44 +255,44 @@ always @(posedge clk or posedge rst) begin
    // 权重互补，因此按实际最大值保留水平 16 位、垂直 24 位结果。
    ST_H0_BASE: begin
     busy<=1;
-    h0_base_r<=mul_p0[15:0];h0_base_g<=mul_p1[15:0];h0_base_b<=mul_p2[15:0];
+    acc_r<={8'd0,mul_p0[15:0]};acc_g<={8'd0,mul_p1[15:0]};acc_b<={8'd0,mul_p2[15:0]};
     mul_a0<={10'd0,p01_q[23:16]};mul_a1<={10'd0,p01_q[15:8]};mul_a2<={10'd0,p01_q[7:0]};
     mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
     state<=ST_H0_ACC;
    end
    ST_H0_ACC: begin
     busy<=1;
-    h0_r<=h0_base_r+mul_p0[15:0];h0_g<=h0_base_g+mul_p1[15:0];h0_b<=h0_base_b+mul_p2[15:0];
+    h0_r<=sum_r[15:0];h0_g<=sum_g[15:0];h0_b<=sum_b[15:0];
     mul_a0<={10'd0,p10_q[23:16]};mul_a1<={10'd0,p10_q[15:8]};mul_a2<={10'd0,p10_q[7:0]};
     mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
     state<=ST_H1_BASE;
    end
    ST_H1_BASE: begin
     busy<=1;
-    h1_base_r<=mul_p0[15:0];h1_base_g<=mul_p1[15:0];h1_base_b<=mul_p2[15:0];
+    acc_r<={8'd0,mul_p0[15:0]};acc_g<={8'd0,mul_p1[15:0]};acc_b<={8'd0,mul_p2[15:0]};
     mul_a0<={10'd0,p11_q[23:16]};mul_a1<={10'd0,p11_q[15:8]};mul_a2<={10'd0,p11_q[7:0]};
     mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
     state<=ST_H1_ACC;
    end
    ST_H1_ACC: begin
     busy<=1;
-    h1_r<=h1_base_r+mul_p0[15:0];h1_g<=h1_base_g+mul_p1[15:0];h1_b<=h1_base_b+mul_p2[15:0];
+    h1_r<=sum_r[15:0];h1_g<=sum_g[15:0];h1_b<=sum_b[15:0];
     mul_a0<={2'b0,h0_r};mul_a1<={2'b0,h0_g};mul_a2<={2'b0,h0_b};
     mul_b0<={9'd0,fy_inv_q};mul_b1<={9'd0,fy_inv_q};mul_b2<={9'd0,fy_inv_q};
     state<=ST_V_BASE;
    end
    ST_V_BASE: begin
     busy<=1;
-    v_base_r<=mul_p0[23:0];v_base_g<=mul_p1[23:0];v_base_b<=mul_p2[23:0];
+    acc_r<=mul_p0[23:0];acc_g<=mul_p1[23:0];acc_b<=mul_p2[23:0];
     mul_a0<={2'b0,h1_r};mul_a1<={2'b0,h1_g};mul_a2<={2'b0,h1_b};
     mul_b0<={9'd0,fy_weight_q};mul_b1<={9'd0,fy_weight_q};mul_b2<={9'd0,fy_weight_q};
     state<=ST_V_ACC;
    end
    ST_V_ACC: begin
     busy<=1;
-    v_r<=v_base_r+mul_p0[23:0];
-    v_g<=v_base_g+mul_p1[23:0];
-    v_b<=v_base_b+mul_p2[23:0];
+    v_r<=sum_r;
+    v_g<=sum_g;
+    v_b<=sum_b;
     state<=ST_PACK;
    end
    ST_PACK: begin

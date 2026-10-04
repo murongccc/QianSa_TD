@@ -1,0 +1,232 @@
+{
+  "date": "2026-10-04",
+  "baseline_ref": "b1de687",
+  "before": {
+    "directory": "prj/log/wav_canonical_accepted_syn",
+    "resources": {
+      "lut": 18671,
+      "reg": 12190,
+      "bram": 50,
+      "bram32k": 11,
+      "dsp": 24,
+      "bram9k": 34,
+      "fifo9k": 16
+    },
+    "modules": {
+      "sd_media_pipeline_m0": {
+        "lut": 7173,
+        "ripple": 1294,
+        "reg": 4496,
+        "bram": 11,
+        "dsp": 5
+      },
+      "u_arbiter": {
+        "lut": 118,
+        "ripple": 0,
+        "reg": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_chart": {
+        "lut": 1261,
+        "ripple": 348,
+        "reg": 833,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_wav": {
+        "lut": 1164,
+        "ripple": 222,
+        "reg": 723,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_bmp_catalog": {
+        "lut": 1216,
+        "ripple": 141,
+        "reg": 1021,
+        "bram": 0,
+        "dsp": 2
+      },
+      "u_bmp_read": {
+        "lut": 1372,
+        "ripple": 271,
+        "reg": 655,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_scaler": {
+        "lut": 1311,
+        "ripple": 211,
+        "reg": 744,
+        "bram": 4,
+        "dsp": 3
+      },
+      "u_sd": {
+        "lut": 277,
+        "ripple": 24,
+        "reg": 180,
+        "bram": 0,
+        "dsp": 0
+      }
+    },
+    "timing_ns": {
+      "setup_wns": -0.363,
+      "setup_tns": -8.115,
+      "hold_wns": 0.471,
+      "hold_tns": 0,
+      "sd_wns": -0.363,
+      "sd_tns": -4.707
+    },
+    "sd_fmax_mhz": 96.497,
+    "warning_count": 67,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": 0
+  },
+  "after": {
+    "directory": "prj/log/sd_local_release_syn",
+    "resources": {
+      "lut": 17958,
+      "reg": 11761,
+      "bram": 51,
+      "bram32k": 11,
+      "dsp": 24,
+      "bram9k": 35,
+      "fifo9k": 16
+    },
+    "modules": {
+      "sd_media_pipeline_m0": {
+        "lut": 6454,
+        "ripple": 1214,
+        "reg": 4067,
+        "bram": 12,
+        "dsp": 5
+      },
+      "u_arbiter": {
+        "lut": 118,
+        "ripple": 0,
+        "reg": 54,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_chart": {
+        "lut": 1209,
+        "ripple": 339,
+        "reg": 810,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_wav": {
+        "lut": 1334,
+        "ripple": 213,
+        "reg": 697,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_bmp_catalog": {
+        "lut": 840,
+        "ripple": 141,
+        "reg": 754,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_bmp_read": {
+        "lut": 1057,
+        "ripple": 243,
+        "reg": 639,
+        "bram": 0,
+        "dsp": 0
+      },
+      "u_scaler": {
+        "lut": 1160,
+        "ripple": 177,
+        "reg": 647,
+        "bram": 4,
+        "dsp": 3
+      },
+      "u_sd": {
+        "lut": 281,
+        "ripple": 24,
+        "reg": 180,
+        "bram": 0,
+        "dsp": 0
+      }
+    },
+    "timing_ns": {
+      "setup_wns": -0.213,
+      "setup_tns": -5.517,
+      "hold_wns": 0.471,
+      "hold_tns": 0,
+      "sd_wns": -0.156,
+      "sd_tns": -2.109
+    },
+    "sd_fmax_mhz": 98.464,
+    "warning_count": 66,
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 2,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 16,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": 0
+  },
+  "physical": {
+    "directory": "prj/log/sd_local_release_phy",
+    "status": "failed_at_place_packing",
+    "error": "PHY-9009",
+    "mslice": 5300,
+    "lslice": 5300,
+    "limit": 4900,
+    "excess": 400,
+    "baseline_mslice": 5495,
+    "single_lut": 1547,
+    "single_seq": 2023,
+    "route_completed": false
+  },
+  "validation": {
+    "resource_simulations": 35,
+    "reference_table_check": true,
+    "stage2_simulations": 14,
+    "stage4_simulations": 5,
+    "baseline_scaler_reference_runs": 2,
+    "all_passed": true,
+    "wav_vectors": 122,
+    "all_spc_values": 256,
+    "new_bram9k": 1,
+    "scaler_dsp": 3,
+    "catalog_dsp": 2
+  },
+  "acceptance": {
+    "whole_lut_reduced": true,
+    "sd_setup_no_worse_than_baseline": true,
+    "mslice_within_capacity": false,
+    "100mhz_closed": false,
+    "bitstream_generated": false
+  },
+  "notes": [
+    "LUT = ordinary LUT + ripple; parent contains children",
+    "WAV module grows 170 LUT including done boundary and control retiming; total SD chain falls 719 LUT",
+    "User project, PLL, debug and history changes preserved",
+    "RAM cache contains 20 used 16-bit words in depth 32, synchronous read; no RAM content reset",
+    "Only duplicate same-value WAV reset assignments removed after synthesis; no logic change"
+  ]
+}

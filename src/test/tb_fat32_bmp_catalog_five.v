@@ -1,8 +1,9 @@
 `timescale 1ns/1ps
 
 // 验证同一根目录扇区中的五个 BMP 能按物理顺序逐一输出。
-// 每次释放候选后目录器会从保存的目录偏移继续，而不会重复或漏项。
+// 扫描结束后从描述符缓存依次读回，释放握手不能重复或漏项。
 module tb_fat32_bmp_catalog_five;
+parameter integer ITEMS=5, LAST_ENTRY=0, SAME_CYCLE=0, RESET_WRITE=0;
 reg clk=0, rst=1, sd_valid=0, sd_end=0, candidate_release=0;
 reg [7:0] sd_data=0;
 wire sd_read, candidate_valid, scan_done;
@@ -46,9 +47,10 @@ function [7:0] sector_byte;
             if(index==36) sector_byte=8'd1;
             if(index==44) sector_byte=8'd2;
         end else if(addr==2) begin
-            item=index>>5;
+            item=(index>>5)-(LAST_ENTRY ? 16-ITEMS : 0);
             field=index[4:0];
-            if(item<5) begin
+            if(item<0)sector_byte=8'he5;
+            if(item>=0 && item<ITEMS) begin
                 if(field==0) sector_byte=8'h41+item;
                 if(field==8) sector_byte="B";
                 if(field==9) sector_byte="M";
@@ -57,7 +59,7 @@ function [7:0] sector_byte;
                 if(field==28) sector_byte=8'd100+item;
             end
             // 第六个目录项以 0x00 标记目录结束。
-            if(item==5 && field==0) sector_byte=8'h00;
+            if(item==ITEMS && field==0) sector_byte=8'h00;
         end
     end
 endfunction
@@ -81,7 +83,10 @@ always @(posedge clk) begin
             1: begin
                 sd_data<=sector_byte(transport_addr,transport_index);
                 sd_valid<=1;
-                if(transport_index==10'd511) transport_state<=2;
+                if(transport_index==10'd511)begin
+                    if(SAME_CYCLE)begin sd_end<=1;transport_state<=3;end
+                    else transport_state<=2;
+                end
                 else transport_index<=transport_index+1'b1;
             end
             2: begin sd_end<=1; transport_state<=3; end
@@ -104,11 +109,16 @@ end
 initial begin
     repeat(3) @(posedge clk);
     rst=0;
-    // 扫描结束与第一个缓存候选在同一拍发出；等待候选释放链完整走完。
-    wait(candidate_count==5);
+    if(RESET_WRITE)begin
+        // 写入尚未完成时取消会话；不清 RAM，下一轮有效计数隔离旧字。
+        wait(dut.cache_write_busy);@(negedge clk);rst=1;
+        repeat(3)@(negedge clk);rst=0;
+    end
+    // scan_done 先于同步 RAM 的候选 valid，等待完整描述符发布及释放。
+    wait(candidate_count==ITEMS);
     wait(scan_done);
-    if(candidate_count!=5) $fatal(1,"expected five BMP candidates, got %0d",candidate_count);
-    if(catalog_candidate_count!=3'd5)
+    if(candidate_count!=ITEMS) $fatal(1,"candidate count mismatch: %0d",candidate_count);
+    if(catalog_candidate_count!=ITEMS)
         $fatal(1,"catalogue diagnostic count mismatch: %0d",catalog_candidate_count);
     $display("PASS FAT32 BMP catalog: five root entries emitted in physical order");
     $finish;

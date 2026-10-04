@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 // 真实 GAME.BIN 七个数据扇区，碎片 FAT 链，异步消费与逐条比较。
 module tb_rhythm_real_chart;
-    parameter integer FAT_EDGE=0;
+    parameter integer FAT_EDGE=0, DIR_EDGE=0;
     reg clk=0,nclk=0,rst=1,valid=0,done=0,nready=0,cancel=0;
     reg [7:0] data=0;
     wire req,we,hvalid,eof,cancelled,reserve,nvalid,overflow;
@@ -41,7 +41,8 @@ module tb_rhythm_real_chart;
         for(i=0;i<512;i=i+1)begin
             data=0;
             if(active_addr==200)begin
-                case(i)
+                if(DIR_EDGE && i<480)data=8'he5;
+                case(i-(DIR_EDGE?480:0))
                     0:data="G";1:data="A";2:data="M";3:data="E";4,5,6,7:data=" ";
                     8:data="B";9:data="I";10:data="N";26:data=FAT_EDGE ? 127 : 3;28:data=8'h28;29:data=8'h0d;
                     default:;

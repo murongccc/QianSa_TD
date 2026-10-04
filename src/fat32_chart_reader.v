@@ -20,15 +20,22 @@ module fat32_chart_reader #(
     output reg [3:0] error_code
 );
     localparam [3:0] IDLE=0,CALC=1,MULT=2,ADDRESS=3,DIR_REQ=4,DIR_DATA=5,
-                     FILE_WAIT=6,FILE_DATA=7,FAT_REQ=8,FAT_DATA=9,FINISHED=10,VERIFY_EOF=11,FAT_CHECK=12;
+                     FILE_WAIT=6,FILE_DATA=7,FAT_REQ=8,FAT_DATA=9,FINISHED=10,VERIFY_EOF=11,FAT_CHECK=12,START_CHECK=13,DIR_CHECK=14;
     reg [3:0] state;
     reg [31:0] fat_start,data_start,cluster,sector;
     // 65535 条记录加头部小于 1 MiB，目录高位必须先拒绝再截位。
     reg [19:0] file_size,file_pos;reg oversized_file;
     reg [19:0] file_last_byte;
     reg [7:0] spc,sector_in_cluster;
-    reg [31:0] shift_value,product;
-    reg [2:0] multiply_bit;
+    reg [31:0] product;
+    reg [7:0] multiply_spc;
+    // 卷校验独立寄存，避免取消/启动条件与簇大小宽判断串到错误寄存器。
+    reg volume_bad;
+    always @(posedge clk or posedge rst)begin
+        if(rst)volume_bad<=0;
+        else volume_bad<=volume_root_cluster<32'd2 || volume_sectors_per_cluster==8'd0 ||
+            (volume_sectors_per_cluster & (volume_sectors_per_cluster-8'd1))!=0;
+    end
     reg directory,entry_match,found,dir_end,cancel_pending;
     reg [8:0] byte_pos,fat_offset;
     reg [31:0] next_cluster,entry_cluster,entry_size;
@@ -37,6 +44,21 @@ module fat32_chart_reader #(
     reg [15:0] count_full,holds_full;reg [19:0] expected_file_size;
     reg [15:0] seen_notes,seen_holds;
     reg length_ok,counts_ok;
+    // 计算使能先寄存一拍，宽结果寄存器只承受单比特使能。
+    reg size_calc, length_check, counts_check;
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin
+            size_calc<=0;length_check<=0;counts_check<=0;
+            expected_file_size<=0;length_ok<=0;counts_ok<=0;
+        end else begin
+            size_calc<=state==FILE_DATA && sd_valid && file_pos==20'd16 && error_code==0 && !cancel && !cancel_pending;
+            length_check<=state==FILE_DATA && sd_valid && file_pos==20'd18 && error_code==0 && !cancel && !cancel_pending;
+            counts_check<=state==FILE_DATA && sd_valid && file_pos==20'd20 && error_code==0 && !cancel && !cancel_pending;
+            if(size_calc)expected_file_size<=20'd64+{1'b0,count_full,3'd0};
+            if(length_check)length_ok<=file_size==expected_file_size;
+            if(counts_check)counts_ok<=count_full!=0 && holds_full<=count_full;
+        end
+    end
     reg header_bad;
     reg [55:0] record;
     reg [31:0] previous_time,last_end[0:3];
@@ -69,23 +91,29 @@ module fat32_chart_reader #(
         end
     end
 
+    // 数据字只由字节位置控制；校验/取消仅控制 note_we，消费者不读无效字。
+    always @(posedge clk or posedge rst)begin
+        if(rst)note_data<=0;
+        else if(state==FILE_DATA && sd_valid && file_pos>=20'd64 && file_pos[2:0]==3'd7)
+            note_data<={sd_data,record};
+    end
+
     // 不复位 RAM 内容，lane_seen 保证首次记录不读取旧历史。
     always @(posedge clk)if(!rst && note_we)
         last_end[note_data[57:56]]<=note_data[31:0]+{8'd0,note_data[55:32]};
 
     always @(posedge clk or posedge rst) begin
         if(rst)begin
-            state<=IDLE;sd_req<=0;sd_addr<=0;note_we<=0;note_data<=0;
+            state<=IDLE;sd_req<=0;sd_addr<=0;note_we<=0;
             header_valid<=0;song_frames<=0;note_count<=0;hold_count<=0;offset_samples<=0;
             title<=0;difficulty<=0;busy<=0;eof<=0;cancelled<=0;error_code<=0;
             fat_start<=0;data_start<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;
             file_last_byte<=0;oversized_file<=0;
-            spc<=0;sector_in_cluster<=0;shift_value<=0;product<=0;multiply_bit<=0;
+            spc<=0;sector_in_cluster<=0;product<=0;multiply_spc<=0;
             directory<=1;entry_match<=0;found<=0;dir_end<=0;cancel_pending<=0;
             byte_pos<=0;fat_offset<=0;next_cluster<=0;entry_cluster<=0;entry_size<=0;
             entry_first<=0;entry_attr<=0;directory_sectors<=0;
             count_full<=0;holds_full<=0;
-            expected_file_size<=0;length_ok<=0;counts_ok<=0;
             header_bad<=0;record<=0;
             record_end<=0;shifted_start<=0;shifted_end<=0;
         end else begin
@@ -98,17 +126,18 @@ module fat32_chart_reader #(
                 IDLE:if(enable && volume_valid)begin
                     busy<=1;fat_start<=volume_fat_start;data_start<=volume_data_start;
                     spc<=volume_sectors_per_cluster;cluster<=volume_root_cluster;
-                    if(volume_root_cluster<2 || volume_sectors_per_cluster==0 ||
-                       (volume_sectors_per_cluster & (volume_sectors_per_cluster-8'd1))!=0)begin
+                    state<=START_CHECK;
+                end
+                START_CHECK:begin
+                    if(volume_bad)begin
                         busy<=0;error_code<=4'd2;state<=FINISHED;
                     end else state<=CALC;
                 end
-                // 八拍移位加法，避免新增 spc 乘法器和长组合路径。
-                CALC:begin shift_value<=cluster-32'd2;product<=0;multiply_bit<=0;state<=MULT;end
+                // 卷入口已经校验二次幂簇大小；原地移位无需乘法累加器。
+                CALC:begin product<=cluster-32'd2;multiply_spc<=spc;state<=MULT;end
                 MULT:begin
-                    if(spc[multiply_bit])product<=product+shift_value;
-                    shift_value<=shift_value<<1;
-                    if(multiply_bit==7)state<=ADDRESS;else multiply_bit<=multiply_bit+3'd1;
+                    if(multiply_spc==8'd1)state<=ADDRESS;
+                    else begin product<={product[30:0],1'b0};multiply_spc<={1'b0,multiply_spc[7:1]};end
                 end
                 ADDRESS:begin sector<=data_start+product;state<=directory?DIR_REQ:FILE_WAIT;end
                 DIR_REQ:begin sd_req<=1;sd_addr<=sector;byte_pos<=0;state<=DIR_DATA;end
@@ -140,8 +169,11 @@ module fat32_chart_reader #(
                             default:;
                         endcase
                     end
-                    if(sd_done)begin
-                        sd_req<=0;directory_sectors<=directory_sectors+16'd1;
+                    if(sd_done)begin sd_req<=0;state<=DIR_CHECK;end
+                end
+                // 末目录字节与 done 同拍时，下一拍使用完整目录项。
+                DIR_CHECK:begin
+                    directory_sectors<=directory_sectors+16'd1;
                         if(found)begin
                             directory<=0;sector_in_cluster<=0;
                             file_last_byte<=file_size-20'd1;
@@ -152,7 +184,6 @@ module fat32_chart_reader #(
                         end else if(sector_in_cluster+8'd1<spc)begin
                             sector_in_cluster<=sector_in_cluster+8'd1;sector<=sector+32'd1;state<=DIR_REQ;
                         end else state<=FAT_REQ;
-                    end
                 end
                 FILE_WAIT:if(reserve_ready)begin sd_req<=1;sd_addr<=sector;state<=FILE_DATA;end
                 FILE_DATA:begin
@@ -184,9 +215,6 @@ module fat32_chart_reader #(
                             else if(file_pos<48)title<={sd_data,title[191:8]};
                             else difficulty<={sd_data,difficulty[127:8]};
                             // 头部剩余字节提供多个计算拍，不把长度加法串到最终校验路径。
-                            if(file_pos==16)expected_file_size<=20'd64+{1'b0,count_full[15:0],3'd0};
-                            if(file_pos==18)length_ok<=file_size==expected_file_size;
-                            if(file_pos==20)counts_ok<=count_full!=0 && holds_full<=count_full;
                             if(file_pos==47 && sd_data!=0)header_bad<=1;
                             if(file_pos==63)begin
                                 if(song_frames==0 ||
@@ -207,7 +235,7 @@ module fat32_chart_reader #(
                         end
                         else if(record_bad)error_code<=4'd4;
                         else begin
-                            note_data<={sd_data,record};note_we<=1;
+                            note_we<=1;
                         end
                     end
                     if(sd_done)begin

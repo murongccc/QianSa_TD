@@ -2,6 +2,7 @@
 
 // 单独覆盖 FAT 四字节采集：扇区首尾偏移、字节间空拍和高四位屏蔽。
 module tb_bmp_catalog_fat_capture;
+parameter integer SAME_CYCLE=0;
 reg clk=0, rst=1, sd_valid=0, sd_end=0;
 reg [7:0] sd_data=0;
 always #5 clk=~clk;
@@ -29,12 +30,16 @@ task check_entry;
             if(byte_index>=byte_offset && byte_index<byte_offset+4)
                 sd_data=entry_word >> ((byte_index-byte_offset)*8);
             else sd_data=8'ha5;
+            if(SAME_CYCLE && byte_index==511)sd_end=1;
             @(negedge clk);
             sd_valid=0;
+            if(SAME_CYCLE && byte_index==511)begin sd_end=0;end
+            else
             repeat(2) @(negedge clk);
         end
-        sd_end=1;
-        @(negedge clk); sd_end=0;
+        if(!SAME_CYCLE)begin sd_end=1;@(negedge clk);sd_end=0;end
+        wait(dut.state==5'd11);
+        @(negedge clk);
         expected_cluster=entry_word & 32'h0fff_ffff;
         if(dut.fat_next_cluster_reg !== expected_cluster)
             $fatal(1,"FAT little-endian capture mismatch at offset %0d",byte_offset);
@@ -54,6 +59,7 @@ initial begin
     check_entry(9'd8,32'h0000_0003);
     check_entry(9'd508,32'hffff_ffff);
     check_entry(9'd508,32'h0000_0000);
+    check_entry(9'd508,32'h0000_0003);
     $display("PASS shared-enable FAT capture");
     $finish;
 end

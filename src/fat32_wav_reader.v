@@ -26,7 +26,7 @@ module fat32_wav_reader #(
  output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -56,7 +56,7 @@ module fat32_wav_reader #(
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2;
  reg base_header_error; reg [5:0] header_pos;
  reg name_match, game_session, cancel_pending;
- reg [31:0] expected_riff_size,expected_data_size;
+ reg [31:0] expected_length;
  reg game_dir_end;
  reg [15:0] game_dir_sectors;
  wire cancel_active=ENABLE_GAME && (cancel || cancel_pending);
@@ -70,10 +70,10 @@ module fat32_wav_reader #(
     6'd1:header_byte_invalid=(value!="I");
     6'd2:header_byte_invalid=(value!="F");
     6'd3:header_byte_invalid=(value!="F");
-    6'd4:header_byte_invalid=(value!=expected_riff_size[7:0]);
-    6'd5:header_byte_invalid=(value!=expected_riff_size[15:8]);
-    6'd6:header_byte_invalid=(value!=expected_riff_size[23:16]);
-    6'd7:header_byte_invalid=(value!=expected_riff_size[31:24]);
+    6'd4:header_byte_invalid=(value!=expected_length[7:0]);
+    6'd5:header_byte_invalid=(value!=expected_length[15:8]);
+    6'd6:header_byte_invalid=(value!=expected_length[23:16]);
+    6'd7:header_byte_invalid=(value!=expected_length[31:24]);
     6'd8:header_byte_invalid=(value!="W");
     6'd9:header_byte_invalid=(value!="A");
     6'd10:header_byte_invalid=(value!="V");
@@ -104,18 +104,20 @@ module fat32_wav_reader #(
     6'd37:header_byte_invalid=(value!="a");
     6'd38:header_byte_invalid=(value!="t");
     6'd39:header_byte_invalid=(value!="a");
-    6'd40:header_byte_invalid=(value!=expected_data_size[7:0]);
-    6'd41:header_byte_invalid=(value!=expected_data_size[15:8]);
-    6'd42:header_byte_invalid=(value!=expected_data_size[23:16]);
-    6'd43:header_byte_invalid=(value!=expected_data_size[31:24]);
+    6'd40:header_byte_invalid=(value!=expected_length[7:0]);
+    6'd41:header_byte_invalid=(value!=expected_length[15:8]);
+    6'd42:header_byte_invalid=(value!=expected_length[23:16]);
+    6'd43:header_byte_invalid=(value!=expected_length[31:24]);
     default:header_byte_invalid=1'b0;
    endcase
   end
  endfunction
  // 长度在目录事务结束后预计算，并逐字节检查，避免头末拍的宽减法/比较链。
  // 43 是当前输入的长度高字节，仍须检查当前值；其余字段已累计到错误标志。
- wire canonical_header_valid=!base_header_error && expected_data_size[1:0]==2'b00 &&
-                             sd_data==expected_data_size[31:24];
+ wire canonical_header_valid=!base_header_error && expected_length[1:0]==2'b00 &&
+                             sd_data==expected_length[31:24];
+ // 八轮乘法（含任意 8 位 spc）显式共用一个加法器。
+ wire [31:0] multiply_sum=cluster_product+(spc[multiply_bit]?cluster_offset:32'd0);
  wire read_event=read_sync!=read_seen;
  // 同一个加法器实现 +1/-1；减一用计数位宽内的全一补码。
  wire [FIFO_LEVEL_WIDTH-1:0] fifo_count_delta={{(FIFO_LEVEL_WIDTH-1){!fifo_we}},1'b1};
@@ -152,7 +154,7 @@ module fat32_wav_reader #(
    entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
    base_header_error<=0;
    name_match<=0;game_session<=0;cancel_pending<=0;cancelled<=0;
-   song_frames<=0;song_frames_valid<=0;stream_eof<=0;expected_riff_size<=0;expected_data_size<=0;
+   song_frames<=0;song_frames_valid<=0;stream_eof<=0;expected_length<=0;
    game_dir_end<=0;game_dir_sectors<=0;
   end else begin
    fifo_we<=0; done<=0;
@@ -249,19 +251,23 @@ module fat32_wav_reader #(
           default: ;
       endcase
       pos<=pos+1;
+      // 所有目录项末字节先暂存完整描述符，复杂格式判断只发布命中标志。
+      // 命中后退出 DIR，因此不会被后续目录项覆盖。
+      if(pos[4:0]==5'd31)begin first_cluster<=entry_cluster;file_size<=entry_size;end
       // Accept any regular 8.3 WAV file in the root directory.  Earlier
       // builds required the example alias WAN_CAN_.WAV, which silently
       // failed when the card contained music.wav or another valid name.
       if(pos[4:0]==31 && entry_ext[7:0]=="W"&&entry_ext[15:8]=="A"&&entry_ext[23:16]=="V"&&
          (game_session ? (name_match && !game_dir_end) : !(EXCLUDE_GAME_WAV && name_match)) &&
          entry_attr!=8'h0f&&((entry_attr&8'h18)==0)&&entry_first!=8'hE5&&entry_first!=0)begin
-       file_found<=1;first_cluster<=entry_cluster;cluster<=entry_cluster;
-       file_size<=entry_size;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;state<=DIR_FOUND;
+       file_found<=1;state<=DIR_FOUND;
       end
      end
-     if(sd_sec_read_end && !file_found)begin
-      sd_sec_read<=0;
+     if(sd_sec_read_end)begin sd_sec_read<=0;state<=DIR_END;end
+    end
+    DIR_END:begin
+     if(file_found)state<=FILE_SETUP;
+     else begin
       game_dir_sectors<=game_dir_sectors+16'd1;
       // The FAT32 root directory is a cluster chain. Continue through every
       // sector in the current cluster, then follow the ST_FAT entry when the
@@ -286,14 +292,15 @@ module fat32_wav_reader #(
     end
     // The SD sector that contained the directory entry must finish before
     // the shared port can be reused for WAV data.
-    DIR_FOUND:if(sd_sec_read_end)begin
-     sd_sec_read<=0;calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;
-     // 目录事务结束后预计算两个长度，头解析不再执行宽减法。
-     expected_riff_size<=file_size-32'd8;
-     expected_data_size<=file_size-32'd44;
-     cluster<=cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
+    DIR_FOUND:if(sd_sec_read_end)begin sd_sec_read<=0;state<=FILE_SETUP;end
+    FILE_SETUP:begin
+     header_pos<=0;pcm_index<=0;file_pos<=0;sector_in_cluster<=0;
+     calc_action<=CALC_FIRST_FILE;state<=CALC_OFFSET;
+     // 目录事务结束后预计算 RIFF 长度，校验完成后复用为 data 长度。
+     expected_length<=file_size-32'd8;
+     cluster<=first_cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
      // 最小有效文件包含 44 字节头和一个完整的 4 字节立体声采样帧。
-     if((cluster & 32'h0fffffff)<32'd2 || (cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<32'd48)begin
+     if((first_cluster & 32'h0fffffff)<32'd2 || (first_cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<32'd48)begin
       format_error<=1;busy<=0;done<=1;state<=HOLD;
      end
     end
@@ -306,13 +313,15 @@ module fat32_wav_reader #(
         if(header_pos==0) base_header_error<=header_byte_invalid(header_pos,sd_data);
         else if(header_byte_invalid(header_pos,sd_data)) base_header_error<=1'b1;
         header_pos<=header_pos+1;
+        // RIFF 长度已经校验完，复用同一寄存器计算 data 长度。
+        if(header_pos==6'd8)expected_length<=file_size-32'd44;
        if(header_pos==43)begin
         format_ok<=canonical_header_valid;
         format_error<=!canonical_header_valid;
         // 错误后仍排空已接受的整扇区，再释放仲裁器；期间不发布 PCM。
         format_error_pending<=!canonical_header_valid;
         if(game_session && canonical_header_valid)begin
-         song_frames<={2'd0,expected_data_size[31:2]};song_frames_valid<=1;
+         song_frames<={2'd0,expected_length[31:2]};song_frames_valid<=1;
         end
        end
        end
@@ -335,7 +344,7 @@ module fat32_wav_reader #(
        end else if(file_pos>=file_size)begin
        // Repeat playback from the beginning after the file's declared size.
        cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
-       header_pos<=0;pcm_index<=0;format_error_pending<=0;done<=1;
+       header_pos<=0;pcm_index<=0;format_error_pending<=0;done<=1;expected_length<=file_size-32'd8;
        if(!format_ok || pcm_index!=2'd0 ||
           (game_session && !song_frames_valid))begin
         busy<=0;format_ok<=0;format_error<=1;state<=HOLD;
@@ -350,14 +359,14 @@ module fat32_wav_reader #(
       if(pos==fat_offset)fat_next[7:0]<=sd_data;if(pos==fat_offset+1)fat_next[15:8]<=sd_data;
       if(pos==fat_offset+2)fat_next[23:16]<=sd_data;if(pos==fat_offset+3)fat_next[31:24]<=sd_data;pos<=pos+1;
      end
-     if(sd_sec_read_end)begin
-      sd_sec_read<=0;
+     if(sd_sec_read_end)begin sd_sec_read<=0;state<=FAT_END;end
+    end
+    FAT_END:begin
       if((fat_next&32'h0fffffff)>=32'h0ffffff8||(fat_next&32'h0fffffff)<2 ||
          (fat_next&32'h0fffffff)>=32'h0ffffff0)begin
        // 文件尚未到 EOF 却遇到簇链结束，媒体和游戏都报截断，不循环错误文件。
        sd_sec_read<=0;busy<=0;format_ok<=0;format_error<=1;done<=1;state<=HOLD;
       end else begin cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;calc_action<=CALC_NEXT_FILE;state<=CALC_OFFSET;end
-     end
     end
     ST_DIR_FATDATA:begin
      if(sd_data_valid)begin
@@ -367,8 +376,9 @@ module fat32_wav_reader #(
       if(pos==fat_offset+3)fat_next[31:24]<=sd_data;
       pos<=pos+1;
      end
-     if(sd_sec_read_end)begin
-      sd_sec_read<=0;
+     if(sd_sec_read_end)begin sd_sec_read<=0;state<=DIR_FAT_END;end
+    end
+    DIR_FAT_END:begin
       if((fat_next&32'h0fffffff)>=32'h0ffffff8 || (fat_next&32'h0fffffff)<2 ||
          (game_session && (fat_next&32'h0fffffff)>=32'h0ffffff0))begin
        busy<=0; done<=1; state<=HOLD;
@@ -377,7 +387,6 @@ module fat32_wav_reader #(
        calc_action<=CALC_NEXT_DIR;state<=CALC_OFFSET;
       end
      end
-    end
     BPB_CALC:if(!USE_SHARED_VOLUME)begin
      data_start<=fat_start+fat_sectors;
      state<=CALC_OFFSET;
@@ -389,10 +398,10 @@ module fat32_wav_reader #(
     end
     CALC_MULTIPLY:begin
      if(multiply_bit==3'd7)begin
-      cluster_offset<=cluster_product+(spc[multiply_bit]?cluster_offset:32'd0);
+      cluster_offset<=multiply_sum;
       state<=CALC_SECTOR;
      end else begin
-      if(spc[multiply_bit])cluster_product<=cluster_product+cluster_offset;
+      cluster_product<=multiply_sum;
       cluster_offset<=cluster_offset<<1;multiply_bit<=multiply_bit+1'b1;
      end
     end

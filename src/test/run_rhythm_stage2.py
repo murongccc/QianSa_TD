@@ -55,6 +55,9 @@ def main():
     if 'tb_rhythm_real_chart' in tests:
         run('chart_last_fat_byte', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_real_chart',
                                   '-gFAT_EDGE=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
+        run('chart_last_directory_entry', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_real_chart',
+                                  '-gFAT_EDGE=1', '-gDIR_EDGE=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
+
 
 
 if __name__ == '__main__':

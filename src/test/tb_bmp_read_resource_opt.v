@@ -2,6 +2,7 @@
 
 // 经真实图头和扇区握手验证最大尺寸、行填充、方向及非法尺寸拒绝。
 module tb_bmp_read_resource_opt;
+parameter integer SAME_CYCLE=0, PIXEL_OFFSET=54, QUICK=0;
 reg clk=0, rst=1, load_start=0, write_req_ack=0;
 reg sd_valid=0, sd_end=0;
 reg [7:0] sd_data=0;
@@ -45,15 +46,15 @@ function [7:0] image_byte;
             0: image_byte="B";
             1: image_byte="M";
             2,3,4,5: image_byte=case_size >> ((offset-2)*8);
-            10: image_byte=8'd54;
+            10,11,12,13: image_byte=PIXEL_OFFSET >> ((offset-10)*8);
             14: image_byte=8'd40;
             18,19,20,21: image_byte=case_width >> ((offset-18)*8);
             22,23,24,25: image_byte=height_bits >> ((offset-22)*8);
             26: image_byte=8'd1;
             28,29: image_byte=depth_bits >> ((offset-28)*8);
             30,31,32,33: image_byte=compression_bits >> ((offset-30)*8);
-            default: if(offset>=54 && offset<case_size) begin
-                payload=offset-54;
+            default: if(offset>=PIXEL_OFFSET && offset<case_size) begin
+                payload=offset-PIXEL_OFFSET;
                 row_index=payload/case_stride;
                 row_byte=payload%case_stride;
                 col_index=row_byte/3;
@@ -93,8 +94,9 @@ task send_sector;
             @(negedge clk);
             sd_valid=1;
             sd_data=image_byte(base_offset+byte_index);
+            if(SAME_CYCLE && byte_index==511)sd_end=1;
         end
-        @(negedge clk); sd_valid=0; sd_end=1;
+        @(negedge clk); sd_valid=0; sd_end=!SAME_CYCLE;
         @(negedge clk); sd_end=0;
     end
 endtask
@@ -109,7 +111,7 @@ task run_case;
         height_bits=height_value;
         case_height=(height_value<0)?-height_value:height_value;
         case_stride=(width_value*3+3)&32'hffff_fffc;
-        case_size=expected_valid ? 54+case_stride*case_height : 64;
+        case_size=expected_valid ? PIXEL_OFFSET+case_stride*case_height : 64;
         seen_pixels=0;
         repeat(3) @(negedge clk);
         rst=0; load_start=1;
@@ -159,6 +161,10 @@ task run_truncated_case;
 endtask
 
 initial begin
+    if(QUICK)begin
+        run_case(2,3,1'b1);run_case(3,-3,1'b1);run_case(1,1,1'b1);
+        $display("PASS BMP pixel offset=%0d same-cycle=%0d",PIXEL_OFFSET,SAME_CYCLE);$finish;
+    end
     compression_bits=32'h00000001;run_case(1,1,1'b0);
     compression_bits=32'h00000100;run_case(1,1,1'b0);
     compression_bits=32'h00010000;run_case(1,1,1'b0);

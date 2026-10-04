@@ -59,14 +59,23 @@ def main():
         simulate('video_reference',video,'tb_video_presentation',['-gREFERENCE_SPECTRUM=1'])
         simulate('reference2048',video,'tb_reference_fft_spectrum',['-gFFT_POINTS=2048'])
     media_tests=['tb_fat32_wav_reader','tb_fat32_wav_reader_direct_volume','tb_wav_reader_resource_opt',
-                 'tb_wav_canonical_headers','tb_sd_media_audio_start','tb_fat32_bmp_catalog',
-                 'tb_fat32_bmp_catalog_five','tb_bmp_catalog_fat_capture','tb_bmp_read_resource_opt',
-                 'tb_bmp_read_v5_header','tb_bmp_read_fat_chain','tb_media_session_controller']
-    media=compile_group('media',['src/fat32_wav_reader.v','src/fat32_bmp_catalog.v',
+                 'tb_wav_canonical_headers','tb_wav_done_boundary','tb_sd_media_audio_start','tb_fat32_bmp_catalog',
+                 'tb_fat32_bmp_catalog_five','tb_bmp_catalog_fat_capture','tb_sd_cluster_address','tb_bmp_read_resource_opt',
+                 'tb_bmp_data_window','tb_bmp_read_v5_header','tb_bmp_read_fat_chain','tb_media_session_controller']
+    media=compile_group('media',[args.td_root/'sim_release/eg4/eg_logic_bram.v',
+        'src/rhythm_block_ram.v','src/fat32_wav_reader.v','src/fat32_bmp_catalog.v',
         'src/SD/bmp_read.v','src/media_session_controller.v',*[f'src/test/{name}.v' for name in media_tests]])
     for top in media_tests:simulate(top,media,top)
+    simulate('catalog_fat_same_cycle',media,'tb_bmp_catalog_fat_capture',['-gSAME_CYCLE=1'])
+    for count in range(6):
+        simulate(f'catalog_cache_{count}',media,'tb_fat32_bmp_catalog_five',
+                 [f'-gITEMS={count}','-gLAST_ENTRY=1','-gSAME_CYCLE=1'])
+    simulate('catalog_reset_during_write',media,'tb_fat32_bmp_catalog_five',['-gRESET_WRITE=1','-gSAME_CYCLE=1'])
     simulate('wav_shared_volume',media,'tb_fat32_wav_reader',['-gUSE_SHARED_VOLUME=1'])
     simulate('bmp_last_fat_byte',media,'tb_bmp_read_fat_chain',['-gFAT_EDGE=1'])
+    for offset in [54,488,512,513,1024,65536]:
+        simulate(f'bmp_window_{offset}',media,'tb_bmp_read_resource_opt',
+                 ['-gQUICK=1','-gSAME_CYCLE=1',f'-gPIXEL_OFFSET={offset}'])
     scaler=compile_group('scaler',['src/SD/bmp_bilinear_scaler.v','src/test/eg_logic_mult_model.v',
         'src/test/tb_bmp_bilinear_scaler.v','src/test/tb_bmp_scaler_resource_opt.v'])
     simulate('scaler_boundaries',scaler,'tb_bmp_scaler_resource_opt')

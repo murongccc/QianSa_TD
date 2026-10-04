@@ -25,12 +25,13 @@ localparam ST_IDLE=4'd0, ST_MBR=4'd1, ST_BPB=4'd2, ST_SETUP=4'd3,
            // 将引导扇区结束与字段有效性判断拆开，避免 BPB 寄存器的
            // 组合判断直接驱动下一扇区地址寄存器的写使能。
            ST_VALIDATE_BPB=4'd15;
-reg [3:0] state;
+localparam ST_DIR_END=5'd16, ST_FAT_CAPTURE=5'd17,
+           ST_CACHE_PREFETCH=5'd18, ST_CACHE_READ=5'd19;
+reg [4:0] state;
 reg [9:0] pos;
 reg [7:0] entry_first,entry_attr;
 reg [23:0] entry_ext,entry_size_low;
 reg [31:0] entry_cluster;
-integer i;
 reg [15:0] bytes_per_sector, reserved_sector_count;
 reg [7:0] fat_count;
 reg [31:0] sectors_per_fat, root_cluster, volume_base;
@@ -42,12 +43,46 @@ reg mbr_entry_is_fat, mbr_found_partition, mbr_writing_lba;
 // 1：刚读完 MBR 指向的 BPB，校验失败即结束扫描。
 reg validate_from_mbr;
 reg [31:0] dir_cluster, dir_sector;
-reg [31:0] dir_cluster_offset, dir_data_sector_offset, dir_fat_sector_offset;
-reg [7:0] dir_sector_in_cluster;
+reg [31:0] dir_cluster_offset, dir_fat_sector_offset;
+reg [7:0] dir_sector_in_cluster, dir_shift_spc;
 reg [2:0] candidate_output_index;
 reg dir_end_pending;
-reg [31:0] cached_first_cluster [0:4];
-reg [31:0] cached_file_size [0:4];
+// 每个描述符四个 16 位字；缓存内容不复位，计数隔离上次会话的旧数据。
+reg [63:0] cache_write_shift;
+reg [2:0] cache_write_slot;
+reg [1:0] cache_write_word, cache_read_word;
+reg cache_write_busy;
+wire [15:0] cache_read_data;
+wire dir_entry_is_bmp;
+wire [1:0] cache_read_next=(state==ST_CACHE_READ)?cache_read_word+2'd1:cache_read_word;
+wire cache_accept=state==ST_DIR && sd_sec_read_data_valid && pos[4:0]==5'd31 &&
+                  !dir_end_pending && dir_entry_is_bmp && candidate_count<3'd5;
+// 候选计数另拍消费命中脉冲，避免目录宽判断再串计数进位。
+reg cache_accept_q;
+always @(posedge clk or posedge rst)begin
+    if(rst)cache_accept_q<=0;
+    else cache_accept_q<=cache_accept;
+end
+rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(16),.ADDRESS_BITS(5),.DEPTH(32)) descriptor_cache(
+    .write_clk(clk),.write_enable(cache_write_busy && !rst),
+    .write_address({cache_write_slot,cache_write_word}),.write_data(cache_write_shift[15:0]),
+    .read_clk(clk),.read_address({candidate_output_index,cache_read_next}),.read_data(cache_read_data));
+// 接受目录项最少相隔 32 个字节，四拍写入不会阻塞连续的 SD 字节流。
+always @(posedge clk or posedge rst) begin
+    if(rst)begin cache_write_shift<=0;cache_write_slot<=0;cache_write_word<=0;cache_write_busy<=0;end
+    else begin
+      // 数据暂存只看字节位置，复杂的候选判断仅控制 RAM 写入有效位。
+      if(state==ST_DIR && sd_sec_read_data_valid && pos[4:0]==5'd31)begin
+        cache_write_shift<={sd_sec_read_data,entry_size_low,entry_cluster};
+        cache_write_slot<=candidate_count;
+      end else if(cache_write_busy)cache_write_shift<={16'd0,cache_write_shift[63:16]};
+      if(cache_accept)begin cache_write_word<=0;cache_write_busy<=1;end
+      else if(cache_write_busy)begin
+        if(cache_write_word==2'd3)cache_write_busy<=0;
+        else cache_write_word<=cache_write_word+2'd1;
+      end
+    end
+end
 reg [8:0] fat_offset;
 reg [31:0] fat_entry_shift;
 reg [31:0] fat_next_cluster_reg;
@@ -60,7 +95,7 @@ wire bpb_looks_valid = (bytes_per_sector == 16'd512) &&
                        (sectors_per_cluster != 8'd0) &&
                        (fat_count != 8'd0) && (sectors_per_fat != 32'd0) &&
                        (root_cluster >= 32'd2);
-wire dir_entry_is_bmp = (entry_first != 8'h00) && (entry_first != 8'he5) &&
+assign dir_entry_is_bmp = (entry_first != 8'h00) && (entry_first != 8'he5) &&
                         (entry_attr != 8'h0f) && (entry_attr != 8'h10) &&
                         (entry_attr != 8'h08) &&
                         (entry_ext[7:0] == "B") && (entry_ext[15:8] == "M") && (entry_ext[23:16] == "P") &&
@@ -96,18 +131,14 @@ always @(posedge clk or posedge rst) begin
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
         validate_from_mbr<=1'b0;
         dir_cluster<=0; dir_sector<=0; dir_cluster_offset<=0;
-        dir_data_sector_offset<=0; dir_fat_sector_offset<=0;
+        dir_shift_spc<=0; dir_fat_sector_offset<=0;
         dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
         fat_offset<=0; fat_entry_shift<=0;
         fat_next_cluster_reg<=0;
         entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
-        for (i=0;i<32;i=i+1) begin
-            if (i<5) begin
-                cached_first_cluster[i]<=0;
-                cached_file_size[i]<=0;
-            end
-        end
+        cache_read_word<=0;
     end else begin
+        if(cache_accept_q)candidate_count<=candidate_count+3'd1;
         case (state)
             ST_IDLE: if (sd_init_done) begin
                 scan_done<=0; volume_valid<=0; candidate_valid<=0;
@@ -202,27 +233,24 @@ always @(posedge clk or posedge rst) begin
                 if (dir_cluster < 32'd2) begin
                     scan_done<=1'b1; state<=ST_HOLD;
                 end else begin
-                    dir_cluster_offset<=dir_cluster-32'd2;
+                    dir_cluster_offset<=dir_cluster-32'd2;dir_shift_spc<=sectors_per_cluster;
                     state<=ST_DIR_OFFSET;
                 end
             end
             ST_DIR_OFFSET: begin
-                // FAT32 每簇扇区数只能是 1、2、4…128，用固定移位代替乘法。
-                case (sectors_per_cluster)
-                    8'd1:   begin dir_data_sector_offset<=dir_cluster_offset;    state<=ST_DIR_ADDR; end
-                    8'd2:   begin dir_data_sector_offset<=dir_cluster_offset<<1; state<=ST_DIR_ADDR; end
-                    8'd4:   begin dir_data_sector_offset<=dir_cluster_offset<<2; state<=ST_DIR_ADDR; end
-                    8'd8:   begin dir_data_sector_offset<=dir_cluster_offset<<3; state<=ST_DIR_ADDR; end
-                    8'd16:  begin dir_data_sector_offset<=dir_cluster_offset<<4; state<=ST_DIR_ADDR; end
-                    8'd32:  begin dir_data_sector_offset<=dir_cluster_offset<<5; state<=ST_DIR_ADDR; end
-                    8'd64:  begin dir_data_sector_offset<=dir_cluster_offset<<6; state<=ST_DIR_ADDR; end
-                    8'd128: begin dir_data_sector_offset<=dir_cluster_offset<<7; state<=ST_DIR_ADDR; end
-                    default: begin scan_done<=1'b1; state<=ST_HOLD; end
+                // 同一工作寄存器逐拍左移，避免八种 32 位移位结果的选择器。
+                case(dir_shift_spc)
+                    8'd1:state<=ST_DIR_ADDR;
+                    8'd2,8'd4,8'd8,8'd16,8'd32,8'd64,8'd128:begin
+                        dir_cluster_offset<={dir_cluster_offset[30:0],1'b0};
+                        dir_shift_spc<={1'b0,dir_shift_spc[7:1]};
+                    end
+                    default:begin scan_done<=1;state<=ST_HOLD;end
                 endcase
             end
             ST_DIR_ADDR: begin
-                dir_sector<=first_data_sector+dir_data_sector_offset;
-                sd_sec_read_addr<=first_data_sector+dir_data_sector_offset;
+                dir_sector<=first_data_sector+dir_cluster_offset;
+                sd_sec_read_addr<=first_data_sector+dir_cluster_offset;
                 sd_sec_read<=1'b1;
                 pos<=0;
                 state<=ST_DIR;
@@ -248,10 +276,7 @@ always @(posedge clk or posedge rst) begin
                     if (pos[4:0] == 5'd31) begin
                         if (entry_first == 8'h00) begin
                             dir_end_pending <= 1'b1;
-                        end else if (dir_entry_is_bmp && candidate_count < 3'd5) begin
-                            cached_first_cluster[candidate_count] <= entry_cluster;
-                            cached_file_size[candidate_count] <= {sd_sec_read_data,entry_size_low};
-                            candidate_count <= candidate_count+1'b1;
+                        end else if (cache_accept) begin
                             // 收满五项无需继续读取根目录其余扇区。
                             if (candidate_count == 3'd4)
                                 dir_end_pending <= 1'b1;
@@ -260,22 +285,22 @@ always @(posedge clk or posedge rst) begin
                     pos <= pos + 1'b1;
                 end
                 if (sd_sec_read_end) begin
-                    sd_sec_read<=0;
+                    sd_sec_read<=0;state<=ST_DIR_END;
+                end
+            end
+            ST_DIR_END:begin
+                    // 最后一个目录项允许与 done 同拍，消费更新后的结束标志。
                     if (stop || dir_end_pending) begin
                         state<=ST_EMIT_CANDIDATE;
                     end else begin
                         advance_directory_sector;
                     end
-                end
             end
-            ST_EMIT_CANDIDATE: begin
+            ST_EMIT_CANDIDATE: if(!cache_write_busy)begin
                 scan_done<=1'b1;
                 if (candidate_count != 3'd0) begin
                     candidate_output_index<=0;
-                    candidate_first_cluster<=cached_first_cluster[0];
-                    candidate_file_size<=cached_file_size[0];
-                    candidate_valid<=1'b1;
-                    state<=ST_WAIT_CANDIDATE;
+                    cache_read_word<=0;state<=ST_CACHE_PREFETCH;
                 end else begin
                     candidate_valid<=1'b0;
                     state<=ST_HOLD;
@@ -294,10 +319,18 @@ always @(posedge clk or posedge rst) begin
                 end
             end
             ST_NEXT_CANDIDATE: begin
-                candidate_first_cluster<=cached_first_cluster[candidate_output_index];
-                candidate_file_size<=cached_file_size[candidate_output_index];
-                candidate_valid<=1'b1;
-                state<=ST_WAIT_CANDIDATE;
+                cache_read_word<=0;state<=ST_CACHE_PREFETCH;
+            end
+            ST_CACHE_PREFETCH:state<=ST_CACHE_READ;
+            ST_CACHE_READ:begin
+                case(cache_read_word)
+                    2'd0:candidate_first_cluster[15:0]<=cache_read_data;
+                    2'd1:candidate_first_cluster[31:16]<=cache_read_data;
+                    2'd2:candidate_file_size[15:0]<=cache_read_data;
+                    2'd3:candidate_file_size[31:16]<=cache_read_data;
+                endcase
+                if(cache_read_word==2'd3)begin candidate_valid<=1;state<=ST_WAIT_CANDIDATE;end
+                else cache_read_word<=cache_read_word+2'd1;
             end
             ST_DIR_FAT: begin
                 if (sd_sec_read_data_valid) begin
@@ -307,9 +340,12 @@ always @(posedge clk or posedge rst) begin
                 end
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0; pos<=0;
-                    fat_next_cluster_reg<=fat_entry_shift & 32'h0fff_ffff;
-                    state<=ST_DIR_FAT_CHECK;
+                    state<=ST_FAT_CAPTURE;
                 end
+            end
+            ST_FAT_CAPTURE:begin
+                fat_next_cluster_reg<=fat_entry_shift & 32'h0fff_ffff;
+                state<=ST_DIR_FAT_CHECK;
             end
             ST_DIR_FAT_CHECK: begin
                     if (fat_next_cluster_reg>=32'h0fff_fff8 || fat_next_cluster_reg<32'd2) begin
