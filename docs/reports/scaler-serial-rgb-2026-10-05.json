@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-05",
+  "status": "rejected_by_sd_timing_restored_baseline",
+  "candidate_branch": "codex/scaler-serial-rgb-candidate",
+  "candidate_commit": "ee9640647adfffb28e6fe423b9825f4c8d0dd5fa",
+  "baseline_commit": "436b44ec47230c2a07346d48f04740a98e1c9a81",
+  "implementation_applied_to_main": false,
+  "baseline": {
+    "lut": 17955,
+    "ordinary_lut": 14488,
+    "ripple": 3467,
+    "reg": 11713,
+    "bram9k_with_fifo": 51,
+    "bram32k": 11,
+    "dsp": 24,
+    "scaler_lut": 1160,
+    "scaler_seq": 647,
+    "scaler_dsp": 3,
+    "sd_wns_ns": -0.156,
+    "sd_tns_ns": -2.592,
+    "video_wns_ns": 6.684,
+    "video_tns_ns": 0
+  },
+  "candidate": {
+    "lut": 17788,
+    "ordinary_lut": 14351,
+    "ripple": 3437,
+    "reg": 11604,
+    "bram9k_with_fifo": 51,
+    "bram32k": 11,
+    "dsp": 22,
+    "scaler_lut": 1012,
+    "scaler_seq": 535,
+    "scaler_dsp": 1,
+    "sd_wns_ns": -0.635,
+    "sd_tns_ns": -26.863,
+    "video_wns_ns": 7.714,
+    "video_tns_ns": 0,
+    "global_wns_ns": -0.635,
+    "global_tns_ns": -30.271
+  },
+  "delta": {
+    "lut": -167,
+    "reg": -109,
+    "dsp": -2,
+    "scaler_lut": -148,
+    "scaler_seq": -112
+  },
+  "mapping": {
+    "scaler_dsp": 1,
+    "scaler_registers": 535,
+    "removed_parallel_registers_remaining": 0
+  },
+  "validation": {
+    "main_simulations_passed": 16,
+    "rhythm_simulations_passed": 5,
+    "synthesis_errors": 0,
+    "baseline_warnings": 68,
+    "candidate_warnings": 68,
+    "sd_timing_gate_passed": false,
+    "video_timing_gate_passed": true,
+    "new_synthesis_warning_categories": []
+  },
+  "latency": {
+    "clock_hz": 100000000,
+    "single_640_frame_baseline_cycles": 3688379,
+    "single_640_frame_serial_cycles": 8296379,
+    "single_frame_extra_cycles": 4608000,
+    "five_640_frames_extra_compute_seconds": 0.2304,
+    "five_fixture_baseline_cycles": 179613,
+    "five_fixture_serial_cycles": 410013,
+    "serial_fixture_fifo_max": 483,
+    "serial_fixture_watermark_blocked_cycles": 255725
+  },
+  "startup_boundary": {
+    "baseline_issue_reproduced": true,
+    "candidate_fix": "three-bit released candidate count prevents first display during BRAM descriptor gaps; includes failed candidates",
+    "fix_applied_to_main": false,
+    "bad_candidate_indices_tested": [
+      0,
+      2,
+      4
+    ]
+  },
+  "sd_first_path": {
+    "from": "sd_media_pipeline_m0/u_bmp_catalog/state_reg[1]",
+    "to": "sd_media_pipeline_m0/u_bmp_catalog/volume_base_reg[0]",
+    "data_delay_ns": 10.519,
+    "cell_delay_ns": 3.56,
+    "net_delay_ns": 6.959
+  },
+  "baseline_report": "prj/log/scaler_serial_control_syn",
+  "candidate_report": "prj/log/scaler_serial_candidate_syn",
+  "physical_implementation_run": false,
+  "bitstream_generated": false,
+  "last_prior_physical_mslice": 5300,
+  "mslice_limit": 4900
+}
