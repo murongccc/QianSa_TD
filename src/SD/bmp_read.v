@@ -26,7 +26,7 @@ module bmp_read(
 );
 
 localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
-           ST_LOAD_DATA=4'd4, ST_LOAD_PAD=4'd5, ST_LOAD_THROT=4'd6,
+           ST_LOAD_DATA=4'd4, ST_LOAD_NEXT_SECTOR=4'd5, ST_LOAD_THROT=4'd6,
            ST_LOAD_FAT=4'd7, ST_LOAD_FAT_CLUSTER=4'd8,
            ST_LOAD_FAT_OFFSET=4'd9, ST_LOAD_FAT_ADDR=4'd10,
            ST_LOAD_FIRST_CLUSTER=4'd11, ST_LOAD_FIRST_OFFSET=4'd12,
@@ -52,6 +52,8 @@ reg header_valid;
 reg file_mode_latched;
 reg [31:0] file_cluster;
 reg [7:0] file_sector_in_cluster;
+// 合法簇大小为 1～128 的二次幂；锁存末扇区索引，避免加一后再比较。
+reg [6:0] file_cluster_last_sector;
 reg [8:0] fat_offset;
 reg [31:0] fat_entry;
 reg [8:0] fat_byte_cnt;
@@ -160,6 +162,7 @@ always @(posedge clk or posedge rst) begin
         // 不连接异步复位，避免该内部标志引入复位 hold 修复布线。
         load_failed<=0;
         file_mode_latched<=0; file_cluster<=0; file_sector_in_cluster<=0;
+        file_cluster_last_sector<=7'd0;
         fat_offset<=0; fat_entry<=0; fat_byte_cnt<=0;
         fat_shift_spc<=0; fat_cluster_offset<=0;
         file_size_latched<=0; fat_start_sector_latched<=0; first_data_sector_latched<=0;
@@ -193,6 +196,7 @@ always @(posedge clk or posedge rst) begin
                     fat_start_sector_latched<=fat_start_sector;
                     first_data_sector_latched<=first_data_sector;
                     sectors_per_cluster_latched<=sectors_per_cluster;
+                    file_cluster_last_sector<=sectors_per_cluster[6:0]-7'd1;
                     load_failed<=0; frame_seen<=0;
                     if (load_file_mode === 1'b1) begin
                         state<=ST_LOAD_FIRST_CLUSTER;
@@ -287,17 +291,18 @@ always @(posedge clk or posedge rst) begin
                         state<=ST_IDLE;
                     end
                     else if (file_mode_latched) begin
-                        if (file_sector_in_cluster + 1'b1 < sectors_per_cluster_latched) begin
+                        if (file_sector_in_cluster != {1'b0,file_cluster_last_sector}) begin
                             file_sector_in_cluster<=file_sector_in_cluster+1'b1;
-                            sd_sec_read_addr<=sd_sec_read_addr+1'b1;
-                            state<=ST_LOAD_THROT;
+                            state<=ST_LOAD_NEXT_SECTOR;
                         end else begin
-                            fat_offset<={file_cluster[6:0],2'b00};
-                            sd_sec_read_addr<=fat_start_sector_latched+(file_cluster>>7);
-                            fat_byte_cnt<=0;
                             state<=ST_LOAD_FAT;
                         end
-                    end else begin sd_sec_read_addr<=sd_sec_read_addr+1'b1; state<=ST_LOAD_THROT; end
+                    end else state<=ST_LOAD_NEXT_SECTOR;
+            end
+            // 结束拍只选择下一步；地址更新另拍，簇尾比较不直通宽地址选择。
+            ST_LOAD_NEXT_SECTOR: begin
+                sd_sec_read_addr<=sd_sec_read_addr+32'd1;
+                state<=ST_LOAD_THROT;
             end
             ST_LOAD_THROT: begin
                 state_code<=4'ha;
@@ -337,7 +342,14 @@ always @(posedge clk or posedge rst) begin
                 end
             end
             ST_LOAD_FAT: begin
-                state_code<=4'ha; sd_sec_read<=1;
+                state_code<=4'ha;
+                if (!sd_sec_read) begin
+                    // 进入 FAT 状态时先形成地址，与请求同拍锁存；返回字节随后到达。
+                    fat_offset<={file_cluster[6:0],2'b00};
+                    sd_sec_read_addr<=fat_start_sector_latched+(file_cluster>>7);
+                    fat_byte_cnt<=9'd0;
+                    sd_sec_read<=1'b1;
+                end
                 if (sd_sec_read_data_valid) begin
                     if (fat_byte_cnt[8:2]==fat_offset[8:2])
                         fat_entry<={sd_sec_read_data,fat_entry[31:8]};

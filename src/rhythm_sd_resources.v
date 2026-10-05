@@ -43,17 +43,22 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
     assign wav_format_error=wav_bad;
     // 共享端口可能还有 BMP 事务；总线空闲才允许会话复位。
     assign cancelled=chart_cancelled && audio_cancelled && !response_busy;
+    wire frame_count_mismatch=header_valid && wav_frames_valid && song_frames!=wav_frames;
+    // 就绪只需要是否存在错误，不经过四位错误码的优先选择及零值译码。
+    // 保留错误码优先级，直接并行合并相同错误条件，响应时机保持不变。
+    wire resources_error=game_session && (chart_error!=4'd0 || overflow ||
+        wav_missing || wav_bad || frame_count_mismatch);
     assign error_code=!game_session ? 4'd0 : chart_error!=0 ? chart_error : overflow ? 4'd6 :
         wav_missing ? 4'd7 : wav_bad ? 4'd8 :
-        (header_valid && wav_frames_valid && song_frames!=wav_frames) ? 4'd9 : 4'd0;
-    wire startup_ready=(!game_session ? (enable && audio_fifo_level>=2048) : (error_code==0 && !cancel && !cancelled && header_valid && wav_frames_valid &&
+        frame_count_mismatch ? 4'd9 : 4'd0;
+    wire startup_ready=(!game_session ? (enable && audio_fifo_level>=2048) : (!resources_error && !cancel && !cancelled && header_valid && wav_frames_valid &&
         (chart_used>=64 || (chart_eof && chart_used!=0)) &&
         (audio_fifo_level>=2048 || (audio_eof && audio_fifo_level!=0))));
     reg ready_latched;
     always @(posedge clk or posedge rst)begin
         if(rst)ready_latched<=0;else if(startup_ready)ready_latched<=1;
     end
-    assign resources_ready=ready_latched && !cancel && !cancelled && error_code==0;
+    assign resources_ready=ready_latched && !cancel && !cancelled && !resources_error;
     sd_sector_arbiter #(.ENABLE_CHART(1),.REGISTER_RESPONSE(1)) u_arbiter(
         .sd_data(sd_data),.response_data(bmp_data),.response_busy(response_busy),
         .clk(clk),.rst(rst),.bmp_req(bmp_req),.bmp_addr(bmp_addr),

@@ -26,7 +26,7 @@ module fat32_wav_reader #(
  output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20,CALC_PRODUCT=21;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -306,6 +306,17 @@ module fat32_wav_reader #(
     end
     WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
     DATA:begin
+      // FILE_SETUP 已拒绝小于 48 字节的文件，头偏移 43 的字节必在文件内。
+      // 头位置只递增到 44；格式结果不再经过逐字节的 32 位文件边界比较。
+      if(sd_data_valid && header_pos==6'd43)begin
+       format_ok<=canonical_header_valid;
+       format_error<=!canonical_header_valid;
+       // 错误后仍排空已接受的整扇区，再释放仲裁器；期间不发布 PCM。
+       format_error_pending<=!canonical_header_valid;
+       if(game_session && canonical_header_valid)begin
+        song_frames<={2'd0,expected_length[31:2]};song_frames_valid<=1;
+       end
+      end
       if(sd_data_valid && file_pos<file_size)begin
        file_pos<=file_pos+1;
        if(header_pos<44)begin
@@ -315,15 +326,6 @@ module fat32_wav_reader #(
         header_pos<=header_pos+1;
         // RIFF 长度已经校验完，复用同一寄存器计算 data 长度。
         if(header_pos==6'd8)expected_length<=file_size-32'd44;
-       if(header_pos==43)begin
-        format_ok<=canonical_header_valid;
-        format_error<=!canonical_header_valid;
-        // 错误后仍排空已接受的整扇区，再释放仲裁器；期间不发布 PCM。
-        format_error_pending<=!canonical_header_valid;
-        if(game_session && canonical_header_valid)begin
-         song_frames<={2'd0,expected_length[31:2]};song_frames_valid<=1;
-        end
-       end
        end
        // 规范 data 恰好覆盖 [44,file_size)，外层 file_pos 边界即可限制 PCM。
        // 无需再维护与文件位置重复的 32 位 data 剩余计数器。
@@ -397,13 +399,16 @@ module fat32_wav_reader #(
      state<=CALC_MULTIPLY;
     end
     CALC_MULTIPLY:begin
-     if(multiply_bit==3'd7)begin
-      cluster_offset<=multiply_sum;
-      state<=CALC_SECTOR;
-     end else begin
-      cluster_product<=multiply_sum;
-      cluster_offset<=cluster_offset<<1;multiply_bit<=multiply_bit+1'b1;
+     // 八拍均只更新累加寄存器，最后结果另拍转移，避免位选择/加法直通偏移选择。
+     cluster_product<=multiply_sum;
+     if(multiply_bit==3'd7)state<=CALC_PRODUCT;
+     else begin
+      cluster_offset<={cluster_offset[30:0],1'b0};multiply_bit<=multiply_bit+3'd1;
      end
+    end
+    CALC_PRODUCT:begin
+     cluster_offset<=cluster_product;
+     state<=CALC_SECTOR;
     end
     CALC_SECTOR:begin
      sector<=data_start+cluster_offset;

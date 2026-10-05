@@ -25,7 +25,14 @@ module sd_sector_arbiter #(
     // A sector already in flight is never interrupted.  Between sectors,
     // protect the PCM reservoir before applying normal fair arbitration.
     wire choose_audio = audio_req && (audio_urgent || (!(bmp_req || chart_request)) || !last_audio);
-    wire choose_chart = !choose_audio && chart_request && (!bmp_req || !last_chart);
+    // 有 BMP/谱面请求时，音频仅在非紧急且上一扇区也是音频时让出。
+    // 两个非音频归属直接并行判断，不串接 choose_audio/choose_chart。
+    wire audio_yields = !audio_req || (!audio_urgent && last_audio);
+    wire choose_chart = chart_request && (!bmp_req || !last_chart) && audio_yields;
+    wire choose_bmp = bmp_req && (!chart_request || last_chart) && audio_yields;
+    // 归属独热，地址并行掩码后合并，避免串行优先选择叠加宽寄存器使能。
+    wire [31:0] chosen_address=({32{choose_audio}} & audio_addr) |
+        ({32{choose_chart}} & chart_addr) | ({32{choose_bmp}} & bmp_addr);
     assign sd_req = (state == ACTIVE);
     // 独热归属只在接收请求时设置；末字节采样后清除，返回无需状态译码。
     wire [5:0] raw_response={sd_done && owner_chart,sd_valid && owner_chart,
@@ -54,8 +61,8 @@ module sd_sector_arbiter #(
             IDLE: if (bmp_req || audio_req || chart_request) begin
                 owner_audio<=choose_audio;
                 owner_chart<=choose_chart;
-                owner_bmp<=!choose_audio && !choose_chart;
-                sd_addr<=choose_audio ? audio_addr : (choose_chart ? chart_addr : bmp_addr);
+                owner_bmp<=choose_bmp;
+                sd_addr<=chosen_address;
                 state<=ACTIVE;
             end
             ACTIVE: if (sd_done) begin

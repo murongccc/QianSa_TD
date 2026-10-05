@@ -38,8 +38,8 @@ initial begin
    cluster_size=n;
    expected=cluster_delta*cluster_size;
    @(posedge clk);#1;
-   // 新地址运算在 SD 请求空档用八拍移位加法完成。
-   while(dut.state==4'd15)begin @(posedge clk);#1;end
+   // 八拍移位加法后另拍消费完整累加结果，仍保留 32 位截断乘积。
+   while(dut.state==5'd15 || dut.state==5'd21)begin @(posedge clk);#1;end
    if(dut.cluster_offset!==expected || dut.state!==4'd13)
     $fatal(1,"cluster offset mismatch spc=%0d delta=%h",n,cluster_delta);
   end

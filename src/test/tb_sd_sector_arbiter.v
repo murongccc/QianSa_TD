@@ -5,7 +5,7 @@ module tb_sd_sector_arbiter;
     wire req,bv,bd,av,ad; wire [31:0] addr;
     integer bbytes=0,abytes=0,bends=0,aends=0,j;
     always #5 clk=~clk;
-    sd_sector_arbiter dut(.chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
+    sd_sector_arbiter dut(.sd_data(8'd0),.response_data(),.response_busy(),.chart_req(1'b0),.chart_addr(32'd0),.chart_valid(),.chart_done(),
  .clk(clk),.rst(rst),.bmp_req(breq),.bmp_addr(ba),
         .audio_req(areq),.audio_addr(aa),.audio_urgent(urgent),.sd_req(req),.sd_addr(addr),
         .sd_valid(valid),.sd_done(done),.bmp_valid(bv),.bmp_done(bd),

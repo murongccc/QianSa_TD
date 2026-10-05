@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-05",
+  "branch": "codex/fft-display-cache-candidate",
+  "source_base_commit": "98d0b8cc194da95f060689fd4ca6faf155fca1c7",
+  "main_merged": false,
+  "status": "sd_synthesis_timing_passed",
+  "original_control": {
+    "lut": 17955,
+    "reg": 11713,
+    "sd_wns_ns": -0.156,
+    "sd_tns_ns": -2.592,
+    "video_wns_ns": 6.684
+  },
+  "fft_base": {
+    "lut": 17401,
+    "reg": 10432,
+    "sd_wns_ns": -0.173,
+    "sd_tns_ns": -5.145,
+    "video_wns_ns": 10.749
+  },
+  "final": {
+    "ordinary_lut": 13926,
+    "ripple": 3464,
+    "lut": 17390,
+    "reg": 10440,
+    "bram9k": 36,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 24,
+    "sd_wns_ns": 0.01,
+    "sd_tns_ns": 0,
+    "sd_fmax_mhz": 100.1,
+    "video_wns_ns": 11.753,
+    "video_tns_ns": 0,
+    "global_setup_wns_ns": -0.213,
+    "global_setup_tns_ns": -3.408,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0
+  },
+  "delta_from_original": {
+    "lut": -565,
+    "reg": -1273,
+    "bram9k": 1
+  },
+  "delta_from_fft_base": {
+    "lut": -11,
+    "reg": 8
+  },
+  "mapping": {
+    "fft_registers": 558,
+    "cache_bram9k": 1,
+    "old_bar_registers": 0,
+    "old_level_registers": 0,
+    "last_sector_registers": 7
+  },
+  "validation": {
+    "sd_regression_passed": 54,
+    "game_regression_passed": 5,
+    "resource_ready_vectors": 65536,
+    "grant_vectors": 64,
+    "wav_vectors": 122,
+    "wav_spc_values": 256,
+    "synthesis_errors": 0,
+    "synthesis_warnings": 70,
+    "fft_base_synthesis_warnings": 70,
+    "simulation_errors": 0,
+    "existing_fifo_simulation_warnings": 24,
+    "existing_game_simulation_warnings": 3,
+    "new_independent_test_warnings": 0,
+    "fft_source_unchanged": true,
+    "sd_timing_gate_passed": true,
+    "video_timing_gate_passed": true
+  },
+  "report": "prj/log/fft_sd_parallel_syn",
+  "physical_implementation_run": false,
+  "bitstream_generated": false,
+  "last_prior_physical_mslice": 5300,
+  "mslice_limit": 4900,
+  "user_hashes_preserved": true
+}
