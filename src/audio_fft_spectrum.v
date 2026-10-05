@@ -1,18 +1,24 @@
 // 兼容旧频段接口；板级参考模式直接输出 80 柱，不经过 32 段汇总。
 module audio_fft_spectrum #(
     parameter integer FFT_POINTS=512,
-    parameter integer REFERENCE_MODE=0
+    parameter integer REFERENCE_MODE=0,
+    parameter integer BLOCK_BARS=0
 )(
     input wire clk, input wire rst, input wire sample_valid,
     input wire [23:0] sample_pcm, input wire frame_start,
     output wire [255:0] bands, output wire [639:0] bars,
-    output wire [7:0] breath_radius
+    output wire [7:0] breath_radius,
+    input wire [6:0] bars_read_address,
+    output wire [7:0] bars_read_data,
+    output wire bars_read_valid, output wire bars_active
 );
 generate
     if (REFERENCE_MODE) begin: g_reference
-        reference_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) u_reference (
+        reference_fft_spectrum #(.FFT_POINTS(FFT_POINTS),.BLOCK_BARS(BLOCK_BARS)) u_reference (
             .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
-            .frame_start(frame_start),.bars(bars),.breath_radius(breath_radius));
+            .frame_start(frame_start),.bars(bars),.breath_radius(breath_radius),
+            .bars_read_address(bars_read_address),.bars_read_data(bars_read_data),
+            .bars_read_valid(bars_read_valid),.bars_active(bars_active));
         assign bands=256'd0;
     end else begin: g_legacy
         legacy_audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) u_legacy (
@@ -20,6 +26,9 @@ generate
             .frame_start(frame_start),.bands(bands));
         assign bars=640'd0;
         assign breath_radius=8'd90;
+        assign bars_read_data=8'd0;
+        assign bars_read_valid=1'b0;
+        assign bars_active=1'b0;
     end
 endgenerate
 endmodule
@@ -867,12 +876,16 @@ endmodule
 // 参考动态移植自 RP2350_FFT，MIT 声明见 docs/third-party/RP2350_FFT-LICENSE。
 // 保留 Hann 窗与采样率；立即上升、重力回落，原始峰值独立驱动呼吸。
 module reference_fft_spectrum #(
-    parameter integer FFT_POINTS=2048
+    parameter integer FFT_POINTS=2048,
+    parameter integer BLOCK_BARS=0
 )(
     input wire clk, input wire rst, input wire sample_valid,
     input wire [23:0] sample_pcm, input wire frame_start,
-    output reg [639:0] bars,
-    output reg [7:0] breath_radius
+    output wire [639:0] bars,
+    output reg [7:0] breath_radius,
+    input wire [6:0] bars_read_address,
+    output wire [7:0] bars_read_data,
+    output wire bars_read_valid, output wire bars_active
 );
 localparam integer ADDR_W=(FFT_POINTS==2048)?11:(FFT_POINTS==1024)?10:9;
 localparam integer LAST_BIN=(FFT_POINTS==2048)?273:(FFT_POINTS==1024)?137:69;
@@ -898,7 +911,7 @@ reg [27:0] interpolated_product;
 reg [18:0] raw_peak,peak_envelope;
 reg [7:0] radius_build;
 reg [7:0] bar_level;
-reg [639:0] bars_build;
+wire [639:0] bars_build;
 reg pending_valid,frame_start_d;
 wire [16:0] position_2048=reference_position(bar_index);
 wire [16:0] position=position_2048>>(11-ADDR_W);
@@ -1764,11 +1777,57 @@ fft_spectrum_bank_ram #(.DEPTH(FFT_POINTS), .ADDR_W(ADDR_W)) u_bank1 (
 );
 assign read_data = process_bank ? bank1_q : bank0_q;
 
+// 后台在构建开始时撤销待发布标志，构建中不会切换前台银行。
+// 发布沿同步读仍取旧前台，与渲染器该沿锁存的旧半径一致。
+generate if(BLOCK_BARS)begin: block_bars
+    reg front_bank,published_valid,read_valid;
+    reg build_nonzero,published_nonzero;
+    wire [7:0] cache_q;
+    wire publish=frame_start && !frame_start_d && pending_valid;
+    rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(8),.ADDRESS_BITS(8),.DEPTH(256)) cache(
+        .write_clk(clk),.write_enable(!rst && state==ST_BAR_WRITE),
+        .write_address({!front_bank,bar_index}),.write_data(bar_level),
+        .read_clk(clk),.read_address({front_bank,bars_read_address}),.read_data(cache_q));
+    assign bars=640'd0;
+    assign bars_build=640'd0;
+    assign bars_read_valid=read_valid;
+    assign bars_read_data=read_valid ? cache_q : 8'd0;
+    assign bars_active=published_nonzero;
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin
+            front_bank<=1'b0;published_valid<=1'b0;read_valid<=1'b0;
+            build_nonzero<=1'b0;published_nonzero<=1'b0;
+        end else begin
+            read_valid<=published_valid && bars_read_address<7'd80;
+            if(publish)begin
+                front_bank<=!front_bank;published_valid<=1'b1;
+                published_nonzero<=build_nonzero;
+            end
+            // 第一柱覆盖累计值；无需额外解码幅度扫描末项，待发布标志隔离构建间隙。
+            if(state==ST_BAR_WRITE)build_nonzero<=bar_index==7'd0 ? (|bar_level) : build_nonzero || (|bar_level);
+        end
+    end
+end else begin: wide_bars
+    reg [639:0] front,back;
+    assign bars=front;
+    assign bars_build=back;
+    assign bars_read_data=8'd0;
+    assign bars_read_valid=1'b0;
+    assign bars_active=|front;
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin front<=640'd0;back<=640'd0;end
+        else begin
+            if(frame_start && !frame_start_d && pending_valid)front<=back;
+            if(state==ST_BAR_WRITE)back<={bar_level,back[639:8]};
+        end
+    end
+end endgenerate
+
 always @(posedge clk or posedge rst) begin
     if(rst) begin
         state<=ST_INIT;scan_bin<=0;sample_count<=0;capture_bank<=0;process_bank<=0;
         group_base<=0;pair_index<=0;step<=1;stage<=0;
-        bars<=0;bars_build<=0;pending_valid<=0;frame_start_d<=0;
+        pending_valid<=0;frame_start_d<=0;
         breath_radius<=8'd90;radius_build<=8'd90;raw_peak<=0;peak_envelope<=0;
         bar_index<=0;sqrt_count<=0;sqrt_root<=0;sqrt_remainder<=0;square_sum<=0;
         a_data<=0;b_data<=0;p0<=0;p1<=0;p2<=0;p3<=0;
@@ -1779,7 +1838,7 @@ always @(posedge clk or posedge rst) begin
         // build 只在完整生成 80 柱后有效；开始下一次构建时撤销有效标志。
         // 避免使用第三组 640 位寄存器，也不会发布正在改写的半帧数据。
         if(frame_start && !frame_start_d && pending_valid) begin
-            bars<=bars_build;breath_radius<=radius_build;pending_valid<=0;
+            breath_radius<=radius_build;pending_valid<=0;
         end
         if(capture_we) begin
             if(sample_count==FFT_POINTS-1) begin
@@ -1848,8 +1907,7 @@ always @(posedge clk or posedge rst) begin
             end
             ST_LOG: begin bar_level<=reference_level(log_argument);state<=ST_BAR_WRITE;end
             ST_BAR_WRITE: begin
-                // 顺序构建 80 柱；首柱最终移至低字节，避免动态写入译码。
-                bars_build<={bar_level,bars_build[639:8]};
+                // 缓存写入与本拍索引对应；最后一柱写完后才允许帧发布。
                 if(bar_index==79) begin
                     peak_envelope<=next_envelope;
                     radius_build<=8'd90+{3'd0,radius_offset(next_envelope)};

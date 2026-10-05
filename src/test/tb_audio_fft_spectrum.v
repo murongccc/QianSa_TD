@@ -23,7 +23,7 @@ real angle;
 reg [255:0] old_bands;
 always #5 clk=~clk;
 
-audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
+audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (.bars_read_address(7'd0),.bars_read_data(),.bars_read_valid(),.bars_active(),
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
     .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars(), .breath_radius()
 );

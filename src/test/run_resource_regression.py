@@ -46,6 +46,7 @@ def main():
     video=compile_group('video',[
         'src/test/eg_logic_mult_model.v',
         args.td_root/'sim_release/eg4/eg_logic_bram.v',
+        'src/rhythm_block_ram.v',
         'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/video_presentation.v',
         'src/image_controls.v','src/media_session_controller.v',output/'baseline_fft.v',
         *[f'src/test/{name}.v' for name in ['tb_fft_bank_32k','tb_fft_resource_equivalence','tb_reference_fft_spectrum',
@@ -97,6 +98,8 @@ def main():
         count=sum(1 for line in sample_path.open() if line.strip())
         old_tb=(root/'src/test/tb_reference_wav.v').read_text(encoding='utf-8')
         old_tb=old_tb.replace('module tb_reference_wav;','module tb_baseline_reference_wav;').replace('audio_fft_spectrum #','baseline_audio_fft_spectrum #')
+        # 历史 FFT 没有块缓存端口，生成历史参考实例时去掉新接口的显式空连接。
+        old_tb=re.sub(r'\.(?:bars_read_address|bars_read_data|bars_read_valid|bars_active)\([^)]*\),\s*','',old_tb)
         (output/'tb_baseline_reference_wav.v').write_text(old_tb,encoding='utf-8')
         run('wav_baseline_compile',[binaries['vlog'],'-work',video,str(output/'tb_baseline_reference_wav.v')])
         # 两次独立重放只读同一输入，日志和输出分开，允许并行执行。

@@ -4,7 +4,8 @@ module ring_spectrum_renderer #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer REFERENCE_MODE = 0,
     parameter integer ACTIVE_HEIGHT = 480,
-    parameter integer DSP_GEOMETRY = 1
+    parameter integer DSP_GEOMETRY = 1,
+    parameter integer BLOCK_BARS = 0
 )(
     input wire clk,
     input wire rst,
@@ -13,6 +14,9 @@ module ring_spectrum_renderer #(
     input wire [9:0] pixel_y,
     input wire [255:0] bands,
     input wire [639:0] bars,
+    output wire [6:0] bars_read_address,
+    input wire [7:0] bars_read_data,
+    input wire bars_read_valid, input wire bars_active,
     output wire pixel_on,
     output wire [23:0] pixel_rgb
 );
@@ -253,7 +257,8 @@ always @* begin
     end
 end
 // 频率起点旋转到三点钟。视觉查表对原频段作对数重采样，低频占更多柱。
-wire [6:0] display_index = (sector >= 7'd20) ? sector - 7'd20 : sector + 7'd60;
+// 地址同时驱动缓存和颜色查询，保留七位接口边界，避免映射时跨查询展开长逻辑链。
+(* keep = "true" *) wire [6:0] display_index = (sector >= 7'd20) ? sector - 7'd20 : sector + 7'd60;
 wire [7:0] map_word = visual_mapping(display_index);
 wire [4:0] band_index = map_word[6:2];
 wire [4:0] next_band_index = (band_index == 5'd31) ? 5'd31 : band_index + 5'd1;
@@ -283,13 +288,22 @@ always @* begin
 end
 // 第一级锁存幅度与同像素的几何条件；输出供视频呈现第二级使用。
 // 不增加整个视频通路的两拍延迟，避免频段选择与半径平方串成超长路径。
-wire spectrum_active = REFERENCE_MODE ? (|bars) : (|bands);
+assign bars_read_address=display_index;
+wire spectrum_active = REFERENCE_MODE ? (BLOCK_BARS ? bars_active : (|bars)) : (|bands);
 wire [17:0] cross_error = (minor256 >= axis_product) ?
     minor256 - axis_product : axis_product - minor256;
 wire [8:0] side_limit = (octant_position >= 4'd8) ? 9'd480 :
                        ((octant_position >= 4'd5) ? 9'd416 : 9'd384);
 wire [8:0] cap_limit = side_limit >> 1;
-reg [7:0] level_stage;
+wire [7:0] level_stage;
+generate if(REFERENCE_MODE && BLOCK_BARS)begin: block_level
+    // BRAM 输出已是当前像素的第一级结果，不再追加寄存一级。
+    assign level_stage=bars_read_valid ? bars_read_data : 8'd0;
+end else begin: wide_level
+    reg [7:0] captured_level;
+    always @(posedge clk)captured_level<=REFERENCE_MODE ? bars[display_index*8 +:8] : level;
+    assign level_stage=captured_level;
+end endgenerate
 reg [16:0] distance_sq_stage;
 reg [7:0] base_radius_stage;
 reg [16:0] base_radius_sq_stage;
@@ -297,7 +311,6 @@ reg active_stage, inside_side_stage, narrow_center_stage;
 reg [23:0] color_stage;
 // 数据寄存器每拍覆盖，复位仅清有效标志，减小全局复位网络负担。
 always @(posedge clk) begin
-    level_stage <= REFERENCE_MODE ? bars[display_index*8 +:8] : level;
     distance_sq_stage <= distance_sq;
     base_radius_stage <= base_radius;
     base_radius_sq_stage <= base_radius_sq;

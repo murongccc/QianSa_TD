@@ -12,7 +12,7 @@ reg [2047:0] sample_path, output_path, detail_path;
 integer sample_total, sample_index, output_file, band_number, gap;
 integer detail_file, raw_peak=0, raw_sum=0;
 always #5 clk=~clk;
-audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (
+audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS)) dut (.bars_read_address(7'd0),.bars_read_data(),.bars_read_valid(),.bars_active(),
     .clk(clk), .rst(rst), .sample_valid(sample_valid),
     .sample_pcm(sample_pcm), .frame_start(frame_start), .bands(bands), .bars(), .breath_radius()
 );

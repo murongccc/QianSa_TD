@@ -10,7 +10,7 @@ reg [23:0] samples [0:599999];
 reg [2047:0] sample_path,output_path;
 integer sample_total,n,gap,out_file,b;
 always #5 clk=~clk;
-audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS),.REFERENCE_MODE(1)) dut(
+audio_fft_spectrum #(.FFT_POINTS(FFT_POINTS),.REFERENCE_MODE(1)) dut(.bars_read_address(7'd0),.bars_read_data(),.bars_read_valid(),.bars_active(),
     .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
     .frame_start(frame_start),.bars(bars),.bands(),.breath_radius(breath_radius));
 initial begin

@@ -17,7 +17,7 @@ always @(posedge clk) begin
        golden.g_reference.u_reference.reference_twiddle(dut.g_reference.u_reference.twiddle_index))
         $fatal(1,"twiddle value/sign/endpoint mismatch");
 end
-audio_fft_spectrum #(.FFT_POINTS(2048),.REFERENCE_MODE(1)) dut(
+audio_fft_spectrum #(.FFT_POINTS(2048),.REFERENCE_MODE(1)) dut(.bars_read_address(7'd0),.bars_read_data(),.bars_read_valid(),.bars_active(),
     .clk(clk),.rst(rst),.sample_valid(sample_valid),.sample_pcm(sample_pcm),
     .frame_start(frame_start),.bars(bars),.bands(),.breath_radius(radius));
 baseline_audio_fft_spectrum #(.FFT_POINTS(2048),.REFERENCE_MODE(1)) golden(

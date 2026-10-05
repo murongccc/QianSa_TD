@@ -7,7 +7,8 @@ wire [7:0] breath_radius;
 integer n,speed,expected_speed,expected_m_q8,expected_offset,argument_q8;
 real magnitude,expected_m;
 always #5 clk=~clk;
-reference_fft_spectrum dut(.clk(clk),.rst(rst),.sample_valid(1'b0),.sample_pcm(24'd0),
+reference_fft_spectrum dut(.bars_read_address(7'd0),.bars_read_data(),.bars_read_valid(),.bars_active(),
+    .clk(clk),.rst(rst),.sample_valid(1'b0),.sample_pcm(24'd0),
     .frame_start(1'b0),.bars(bars),.breath_radius(breath_radius));
 initial begin
     repeat(3) @(negedge clk);rst=0;wait(dut.state==0);

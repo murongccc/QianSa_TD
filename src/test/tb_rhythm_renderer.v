@@ -15,7 +15,7 @@ module tb_rhythm_renderer;
         .perfect_count(16'd413),.good_count(16'd0),.bad_count(16'd0),.miss_count(16'd0),.title(title),.difficulty(difficulty),
         .view_index(vi),.view_valid(vv),.view_start(start),.view_end(finish),.holding_mask(4'd0),.capture_busy(capture),
         .frame_enabled(frame_active),.pixel_on(on),.pixel_rgb(color));
-    video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) presentation(
+    video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) presentation(.spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
         .clk(clk),.rst(rst),.display_valid(display),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),.display_slot_applied_toggle(),.display_active(),
         .brightness_level_async(3'd4),.image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
         .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),

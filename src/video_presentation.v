@@ -5,7 +5,8 @@ module video_presentation #(
     parameter integer ACTIVE_HEIGHT = 480,
     parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
-    parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0
+    parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0,
+    parameter integer BLOCK_BARS = 0
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
@@ -22,6 +23,9 @@ module video_presentation #(
     input wire [255:0] spectrum_bands,
     input wire [639:0] spectrum_bars,
     input wire [7:0] spectrum_radius,
+    output wire [6:0] spectrum_read_address,
+    input wire [7:0] spectrum_read_data,
+    input wire spectrum_read_valid, input wire spectrum_active,
     input wire game_active,game_pixel_on,input wire [23:0] game_pixel_rgb,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
@@ -263,10 +267,13 @@ wire spectrum_on;
 wire [23:0] spectrum_rgb;
 ring_spectrum_renderer #(
     .REFERENCE_MODE(REFERENCE_SPECTRUM),
+    .BLOCK_BARS(BLOCK_BARS),
     .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
 ) u_ring_spectrum_renderer (
     .clk(clk), .rst(rst), .breath_radius(spectrum_radius),
     .bars(spectrum_bars), .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
+    .bars_read_address(spectrum_read_address),.bars_read_data(spectrum_read_data),
+    .bars_read_valid(spectrum_read_valid),.bars_active(spectrum_active),
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );
 

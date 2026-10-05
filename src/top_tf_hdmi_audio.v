@@ -154,6 +154,9 @@ wire [23:0] audio_left_data;
 wire [23:0] audio_right_data;
 wire [255:0] audio_spectrum_bands;
 wire [639:0] audio_spectrum_bars;
+wire [6:0] audio_spectrum_read_address;
+wire [7:0] audio_spectrum_read_data;
+wire audio_spectrum_read_valid,audio_spectrum_active;
 wire [7:0] audio_spectrum_radius;
 wire audio_fifo_we, audio_fifo_full, audio_fifo_empty, audio_fifo_re;
 wire [31:0] audio_fifo_din, audio_fifo_dout;
@@ -711,13 +714,15 @@ always @(posedge video_clk or posedge rst_video) begin
 end
 
 // 2048 点在 48 kHz 下提供 23.4375 Hz 间隔；直接 FFT 插值显示至约 6.39 kHz。
-audio_fft_spectrum #(.FFT_POINTS(2048), .REFERENCE_MODE(1)) u_audio_fft_spectrum (
+audio_fft_spectrum #(.FFT_POINTS(2048), .REFERENCE_MODE(1),.BLOCK_BARS(1)) u_audio_fft_spectrum (
     .clk         (video_clk),
     .rst         (rst_video),
     .sample_valid(audio_valid),
     .sample_pcm  (audio_left_data),
     .frame_start (vs),
     .bars        (audio_spectrum_bars),
+    .bars_read_address(audio_spectrum_read_address),.bars_read_data(audio_spectrum_read_data),
+    .bars_read_valid(audio_spectrum_read_valid),.bars_active(audio_spectrum_active),
     .breath_radius(audio_spectrum_radius),
     .bands       (audio_spectrum_bands)
 );
@@ -737,6 +742,7 @@ audio_arc_calculate #(
 video_presentation #(
     .ENABLE_RHYTHM(1),
     .REFERENCE_SPECTRUM(1),
+    .BLOCK_BARS(1),
     .ACTIVE_WIDTH  (640),
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
@@ -756,6 +762,8 @@ video_presentation #(
     .image_select_toggle_async(image_select_toggle),
     .image_adjust_toggle_async(image_adjust_toggle),
     .spectrum_bars      (audio_spectrum_bars),
+    .spectrum_read_address(audio_spectrum_read_address),.spectrum_read_data(audio_spectrum_read_data),
+    .spectrum_read_valid(audio_spectrum_read_valid),.spectrum_active(audio_spectrum_active),
     .spectrum_radius    (audio_spectrum_radius),
     .spectrum_bands     (audio_spectrum_bands),
     .de                 (de),
