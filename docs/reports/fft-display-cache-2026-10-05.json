@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-05",
+  "status": "rejected_by_sd_timing_restored_baseline",
+  "candidate_branch": "codex/fft-display-cache-candidate",
+  "candidate_commit": "98d0b8cc194da95f060689fd4ca6faf155fca1c7",
+  "baseline_commit": "5e4a2f771c892d1f52bca1d9271b3f1674eabe0d",
+  "implementation_applied_to_main": false,
+  "baseline": {
+    "lut": 17955,
+    "reg": 11713,
+    "bram9k_with_fifo": 51,
+    "bram32k": 11,
+    "dsp": 24,
+    "sd_wns_ns": -0.156,
+    "sd_tns_ns": -2.592,
+    "video_wns_ns": 6.684
+  },
+  "candidate": {
+    "lut": 17401,
+    "reg": 10432,
+    "bram9k_with_fifo": 52,
+    "bram32k": 11,
+    "dsp": 24,
+    "sd_wns_ns": -0.173,
+    "sd_tns_ns": -5.145,
+    "video_wns_ns": 10.749
+  },
+  "delta": {
+    "lut": -554,
+    "reg": -1281,
+    "bram9k_with_fifo": 1
+  },
+  "mapping": {
+    "fft_registers": 558,
+    "cache_bram9k": 1,
+    "old_bar_registers": 0,
+    "old_level_registers": 0,
+    "source_width": 8,
+    "mapped_used_width": 6
+  },
+  "validation": {
+    "new_cases_passed": 5,
+    "compatibility_simulations_passed": 11,
+    "table_checks_passed": 2,
+    "sd_timing_gate_passed": false,
+    "video_timing_gate_passed": true,
+    "synthesis_errors": 0,
+    "baseline_warnings": 68,
+    "candidate_warnings": 70,
+    "additional_warning": "two unused RAM byte-enable pins; no new warning category"
+  },
+  "baseline_report": "prj/log/fft_display_control_syn",
+  "candidate_report": "prj/log/fft_display_cache_flags_syn",
+  "physical_implementation_run": false,
+  "bitstream_generated": false,
+  "last_prior_physical_mslice": 5300,
+  "mslice_limit": 4900
+}
