@@ -28,7 +28,7 @@ def main():
 
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
-    tests = ['tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_renderer_session_reset',
+    tests = ['tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_note_style', 'tb_rhythm_renderer_session_reset',
              'tb_rhythm_playback', 'tb_rhythm_media_freeze', 'tb_rhythm_image_guard']
     sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine',
                'rhythm_session_controller', 'rhythm_font', 'rhythm_hud', 'rhythm_game_renderer',
@@ -42,6 +42,8 @@ def main():
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)
+    run('note_style_distributed_geometry', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_note_style',
+                                           '-gBLOCK_GEOMETRY=0', '-do', 'src/test/run_pcm_audio_player.do'], True)
 
 
 if __name__ == '__main__':

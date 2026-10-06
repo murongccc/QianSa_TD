@@ -60,9 +60,13 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg [9:0] progress;
     assign view_index=index;
     assign capture_busy=(work!=IDLE) || (frame_start && enabled);
-    // 只读一个几何端口，64 拍完成下一行四轨覆盖计算，行消隐有 160 拍。
+    // 只读一个几何端口，64 拍完成下一行四轨样式计算，行消隐有 160 拍。
     reg row_busy,row_wait;reg [4:0] row_index;reg [9:0] row_y;
     reg [3:0] row_heads,row_bodies,line_heads,line_bodies;
+    // 每轨头部 {Hold,图案行[4:0]}，尾帽 {有效,图案行[1:0]}。
+    // 同轨头部重叠时保留靠近判定线的首槽，避免合并出多个白色符号。
+    reg [23:0] row_head_style,line_head_style;
+    reg [11:0] row_tail_style,line_tail_style;
     wire [21:0] row_note;
     wire geo_we=work==STORE && which_end && !frame_start && !rst;
     wire [21:0] geo_data={view_valid,view_start!=view_end,head_y,converted_y};
@@ -74,13 +78,37 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         always @(posedge clk)if(geo_we)geometry[{!front_bank,index}]<=geo_data;
         assign row_note=geometry[{front_bank,row_index}];
     end endgenerate
-    wire row_head_on=row_note[21] && row_y>=row_note[19:10] && row_y<row_note[19:10]+10'd5;
-    wire row_body_on=row_note[21] && row_note[20] && row_y>=row_note[9:0] && row_y<=row_note[19:10];
+    // 头部底边沿用原采样时间对应的 y，图案向上展开 32 行，不改变判定时刻。
+    wire [9:0] row_head_top=row_note[19:10]-10'd31;
+    wire row_head_on=row_note[21] && row_y>=row_head_top && row_y<=row_note[19:10];
+    wire row_body_on=row_note[21] && row_note[20] && row_y>=row_note[9:0] && row_y<row_head_top;
+    wire [4:0] row_head_position=row_y[4:0]-row_head_top[4:0];
+    wire [9:0] row_tail_distance=row_y-row_note[9:0];
+    wire [5:0] head_style_data={row_note[20],row_head_position};
+    wire [2:0] tail_style_data={row_tail_distance<10'd4,row_tail_distance[1:0]};
     reg [3:0] next_heads,next_bodies;
+    reg [23:0] next_head_style;reg [11:0] next_tail_style;
     always @*begin
         next_heads=row_heads;next_bodies=row_bodies;
-        if(row_head_on)next_heads[row_index[4:3]]=1'b1;
-        if(row_body_on)next_bodies[row_index[4:3]]=1'b1;
+        next_head_style=row_head_style;next_tail_style=row_tail_style;
+        if(row_head_on && !row_heads[row_index[4:3]])begin
+            next_heads[row_index[4:3]]=1'b1;
+            case(row_index[4:3])
+                0:next_head_style[5:0]=head_style_data;
+                1:next_head_style[11:6]=head_style_data;
+                2:next_head_style[17:12]=head_style_data;
+                3:next_head_style[23:18]=head_style_data;
+            endcase
+        end
+        if(row_body_on && !row_bodies[row_index[4:3]])begin
+            next_bodies[row_index[4:3]]=1'b1;
+            case(row_index[4:3])
+                0:next_tail_style[2:0]=tail_style_data;
+                1:next_tail_style[5:3]=tail_style_data;
+                2:next_tail_style[8:6]=tail_style_data;
+                3:next_tail_style[11:9]=tail_style_data;
+            endcase
+        end
     end
     reg [1:0] track;reg in_track;
     reg [9:0] track_left;
@@ -91,6 +119,42 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         else if(px>=10'd208)begin track=1;track_left=208;end
     end
     wire [9:0] local_x=px-track_left;
+    reg [5:0] active_head_style;reg [2:0] active_tail_style;
+    reg [23:0] note_color,body_color;
+    always @*begin
+        active_head_style=0;active_tail_style=0;note_color=24'hffcf28;body_color=24'h997b18;
+        case(track)
+            0:begin active_head_style=line_head_style[5:0];active_tail_style=line_tail_style[2:0];end
+            1:begin active_head_style=line_head_style[11:6];active_tail_style=line_tail_style[5:3];note_color=24'hff7900;body_color=24'h994900;end
+            2:begin active_head_style=line_head_style[17:12];active_tail_style=line_tail_style[8:6];note_color=24'hed2166;body_color=24'h8e143d;end
+            3:begin active_head_style=line_head_style[23:18];active_tail_style=line_tail_style[11:9];note_color=24'hce3cf0;body_color=24'h7c2490;end
+        endcase
+    end
+    // 76 像素宽，四像素阶梯圆角；仅小位宽比较，不添加图案 RAM 或乘法器。
+    reg [2:0] head_inset,tail_inset;
+    always @*begin
+        head_inset=0;tail_inset=0;
+        case(active_head_style[4:0])
+            0,31:head_inset=4;
+            1,30:head_inset=2;
+            2,3,28,29:head_inset=1;
+            default:;
+        endcase
+        if(active_tail_style[2])case(active_tail_style[1:0])
+            0:tail_inset=4;
+            1:tail_inset=2;
+            default:tail_inset=1;
+        endcase
+    end
+    wire head_fill=local_x>=10'd18+{7'd0,head_inset} && local_x<10'd94-{7'd0,head_inset};
+    wire body_fill=local_x>=10'd18+{7'd0,tail_inset} && local_x<10'd94-{7'd0,tail_inset};
+    wire [9:0] mark_distance=local_x<10'd56 ? 10'd56-local_x : local_x-10'd56;
+    wire [4:0] arrow_top=5'd17-{1'b0,mark_distance[4:1]};
+    wire arrow_mark=mark_distance<=10'd12 && active_head_style[4:0]>=arrow_top && active_head_style[4:0]<arrow_top+5'd3;
+    wire dash_mark=(active_head_style[4:0]==5'd13 || active_head_style[4:0]==5'd16) ?
+        (local_x>=10'd45 && local_x<10'd67) :
+        ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=10'd44 && local_x<10'd68);
+    wire head_white=active_head_style[4:0]>=5'd28 || (active_head_style[5] ? dash_mark : arrow_mark);
     reg overlay;reg [23:0] color;
     wire [7:0] character;wire [9:0] rel_x,rel_y;wire text_area;
     reg base_pixel_on,text_area_d;reg [23:0] base_pixel_rgb;
@@ -111,8 +175,10 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))overlay=1;
         if(in_track && y>=64 && y<409)begin
             if(local_x==0)begin overlay=1;color=24'h303a50;end
-            if(line_bodies[track] && local_x>=48 && local_x<64)begin overlay=1;color=24'h276c9c;end
-            if(line_heads[track] && local_x>=8 && local_x<104)begin overlay=1;color=24'h72dbff;end
+            if(line_bodies[track] && body_fill)begin
+                overlay=1;color=active_tail_style[2] ? note_color : body_color;
+            end
+            if(line_heads[track] && head_fill)begin overlay=1;color=head_white ? 24'hffffff : note_color;end
             if(y==384 || y==385)begin overlay=1;color=24'hffffff;end
         end
         if(!BLOCK_HUD && text_area && glyph_col<5 && glyph_row<7 && glyph_bits[3'd4-glyph_col])begin overlay=1;color=24'hffffff;end
@@ -123,6 +189,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             work<=IDLE;index<=0;copy_wait<=0;hold_snapshot<=0;time_snapshot<=0;frames_snapshot<=0;
             which_end<=0;negative<=0;head_y<=0;front_bank<=0;dividend<=0;quotient<=0;remainder<=0;progress_remaining<=0;left<=0;progress<=0;
             row_busy<=0;row_wait<=0;row_index<=0;row_y<=0;row_heads<=0;row_bodies<=0;line_heads<=0;line_bodies<=0;
+            row_head_style<=0;line_head_style<=0;row_tail_style<=0;line_tail_style<=0;
         end else begin
             vs_d<=vs;de_d<=de;
             if(!vs)vs_seen_low<=1'b1;
@@ -131,7 +198,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             base_pixel_on<=frame_enabled && de && overlay;base_pixel_rgb<=color;
             text_area_d<=frame_enabled && de && text_area;glyph_col_d<=rel_x[3:1];glyph_row_d<=rel_y[3:1];
             if(frame_start)begin
-                y<=0;frame_enabled<=enabled;line_heads<=0;line_bodies<=0;row_busy<=0;
+                y<=0;frame_enabled<=enabled;line_heads<=0;line_bodies<=0;line_head_style<=0;line_tail_style<=0;row_busy<=0;
                 if(enabled)begin
                     work<=COPY;index<=0;copy_wait<=4'd11;which_end<=0;hold_snapshot<=holding_mask;time_snapshot<=song_time;frames_snapshot<=song_frames;
                 end
@@ -156,15 +223,17 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                         if(progress_remaining>={9'd0,frames_snapshot} && progress<10'd448 && frames_snapshot!=0)begin
                             progress_remaining<=progress_remaining-{9'd0,frames_snapshot};progress<=progress+10'd1;
                         end else begin front_bank<=!front_bank;work<=IDLE;
-                            row_busy<=1;row_wait<=1;row_index<=0;row_y<=y;row_heads<=0;row_bodies<=0;end
+                            row_busy<=1;row_wait<=1;row_index<=0;row_y<=y;row_heads<=0;row_bodies<=0;row_head_style<=0;row_tail_style<=0;end
                     end
                     default:work<=IDLE;
                 endcase
-                if(line_end)begin row_busy<=1;row_wait<=1;row_index<=0;row_y<=y+10'd1;row_heads<=0;row_bodies<=0;end
+                if(line_end)begin row_busy<=1;row_wait<=1;row_index<=0;row_y<=y+10'd1;row_heads<=0;row_bodies<=0;row_head_style<=0;row_tail_style<=0;end
                 else if(row_busy && row_wait)row_wait<=0;
                 else if(row_busy)begin
-                    row_wait<=1;row_heads<=next_heads;row_bodies<=next_bodies;
-                    if(row_index==31)begin row_busy<=0;line_heads<=next_heads;line_bodies<=next_bodies;end else row_index<=row_index+5'd1;
+                    row_wait<=1;row_heads<=next_heads;row_bodies<=next_bodies;row_head_style<=next_head_style;row_tail_style<=next_tail_style;
+                    if(row_index==31)begin
+                        row_busy<=0;line_heads<=next_heads;line_bodies<=next_bodies;line_head_style<=next_head_style;line_tail_style<=next_tail_style;
+                    end else row_index<=row_index+5'd1;
                 end
             end
         end

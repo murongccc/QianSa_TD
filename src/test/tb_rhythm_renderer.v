@@ -44,8 +44,9 @@ module tb_rhythm_renderer;
         $fwrite(file_id,"%c%c%c",rgb[23:16],rgb[15:8],rgb[7:0]);pixels=pixels+1;
         if(x2==24 && y2==448 && rgb!==24'hffffff)$fatal(1,"title font first pixel/latency %h",rgb);
         if(x2==516 && y2==12 && rgb!==24'hffffff)$fatal(1,"score font first digit/latency %h",rgb);
-        if(x2==136 && y2==304 && rgb!==24'h72dbff)$fatal(1,"Tap y/latency %h",rgb);
-        if(x2==264 && y2==250 && rgb!==24'h276c9c && state!=10)$fatal(1,"Hold body %h",rgb);
+        if(x2==136 && y2==290 && rgb!==24'hffcf28)$fatal(1,"Tap body/latency %h",rgb);
+        if(x2==136 && y2==304 && rgb!==24'hffffff)$fatal(1,"Tap bottom timing/latency %h",rgb);
+        if(x2==264 && y2==250 && rgb!==24'h994900 && state!=10)$fatal(1,"Hold body %h",rgb);
         if(x2==400 && y2==384 && rgb!==24'hffffff)$fatal(1,"judge line %h",rgb);
         if(x2==500 && y2==300 && rgb!==(display ? 24'h302418 : 24'h000000))$fatal(1,"dim/fallback %h",rgb);
     end
