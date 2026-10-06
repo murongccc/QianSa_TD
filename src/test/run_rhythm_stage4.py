@@ -28,15 +28,17 @@ def main():
 
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
-    tests = ['tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_playback', 'tb_rhythm_media_freeze', 'tb_rhythm_image_guard']
+    tests = ['tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_renderer_session_reset',
+             'tb_rhythm_playback', 'tb_rhythm_media_freeze', 'tb_rhythm_image_guard']
     sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine',
                'rhythm_session_controller', 'rhythm_font', 'rhythm_hud', 'rhythm_game_renderer',
                'pcm_audio_player', 'ring_spectrum_renderer', 'video_presentation',
                'image_controls', 'media_session_controller', 'fat32_chart_reader',
                'rhythm_chart_buffer', 'fat32_wav_reader', 'sd_sector_arbiter',
                'rhythm_sd_resources', 'domain_reset_sync', 'fat32_bmp_catalog', 'sd_media_pipeline']
-    run('compile', [binaries['vlog'], '-work', library,
-                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
+    run('compile', [binaries['vlog'], '-work', library, '+incdir+src/SD',
+                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v',
+                    'src/SD/color_bar.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)

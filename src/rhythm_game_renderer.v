@@ -11,8 +11,10 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     input wire [3:0] holding_mask,output wire capture_busy,
     output reg frame_enabled,output wire pixel_on,output wire [23:0] pixel_rgb
 );
-    reg vs_d,de_d;reg [9:0] x,y;
-    wire frame_start=vs && !vs_d;
+    reg vs_d,de_d,vs_seen_low;reg [9:0] x,y;
+    // 会话清理不复位板级扫描。VS 持续为高时解除复位不能伪造帧边界；
+    // 先观察一次低电平，再接受真实上升沿，期间保持游戏图层关闭。
+    wire frame_start=vs_seen_low && vs && !vs_d;
     wire line_start=de && !de_d,line_end=!de && de_d;
     wire [9:0] px=line_start ? 10'd0 : x;
     reg [2:0] work;
@@ -117,12 +119,13 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     end
     always @(posedge clk or posedge rst)begin
         if(rst)begin
-            vs_d<=0;de_d<=0;x<=0;y<=0;frame_enabled<=0;base_pixel_on<=0;base_pixel_rgb<=0;text_area_d<=0;glyph_col_d<=0;glyph_row_d<=0;
+            vs_d<=0;de_d<=0;vs_seen_low<=0;x<=0;y<=0;frame_enabled<=0;base_pixel_on<=0;base_pixel_rgb<=0;text_area_d<=0;glyph_col_d<=0;glyph_row_d<=0;
             work<=IDLE;index<=0;copy_wait<=0;hold_snapshot<=0;time_snapshot<=0;frames_snapshot<=0;
             which_end<=0;negative<=0;head_y<=0;front_bank<=0;dividend<=0;quotient<=0;remainder<=0;progress_remaining<=0;left<=0;progress<=0;
             row_busy<=0;row_wait<=0;row_index<=0;row_y<=0;row_heads<=0;row_bodies<=0;line_heads<=0;line_bodies<=0;
         end else begin
             vs_d<=vs;de_d<=de;
+            if(!vs)vs_seen_low<=1'b1;
             if(line_start)x<=1;else if(de)x<=x+10'd1;
             if(line_end && y<479)y<=y+10'd1;
             base_pixel_on<=frame_enabled && de && overlay;base_pixel_rgb<=color;
