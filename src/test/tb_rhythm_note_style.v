@@ -110,7 +110,9 @@ module tb_rhythm_note_style;
         valid[1]=1;bottom[1]=150;tail[1]=150;
         valid[2]=1;bottom[2]=64;tail[2]=64;
         valid[8]=1;is_hold[8]=1;bottom[8]=340;tail[8]=140;
-        valid[9]=1;bottom[9]=90;tail[9]=90;
+        // Tap 恰好位于同轨 Hold 尾部，验证共用描述时圆角仍逐像素一致。
+        valid[9]=1;bottom[9]=140;tail[9]=140;
+        valid[10]=1;bottom[10]=90;tail[10]=90;
         valid[16]=1;bottom[16]=260;tail[16]=260;
         valid[17]=1;bottom[17]=244;tail[17]=244;
         valid[18]=1;bottom[18]=115;tail[18]=115;

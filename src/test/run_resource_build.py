@@ -49,12 +49,18 @@ def main():
         if not re.fullmatch(r'[a-zA-Z0-9_-]+', args.parent):
             parser.error('parent must be a simple directory name')
         settings = re.sub(r'(?m)^set parent .*', f'set parent ../{args.parent}', settings)
+        # GUI 可能停在仅布线/续跑阶段；独立目录必须从新网表重新布局。
+        settings = re.sub(r'(?m)^set start_step .*', 'set start_step opt_place', settings)
         settings = re.sub(r'(?m)^set end_step .*', 'set end_step opt_route', settings)
     else:
+        # 不继承 GUI 的中间综合步骤，避免导入独立目录中不存在的旧数据库。
+        settings = re.sub(r'(?m)^set start_step .*', 'set start_step read_design', settings)
         settings = re.sub(r'(?m)^set end_step .*', 'set end_step opt_gate', settings)
     (dest/'settings.cfg').write_text(settings)
     # 默认流程自行载入工程文件，保持 GUI 的源集、IP 和默认参数。
-    (dest/'run.tcl').write_text('source SD_to_Video.tcl\nexit\n')
+    # TD 在 source 失败后可能留在交互提示符，必须捕获后显式退出，避免脚本挂起。
+    (dest/'run.tcl').write_text('if {[catch {source SD_to_Video.tcl} task_build_error]} {\n'
+                              '    puts stderr $task_build_error\n    exit 1\n}\nexit\n')
     report = dest/f'SD_to_Video_{kind if args.route else "gate"}.area'
     marker = dest/('.opt_route.end.f' if args.route else '.opt_gate.end.f')
     # OEM Tcl 错误有时仍返回零；必须确认报告和完成标志来自本次运行。
