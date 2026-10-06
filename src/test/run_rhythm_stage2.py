@@ -31,7 +31,7 @@ def main():
         run('library', [binaries['vlib'], library])
     tests = ['tb_chart_volume_validation', 'tb_rhythm_sd_resources', 'tb_rhythm_pcm_clock', 'tb_rhythm_arbiter', 'tb_pcm_audio_player',
              'tb_wav_canonical_headers', 'tb_fat32_wav_reader', 'tb_fat32_wav_reader_direct_volume',
-             'tb_wav_reader_resource_opt', 'tb_sd_sector_arbiter']
+             'tb_wav_reader_resource_opt', 'tb_wav_calc_cancel', 'tb_sd_sector_arbiter', 'tb_sd_speed_parameter', 'tb_sd_game_spi']
     if args.real_chart.exists():
         data = args.real_chart.read_bytes()
         if len(data) != 3368 or data[:4] != b'R4B1':
@@ -46,12 +46,22 @@ def main():
     sources = ['rhythm_block_ram', 'pcm_audio_player', 'fat32_wav_reader', 'fat32_chart_reader', 'rhythm_chart_buffer',
                'sd_sector_arbiter', 'rhythm_sd_resources']
     run('compile', [binaries['vlog'], '-work', library,
-                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
+                    'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/SD/spi_master.v', 'src/SD/sd_card_cmd.v',
+                    'src/SD/sd_card_sec_read_write.v', 'src/SD/sd_card_top.v',
+                    *[f'src/{name}.v' for name in sources], *[f'src/test/{name}.v' for name in tests]])
     for test in tests:
         run(test, [binaries['vsim'], '-c', '-lib', library, test,
                    '-do', 'src/test/run_pcm_audio_player.do'], True)
     run('wav_shared_volume', [binaries['vsim'], '-c', '-lib', library, 'tb_fat32_wav_reader',
                              '-gUSE_SHARED_VOLUME=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
+    for name, parameters in [('spi_delay19', ['-gWAV_RETURN_DELAY_NS=19']),
+                             ('spi_delay20_e8h', ['-gWAV_RETURN_DELAY_NS=20', '-gEXPECT_E8=1']),
+                             ('spi_slow_delay25', ['-gHIGH_SPEED_DIV=2', '-gWAV_RETURN_DELAY_NS=25'])]:
+        run(name, [binaries['vsim'], '-c', '-lib', library, 'tb_sd_game_spi', *parameters,
+                   '-do', 'src/test/run_pcm_audio_player.do'], True)
+    if (root / 'prj/log/rhythm_e8_diagnosis_20261006/card_startup.hex').exists():
+        run('spi_actual_card', [binaries['vsim'], '-c', '-lib', library, 'tb_sd_game_spi',
+                               '-gUSE_REAL_CARD=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
     if 'tb_rhythm_real_chart' in tests:
         run('chart_last_fat_byte', [binaries['vsim'], '-c', '-lib', library, 'tb_rhythm_real_chart',
                                   '-gFAT_EDGE=1', '-do', 'src/test/run_pcm_audio_player.do'], True)

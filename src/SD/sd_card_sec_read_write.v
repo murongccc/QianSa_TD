@@ -184,7 +184,7 @@ begin
 					sec_addr <= sd_sec_read_addr;
 				end
 
-				spi_clk_div <= 16'd0;
+				spi_clk_div <= SPI_HIGH_SPEED_DIV[15:0];
 			end
 			S_CMD24:
 			begin

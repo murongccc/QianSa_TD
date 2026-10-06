@@ -3,7 +3,7 @@ module tb_rhythm_renderer;
     reg clk=0;always #20 clk=~clk;
     reg rst=1,de=0,vs=0,enabled=1,display=1;
     reg signed [32:0] song_time=33'sd48000;reg [31:0] song_frames=32'd192000;
-    reg [3:0] state=6;wire [4:0] vi;
+    reg [3:0] state=6,error_code=7;wire [4:0] vi;
     reg vv;reg [31:0] start,finish;
     wire capture,frame_active,on;wire [23:0] color,rgb;
     wire [9:0] observed_progress=renderer.progress;
@@ -11,7 +11,7 @@ module tb_rhythm_renderer;
     always @(posedge clk)meta_data<=meta_memory[meta_address];
     reg [191:0] title=0;reg [127:0] difficulty=0;
     rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(.metadata_valid(1'b1),.metadata_data(meta_data),.metadata_address(meta_address),.clk(clk),.rst(rst),.enabled(enabled),.de(de),.vs(vs),.song_time(song_time),.song_frames(song_frames),
-        .state(state),.error_code(4'd7),.auto_mode(1'b1),.score(20'd1000000),.combo(16'd413),.max_combo(16'd413),
+        .state(state),.error_code(error_code),.auto_mode(1'b1),.score(20'd1000000),.combo(16'd413),.max_combo(16'd413),
         .perfect_count(16'd413),.good_count(16'd0),.bad_count(16'd0),.miss_count(16'd0),.title(title),.difficulty(difficulty),
         .view_index(vi),.view_valid(vv),.view_start(start),.view_end(finish),.holding_mask(4'd0),.capture_busy(capture),
         .frame_enabled(frame_active),.pixel_on(on),.pixel_rgb(color));
@@ -20,7 +20,7 @@ module tb_rhythm_renderer;
         .brightness_level_async(3'd4),.image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
         .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
         .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd100),
-        .game_active(frame_active),.game_pixel_on(on),.game_pixel_rgb(color),.de(de),.vs(vs),.rgb_in(24'hc09060),.rgb_out(rgb));
+        .game_active(enabled),.game_pixel_on(on),.game_pixel_rgb(color),.de(de),.vs(vs),.rgb_in(24'hc09060),.rgb_out(rgb));
     always @*begin
         vv=1;start=0;finish=0;
         case(vi)
@@ -72,6 +72,15 @@ module tb_rhythm_renderer;
             if(capture || observed_progress!=expected_progress)$fatal(1,"DSP progress high-word/negative boundary %0d",observed_progress);
         end
     endtask
+    task error_case;
+        input [3:0] code;input [7:0] digit,suffix;
+        begin
+            @(negedge clk);state=11;error_code=code;vs=1;
+            @(negedge clk);vs=0;repeat(4000)@(negedge clk);
+            if(hud_written[128]!="E" || hud_written[129]!==digit || hud_written[130]!==suffix)
+                $fatal(1,"error HUD code=%0d chars=%h/%h",code,hud_written[129],hud_written[130]);
+        end
+    endtask
     initial begin
         title[87:0]="ENIHS EVARB";difficulty[103:0]="LAMRON S'LLED";
         for(xx=0;xx<24;xx=xx+1)meta_memory[xx]=title[xx*8 +:8];
@@ -82,6 +91,8 @@ module tb_rhythm_renderer;
         progress_case(33'sd1048576,32'd4194304,10'd112);
         progress_case(-33'sd96000,32'd4194304,10'd0);
         progress_case(33'sd2147483648,32'hffffffff,10'd224);
+        error_case(4'd11,"8","H");error_case(4'd12,"8","L");error_case(4'd13,"8","F");error_case(4'd14,"8","M");
+        error_case(4'd8,"8"," ");error_case(4'd10,"A"," ");
         $display("PASS renderer geometry, HUD, line masks, two-cycle RGB and black fallback");$finish;
     end
     initial begin #100000000;$fatal(1,"renderer timeout");end

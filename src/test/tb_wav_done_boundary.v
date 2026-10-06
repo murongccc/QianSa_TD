@@ -7,7 +7,7 @@ always #5 clk=~clk;
 fat32_wav_reader #(.ENABLE_GAME(1),.USE_SHARED_VOLUME(1)) dut(
  .clk(clk),.rst(rst),.sd_init_done(1'b0),.enable(1'b0),.sd_sec_read(),.sd_sec_read_addr(),
  .sd_data(data),.sd_data_valid(valid),.sd_sec_read_end(done),.fifo_we(),.fifo_din(),.fifo_full(1'b0),
- .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(),.done(),.file_found(),.format_ok(),.format_error(),
+ .audio_read_toggle(1'b0),.audio_fifo_level(),.busy(),.done(),.file_found(),.format_ok(),.format_error(),.format_error_detail(),
  .volume_valid(1'b0),.volume_fat_start(32'd0),.volume_data_start(32'd0),.volume_root_cluster(32'd0),
  .volume_sectors_per_cluster(8'd0),.game_mode(1'b1),.cancel(1'b0),.song_frames(),.song_frames_valid(),
  .stream_eof(),.cancelled());

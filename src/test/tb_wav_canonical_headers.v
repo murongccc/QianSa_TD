@@ -7,6 +7,7 @@ reg [31:0] volume_root_cluster=2;
 reg [7:0] volume_spc=1;
 wire read_request,fifo_we,format_ok,format_error,done,stream_eof,frames_valid;
 wire [31:0] read_address,fifo_data,song_frames;
+wire [2:0] format_detail;
 integer vector_index,byte_index,writes,mode,field_index,checks=0;
 reg [31:0] file_length;
 integer bad_field=-1;
@@ -18,7 +19,7 @@ fat32_wav_reader #(.USE_SHARED_VOLUME(1),.ENABLE_GAME(1)) dut(
     .sd_sec_read(read_request),.sd_sec_read_addr(read_address),
     .sd_data(sd_data),.sd_data_valid(sd_valid),.sd_sec_read_end(sd_end),
     .fifo_we(fifo_we),.fifo_din(fifo_data),.fifo_full(1'b0),.audio_read_toggle(1'b0),
-    .audio_fifo_level(),.busy(),.done(done),.file_found(),.format_ok(format_ok),.format_error(format_error),
+    .audio_fifo_level(),.busy(),.done(done),.file_found(),.format_ok(format_ok),.format_error(format_error),.format_error_detail(format_detail),
     .volume_valid(volume_valid),.volume_fat_start(32'd100),.volume_data_start(32'd200),
     .volume_root_cluster(volume_root_cluster),.volume_sectors_per_cluster(volume_spc));
 always @(posedge clk) if(!rst)begin
@@ -74,7 +75,7 @@ task send_sector;
                 case(byte_index)
                     0:sd_data="G";1:sd_data="A";2:sd_data="M";3:sd_data="E";
                     4,5,6,7:sd_data=" ";8:sd_data="W";9:sd_data="A";10:sd_data="V";
-                    26:sd_data=3;
+                    26:sd_data=vector_index==17 ? 0 : 3;
                     default: ;
                 endcase
                 if(byte_index>=28 && byte_index<=31)sd_data=file_length>>((byte_index-28)*8);
@@ -113,13 +114,13 @@ task run_vector;
         @(negedge clk);rst=1;sd_valid=0;sd_end=0;writes=0;saw_format=0;
         repeat(3)@(negedge clk);rst=0;
         send_sector(200);
-        if(which!=12)send_sector(201);
+        if(which!=12 && which!=17)send_sector(201);
         if(which==2 || which==3)begin
             send_sector(100);
             if(which==2)send_sector(202);
         end
         repeat(6)@(negedge clk);
-        if((which<=2 || which>=15) && bad_field<0)begin
+        if((which<=2 || which==15 || which==16) && bad_field<0)begin
             if(format_error || writes!=((which>=15)?117:(file_length-44)/4) || !saw_format)
                 $fatal(1,"valid WAV mode=%0d vector=%0d writes=%0d",mode,which,writes);
             if(game_mode && (!frames_valid || song_frames!=(file_length-44)/4))
@@ -132,6 +133,10 @@ task run_vector;
                 if(writes!=2 || format_error)$fatal(1,"media loop did not revalidate/replay WAV");
             end
         end else begin
+            if(format_detail!==((which==12 || which==17) ? 3'd4 : which==3 ? 3'd3 :
+                bad_field>=0 ? (((bad_field>=4 && bad_field<=7) || bad_field>=40) ? 3'd2 : 3'd1) :
+                (which==4 || which==5 || which==14) ? 3'd1 : 3'd2))
+                $fatal(1,"wrong WAV detail mode=%0d vector=%0d field=%0d detail=%0d",mode,which,bad_field,format_detail);
             if(!format_error || read_request || (which!=3 && writes!=0))
                 $fatal(1,"bad WAV mode=%0d vector=%0d field=%0d emitted=%0d",mode,which,bad_field,writes);
             if(which==3 && writes!=117)$fatal(1,"truncated chain changed valid prefix");
@@ -145,7 +150,7 @@ endtask
 initial begin
     for(mode=0;mode<2;mode=mode+1)begin
         game_mode=mode;
-        for(vector_index=0;vector_index<17;vector_index=vector_index+1)run_vector(vector_index);
+        for(vector_index=0;vector_index<18;vector_index=vector_index+1)run_vector(vector_index);
         // 44 个头字节各自独立注入错误，包括两个长度的全部高位。
         for(field_index=0;field_index<44;field_index=field_index+1)begin
             bad_field=field_index;run_vector(0);

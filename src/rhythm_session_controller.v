@@ -35,7 +35,7 @@ module rhythm_session_controller #(
     audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS),.RESET_LEVEL(1)) key4(clk,rst,mode_key_n,k4_level,k4);
     reg keys_armed;
     reg [4:0] flags_meta,flags_sync;
-    reg [3:0] err_meta,err_sync;
+    reg [3:0] err_meta,err_sync,err_previous;
     reg [31:0] frames_meta,frames_sync,level_meta,level_sync;
     reg [15:0] notes_meta,notes_sync;
     reg signed [31:0] offset_meta,offset_sync;
@@ -63,13 +63,13 @@ module rhythm_session_controller #(
     assign player_mode=(state==PLAY) ? 2'd1 : ((state==STOP || state==RETIRE || state==CLEAR) ? 2'd0 : 2'd2);
     always @(posedge clk or posedge rst)begin
         if(rst)begin
-            flags_meta<=0;flags_sync<=0;err_meta<=0;err_sync<=0;
+            flags_meta<=0;flags_sync<=0;err_meta<=0;err_sync<=0;err_previous<=0;
             frames_meta<=0;frames_sync<=0;level_meta<=0;level_sync<=0;notes_meta<=0;notes_sync<=0;offset_meta<=0;offset_sync<=0;
             state<=RETIRE;active_game<=0;auto_mode<=1;keys_armed<=0;guard<=0;phase<=0;pre_count<=0;tail_count<=0;
             song_time<=0;song_frames<=0;total_notes<=0;chart_offset<=0;error_code<=0;paused_state<=PLAY;
         end else begin
             flags_meta<={media_quiet_async,resources_ready_async,cancelled_async,audio_eof_async,chart_eof_async};flags_sync<=flags_meta;
-            err_meta<=error_async;err_sync<=err_meta;frames_meta<=frames_async;frames_sync<=frames_meta;
+            err_meta<=error_async;err_sync<=err_meta;err_previous<=err_sync;frames_meta<=frames_async;frames_sync<=frames_meta;
             level_meta<=fifo_level_async;level_sync<=level_meta;notes_meta<=notes_async;notes_sync<=notes_meta;
             offset_meta<=offset_async;offset_sync<=offset_meta;
             phase<=soft_tick ? phase_sum-CLOCK_RATE : phase_sum[PHASE_BITS-1:0];
@@ -81,7 +81,8 @@ module rhythm_session_controller #(
             if(state!=RETIRE && state!=CLEAR && (want_game!=active_game ||
                 (!want_run && state!=STOP) || (active_game && keys_armed && (k2 || (k4 && state!=STOP)))))begin
                 state<=RETIRE;guard<=0;
-            end else if(active_game && state>=LOAD && state!=ERROR && (err_sync!=0 || queue_overflow))begin
+            // 错误码保持型跨域，连续两次一致后消费，避免多位子原因更新时锁存中间值。
+            end else if(active_game && state>=LOAD && state!=ERROR && ((err_sync!=0 && err_sync==err_previous) || queue_overflow))begin
                 state<=ERROR;error_code<=queue_overflow ? 4'd10 : err_sync;
             end else case(state)
                 RETIRE:if(cancelled && quiet)begin state<=CLEAR;guard<=0;active_game<=want_game;end

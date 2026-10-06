@@ -283,6 +283,8 @@ reg [23:0] adjusted_rgb_stage;
 reg base_valid_stage;
 reg param_osd_stage;
 reg game_stage;
+// 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
+reg game_frame_mode;
 wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
 
 always @(posedge clk or posedge rst) begin
@@ -307,7 +309,7 @@ always @(posedge clk or posedge rst) begin
         osd_count <= 27'd0;
         adjusted_rgb_stage <= 24'd0;
         base_valid_stage <= 1'b0;
-        param_osd_stage <= 1'b0;game_stage<=0;
+        param_osd_stage <= 1'b0;game_stage<=0;game_frame_mode<=0;
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
@@ -337,6 +339,7 @@ always @(posedge clk or posedge rst) begin
         end
         vs_d <= vs; de_d <= de;
         if (frame_start) begin
+            game_frame_mode<=ENABLE_RHYTHM && game_active;
             pixel_y <= 10'd0;
             // 首槽已在帧边界选定后，display_valid 才从 SD 域返回。先让
             // SDRAM 读通路和 FIFO 经过完整帧预热，避免在该帧中途放开 RGB；
@@ -374,7 +377,7 @@ always @(posedge clk or posedge rst) begin
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
-        param_osd_stage <= param_osd_pixel;game_stage<=ENABLE_RHYTHM && game_active;
+        param_osd_stage <= param_osd_pixel;game_stage<=game_frame_mode;
 
         // 第二级：参数 OSD/频谱优先于处理后的底图。
         if(game_stage)rgb_out<=game_pixel_on ? game_pixel_rgb : (base_valid_stage ? dimmed_rgb : 24'd0);

@@ -210,7 +210,7 @@ fat32_wav_reader #(.USE_SHARED_VOLUME(1)) u_sd_audio_reader(
     .fifo_full(audio_fifo_full), .audio_read_toggle(audio_read_toggle),
     .audio_fifo_level(audio_fifo_level),
     .busy(audio_busy), .done(audio_done), .file_found(audio_file_found), .format_ok(audio_format_ok),
-    .format_error(audio_format_error),
+    .format_error(audio_format_error),.format_error_detail(),
     .volume_valid(catalog_volume_valid), .volume_fat_start(catalog_fat_start),
     .volume_data_start(catalog_data_start), .volume_root_cluster(catalog_root_cluster),
     .volume_sectors_per_cluster(catalog_sectors_per_cluster)

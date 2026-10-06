@@ -16,6 +16,8 @@ module fat32_wav_reader #(
  output wire [31:0] audio_fifo_level,
  output reg busy,output reg done,output reg file_found,output reg format_ok,
  output reg format_error,
+ // 保持至复位/下一次头部：1=固定头字段，2=长度，3=截断/链，4=目录元数据。
+ output reg [2:0] format_error_detail,
  // 板级复用已验证的卷；独立使用时默认保留原 MBR/BPB 解析接口。
  input wire volume_valid,
  input wire [31:0] volume_fat_start,volume_data_start,volume_root_cluster,
@@ -26,7 +28,7 @@ module fat32_wav_reader #(
  output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20,CALC_PRODUCT=21;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20,CALC_PRODUCT=21,CALC_ADD=22;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -51,6 +53,7 @@ module fat32_wav_reader #(
  reg [1:0] calc_action;
  reg [31:0] cluster_product;
  reg [2:0] multiply_bit;
+ reg multiply_selected;
  reg [15:0] reserved; reg [7:0] spc,fats,sector_in_cluster;
  reg [FIFO_LEVEL_WIDTH-1:0] fifo_level; reg read_meta,read_sync,read_seen;
  reg [1:0] pcm_index; reg [7:0] p0,p1,p2;
@@ -116,8 +119,9 @@ module fat32_wav_reader #(
  // 43 是当前输入的长度高字节，仍须检查当前值；其余字段已累计到错误标志。
  wire canonical_header_valid=!base_header_error && expected_length[1:0]==2'b00 &&
                              sd_data==expected_length[31:24];
- // 八轮乘法（含任意 8 位 spc）显式共用一个加法器。
- wire [31:0] multiply_sum=cluster_product+(spc[multiply_bit]?cluster_offset:32'd0);
+ // 每位先锁存选择，再累加；切断变化索引经八选一到高扇出累加控制的路径。
+ // 十六拍保留任意八位 spc 的完整乘积，地址请求只在计算完成后发出。
+ wire [31:0] multiply_sum=cluster_product+(multiply_selected?cluster_offset:32'd0);
  wire read_event=read_sync!=read_seen;
  // 同一个加法器实现 +1/-1；减一用计数位宽内的全一补码。
  wire [FIFO_LEVEL_WIDTH-1:0] fifo_count_delta={{(FIFO_LEVEL_WIDTH-1){!fifo_we}},1'b1};
@@ -149,7 +153,8 @@ module fat32_wav_reader #(
    mbr_entry_is_fat<=0;mbr_found_partition<=0;mbr_writing_lba<=0;
    first_cluster<=0;first_sector<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;fat_next<=0;sector_in_cluster<=0;
    pcm_index<=0;p0<=0;p1<=0;p2<=0;
-   header_pos<=0;cluster_product<=0;multiply_bit<=0;
+   header_pos<=0;cluster_product<=0;multiply_bit<=0;multiply_selected<=0;
+   format_error_detail<=3'd0;
    format_error_pending<=0;
    entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
    base_header_error<=0;
@@ -301,7 +306,7 @@ module fat32_wav_reader #(
      cluster<=first_cluster & 32'h0fffffff;first_cluster<=first_cluster & 32'h0fffffff;
      // 最小有效文件包含 44 字节头和一个完整的 4 字节立体声采样帧。
      if((first_cluster & 32'h0fffffff)<32'd2 || (first_cluster & 32'h0fffffff)>=32'h0ffffff0 || file_size<32'd48)begin
-      format_error<=1;busy<=0;done<=1;state<=HOLD;
+      format_error<=1;format_error_detail<=3'd4;busy<=0;done<=1;state<=HOLD;
      end
     end
     WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
@@ -311,6 +316,8 @@ module fat32_wav_reader #(
       if(sd_data_valid && header_pos==6'd43)begin
        format_ok<=canonical_header_valid;
        format_error<=!canonical_header_valid;
+       // 前面字段已记录首个错误；末字节/非整帧长度在这一拍补充原因。
+       if(!canonical_header_valid && !base_header_error)format_error_detail<=3'd2;
        // 错误后仍排空已接受的整扇区，再释放仲裁器；期间不发布 PCM。
        format_error_pending<=!canonical_header_valid;
        if(game_session && canonical_header_valid)begin
@@ -321,8 +328,13 @@ module fat32_wav_reader #(
        file_pos<=file_pos+1;
        if(header_pos<44)begin
         // 固定字段与两个完整 32 位长度都逐字节校验，不保存输入图头。
-        if(header_pos==0) base_header_error<=header_byte_invalid(header_pos,sd_data);
-        else if(header_byte_invalid(header_pos,sd_data)) base_header_error<=1'b1;
+        if(header_pos==0)begin
+         base_header_error<=header_byte_invalid(header_pos,sd_data);
+         format_error_detail<=header_byte_invalid(header_pos,sd_data) ? 3'd1 : 3'd0;
+        end else if(header_byte_invalid(header_pos,sd_data))begin
+         base_header_error<=1'b1;
+         if(!base_header_error)format_error_detail<=((header_pos>=6'd4 && header_pos<=6'd7) || header_pos>=6'd40) ? 3'd2 : 3'd1;
+        end
         header_pos<=header_pos+1;
         // RIFF 长度已经校验完，复用同一寄存器计算 data 长度。
         if(header_pos==6'd8)expected_length<=file_size-32'd44;
@@ -349,7 +361,7 @@ module fat32_wav_reader #(
        header_pos<=0;pcm_index<=0;format_error_pending<=0;done<=1;expected_length<=file_size-32'd8;
        if(!format_ok || pcm_index!=2'd0 ||
           (game_session && !song_frames_valid))begin
-        busy<=0;format_ok<=0;format_error<=1;state<=HOLD;
+        busy<=0;format_ok<=0;format_error<=1;format_error_detail<=3'd3;state<=HOLD;
        end else if(game_session)begin busy<=0;stream_eof<=1;state<=HOLD;end
        else begin format_ok<=0;state<=WAIT;end
       end else if(sector_in_cluster+1<spc)begin sector_in_cluster<=sector_in_cluster+1;sector<=sector+1;state<=WAIT;end
@@ -367,7 +379,7 @@ module fat32_wav_reader #(
       if((fat_next&32'h0fffffff)>=32'h0ffffff8||(fat_next&32'h0fffffff)<2 ||
          (fat_next&32'h0fffffff)>=32'h0ffffff0)begin
        // 文件尚未到 EOF 却遇到簇链结束，媒体和游戏都报截断，不循环错误文件。
-       sd_sec_read<=0;busy<=0;format_ok<=0;format_error<=1;done<=1;state<=HOLD;
+       sd_sec_read<=0;busy<=0;format_ok<=0;format_error<=1;format_error_detail<=3'd3;done<=1;state<=HOLD;
       end else begin cluster<=fat_next&32'h0fffffff;sector_in_cluster<=0;calc_action<=CALC_NEXT_FILE;state<=CALC_OFFSET;end
     end
     ST_DIR_FATDATA:begin
@@ -394,16 +406,18 @@ module fat32_wav_reader #(
      state<=CALC_OFFSET;
     end
     CALC_OFFSET:begin
-     // 扇区请求之间有充足计算时间；8 拍移位加法保留任意 spc 的旧数学结果。
+     // 扇区请求之间有充足计算时间，选位与累加分拍，不改变地址数学结果。
      cluster_offset<=cluster-32'd2;cluster_product<=0;multiply_bit<=0;
      state<=CALC_MULTIPLY;
     end
     CALC_MULTIPLY:begin
-     // 八拍均只更新累加寄存器，最后结果另拍转移，避免位选择/加法直通偏移选择。
+     multiply_selected<=spc[multiply_bit];state<=CALC_ADD;
+    end
+    CALC_ADD:begin
      cluster_product<=multiply_sum;
      if(multiply_bit==3'd7)state<=CALC_PRODUCT;
      else begin
-      cluster_offset<={cluster_offset[30:0],1'b0};multiply_bit<=multiply_bit+3'd1;
+      cluster_offset<={cluster_offset[30:0],1'b0};multiply_bit<=multiply_bit+3'd1;state<=CALC_MULTIPLY;
      end
     end
     CALC_PRODUCT:begin

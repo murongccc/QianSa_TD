@@ -30,6 +30,23 @@ module tb_rhythm_renderer_session_reset;
             if(real_frame_start)begin ref_y<=0;real_frames<=real_frames+1;end
         end
     end
+    wire [23:0] composed_rgb;
+    video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) presentation(
+        .clk(clk),.rst(hard_reset),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+        .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
+        .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
+        .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+        .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd100),
+        .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
+        // 与板级一致：会话保持有效，渲染器清理不切换背景。
+        .game_active(1'b1),.game_pixel_on(pixel_on),.game_pixel_rgb(pixel_rgb),
+        .de(de),.vs(vs),.rgb_in(24'hc09060),.rgb_out(composed_rgb));
+    reg display_d1=0,display_d2=0;reg [9:0] display_x1=0,display_x2=0,display_y1=0,display_y2=0;
+    always @(posedge clk)begin
+        display_d1<=de;display_d2<=display_d1;display_x1<=ref_px;display_x2<=display_x1;display_y1<=ref_y;display_y2<=display_y1;
+    end
+    always @(negedge clk)if(!hard_reset && display_d2 && display_x2>=550 && display_y2>=100 && display_y2<409)
+        if(composed_rgb!==24'h302418)$fatal(1,"background brightness changed during session clear: %h",composed_rgb);
     reg check_wait=0,check_coordinates=0;integer released_frame=0,checked_pixels=0;
     // 解除清理后、下一次真实 VS 边界前，不允许发布游戏像素或启动假快照。
     always @(negedge clk)if(!hard_reset && !session_clear)begin

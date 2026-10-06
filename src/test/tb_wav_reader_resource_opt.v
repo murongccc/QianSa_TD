@@ -12,7 +12,7 @@ fat32_wav_reader dut(
  .sd_data(8'd0),.sd_data_valid(1'b0),.sd_sec_read_end(1'b0),
  .fifo_full(1'b0),.audio_read_toggle(read_toggle),.audio_fifo_level(level),
  .sd_sec_read(),.sd_sec_read_addr(),.fifo_we(),.fifo_din(),
- .busy(),.done(),.file_found(),.format_ok(),.format_error(),
+ .busy(),.done(),.file_found(),.format_ok(),.format_error(),.format_error_detail(),
  .volume_valid(1'b0),.volume_fat_start(32'd0),.volume_data_start(32'd0),
  .volume_root_cluster(32'd0),.volume_sectors_per_cluster(8'd0)
 );
@@ -38,8 +38,8 @@ initial begin
    cluster_size=n;
    expected=cluster_delta*cluster_size;
    @(posedge clk);#1;
-   // 八拍移位加法后另拍消费完整累加结果，仍保留 32 位截断乘积。
-   while(dut.state==5'd15 || dut.state==5'd21)begin @(posedge clk);#1;end
+   // 每位选位/累加两拍，最后另拍消费，保留 32 位截断乘积。
+   while(dut.state==5'd15 || dut.state==5'd22 || dut.state==5'd21)begin @(posedge clk);#1;end
    if(dut.cluster_offset!==expected || dut.state!==4'd13)
     $fatal(1,"cluster offset mismatch spc=%0d delta=%h",n,cluster_delta);
   end

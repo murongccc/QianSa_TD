@@ -50,6 +50,10 @@ module tb_rhythm_session;
         judge_done=1;wait_state(10);repeat(20)@(negedge clk);if(state!=10)$fatal(1,"result restarted");
         count=0;judge_done=0;press(4);wait_state(6);if(auto_mode || time_now!=0)$fatal(1,"AUTO/TEST restart");
         frame(0);count=0;press(2);wait_state(6);if(time_now!=0)$fatal(1,"KEY2 stale time");
+        // 多位错误码只消费稳定值，短暂中间值不应锁死为错误页。
+        error=3;@(negedge clk);error=0;repeat(6)@(negedge clk);if(state==11)$fatal(1,"transient error latched");
+        error=12;wait_state(11);if(error_code!=12)$fatal(1,"E8L detail not preserved");error=0;
+        count=0;press(2);wait_state(6);
         overflow=1;wait_state(11);if(error_code!=10 || !cancel || mode!=2)$fatal(1,"queue error");overflow=0;
         count=0;press(2);wait_state(6);sw1=0;wait_state(2);if(enable || mode!=0)$fatal(1,"stop");
         sw1=1;wait_state(6);game=0;count=0;wait_state(0);wait_state(6);

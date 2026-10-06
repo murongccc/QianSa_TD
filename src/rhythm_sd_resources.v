@@ -35,6 +35,7 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
     wire chart_cancelled,audio_cancelled,wav_bad,wav_frames_valid;
     wire [31:0] wav_frames;
     wire [3:0] chart_error;
+    wire [2:0] wav_error_detail;
     reg wav_missing;
     always @(posedge clk or posedge rst)begin
         if(rst)wav_missing<=0;
@@ -49,7 +50,9 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
     wire resources_error=game_session && (chart_error!=4'd0 || overflow ||
         wav_missing || wav_bad || frame_count_mismatch);
     assign error_code=!game_session ? 4'd0 : chart_error!=0 ? chart_error : overflow ? 4'd6 :
-        wav_missing ? 4'd7 : wav_bad ? 4'd8 :
+        wav_missing ? 4'd7 : wav_bad ?
+        (wav_error_detail==3'd1 ? 4'd11 : wav_error_detail==3'd2 ? 4'd12 :
+         wav_error_detail==3'd3 ? 4'd13 : wav_error_detail==3'd4 ? 4'd14 : 4'd8) :
         frame_count_mismatch ? 4'd9 : 4'd0;
     wire startup_ready=(!game_session ? (enable && audio_fifo_level>=2048) : (!resources_error && !cancel && !cancelled && header_valid && wav_frames_valid &&
         (chart_used>=64 || (chart_eof && chart_used!=0)) &&
@@ -91,6 +94,6 @@ module rhythm_sd_resources #(parameter integer REUSE_MEDIA=0)(
         .sd_sec_read(audio_req),.sd_sec_read_addr(audio_addr),.sd_data(bmp_data),
         .sd_data_valid(audio_valid),.sd_sec_read_end(audio_done),.fifo_we(audio_fifo_we),.fifo_din(audio_fifo_data),
         .fifo_full(audio_fifo_full),.audio_read_toggle(audio_read_toggle),.audio_fifo_level(audio_fifo_level),
-        .busy(wav_busy),.done(wav_done),.file_found(wav_found),.format_ok(wav_format_ok),.format_error(wav_bad),
+        .busy(wav_busy),.done(wav_done),.file_found(wav_found),.format_ok(wav_format_ok),.format_error(wav_bad),.format_error_detail(wav_error_detail),
         .song_frames(wav_frames),.song_frames_valid(wav_frames_valid),.stream_eof(audio_eof),.cancelled(audio_cancelled));
 endmodule

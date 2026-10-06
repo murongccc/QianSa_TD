@@ -176,7 +176,7 @@ module tb_rhythm_sd_resources;
             if(scenario==4)nready=1;
             wait(error!=0);
             if(error!==(scenario==1?4'd3:scenario==2?4'd7:scenario==3?4'd5:
-                        scenario<=6?4'd4:scenario==7?4'd8:scenario==8?4'd9:4'd1))
+                        scenario<=6?4'd4:scenario==7?4'd11:scenario==8?4'd9:4'd1))
                 $fatal(1,"wrong error %0d scenario %0d",error,scenario);
             cancel=1;wait(cancelled);repeat(10)@(negedge clk);
             if(req)$fatal(1,"error cancellation failed");

@@ -746,7 +746,8 @@ video_presentation #(
     .ACTIVE_WIDTH  (640),
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
-    .game_active(game_frame_active),.game_pixel_on(game_pixel_on),.game_pixel_rgb(game_pixel_rgb),
+    // 会话清理只关闭 UI；背景压暗由稳定的游戏会话状态控制。
+    .game_active(game_active),.game_pixel_on(game_pixel_on),.game_pixel_rgb(game_pixel_rgb),
     .clk                (video_clk),
     .rst                (rst_video),
     .display_valid      (display_valid),

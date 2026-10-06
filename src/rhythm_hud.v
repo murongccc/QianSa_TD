@@ -145,7 +145,10 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         initial_char=TEXT_ROM ? static_char : 8'h20;
         if(address>=64 && address<88)initial_char=STREAM_METADATA ? (metadata_valid ? metadata_data : 8'h20) : title[{address[4:0],3'd0} +:8];
         else if(address>=96 && address<109)initial_char=STREAM_METADATA ? (metadata_valid ? metadata_data : 8'h20) : difficulty[{address[3:0],3'd0} +:8];
-        else if(address==129)initial_char=saved_error<10 ? 8'h30+{4'd0,saved_error} : "A";
+        else if(address==129)initial_char=(saved_error>=11 && saved_error<=14) ? "8" : (saved_error<10 ? 8'h30+{4'd0,saved_error} : "A");
+        else if(address==130)case(saved_error)
+            11:initial_char="H";12:initial_char="L";13:initial_char="F";14:initial_char="M";default:initial_char=8'h20;
+        endcase
         else if(!TEXT_ROM && address>=112 && address<128)initial_char=status_text[{~address[3:0],3'b111} -:8];
         else if(!TEXT_ROM)case(address)
             32:initial_char="C";33:initial_char="O";34:initial_char="M";35:initial_char="B";36:initial_char="O";
@@ -203,7 +206,7 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         else if(y>=448 && y<464 && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<408)begin text_area=1;rel_x=x-24;rel_y=y-448;text_base=64;end
         else if(y>=448 && y<464 && x>=(416-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;rel_x=x-416;rel_y=y-448;text_base=96;end
         else if(saved_state!=6 && saved_state!=9 && y>=176 && y<192 && x>=(192-(BLOCK_CHARACTERS ? 2 : 0)) && x<448)begin text_area=1;rel_x=x-192;rel_y=y-176;text_base=112;end
-        else if(saved_state==11 && y>=208 && y<224 && x>=(304-(BLOCK_CHARACTERS ? 2 : 0)) && x<336)begin text_area=1;rel_x=x-304;rel_y=y-208;text_base=128;end
+        else if(saved_state==11 && y>=208 && y<224 && x>=(296-(BLOCK_CHARACTERS ? 2 : 0)) && x<344)begin text_area=1;rel_x=x-296;rel_y=y-208;text_base=128;end
         else if(saved_state==10 && y>=208 && y<288 && x>=(224-(BLOCK_CHARACTERS ? 2 : 0)) && x<368)begin
             text_area=1;rel_x=x-224;rel_y={6'd0,y[3:0]};text_base=8'd144+{y[6:4]-3'd5,4'd0};
         end
