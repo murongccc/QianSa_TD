@@ -32,7 +32,16 @@ initial begin
   if(!dut.file_found || dut.cluster!==32'd127 || dut.file_size!==32'd48 || dut.expected_length!==32'd40)
    $fatal(1,"last directory entry lost, mode=%0d",n);
  end
- $display("PASS WAV done boundaries: both FAT paths and media/game directory");$finish;
+ // 保留原 1024 扇区扫描上限及末字节退场后的计数。
+ for(n=1022;n<=1023;n=n+1)begin
+  reset_all;dut.game_session=1;dut.state=5'd19;dut.file_found=0;
+  dut.game_dir_end=0;dut.game_dir_sectors=n;dut.sector_in_cluster=0;dut.spc=64;dut.sector=200;
+  repeat(3)@(negedge clk);
+  if(dut.game_dir_sectors!==n+1)$fatal(1,"directory count was lost or duplicated");
+  if(n==1022 && (!dut.sd_sec_read || dut.sd_sec_read_addr!=201))$fatal(1,"directory stopped early");
+  if(n==1023 && (dut.sd_sec_read || dut.state!=5'd9))$fatal(1,"directory limit was bypassed");
+ end
+ $display("PASS WAV done boundaries: both FAT paths, media/game directory and scan limit");$finish;
 end
 initial begin #10000;$fatal(1,"boundary timeout");end
 endmodule

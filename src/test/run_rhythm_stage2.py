@@ -31,7 +31,7 @@ def main():
         run('library', [binaries['vlib'], library])
     tests = ['tb_chart_volume_validation', 'tb_rhythm_sd_resources', 'tb_rhythm_pcm_clock', 'tb_rhythm_arbiter', 'tb_pcm_audio_player',
              'tb_wav_canonical_headers', 'tb_fat32_wav_reader', 'tb_fat32_wav_reader_direct_volume',
-             'tb_wav_reader_resource_opt', 'tb_wav_calc_cancel', 'tb_sd_sector_arbiter', 'tb_sd_speed_parameter', 'tb_sd_game_spi']
+             'tb_wav_reader_resource_opt', 'tb_wav_calc_cancel', 'tb_wav_done_boundary', 'tb_sd_sector_arbiter', 'tb_sd_speed_parameter', 'tb_sd_game_spi']
     if args.real_chart.exists():
         data = args.real_chart.read_bytes()
         if len(data) != 3368 or data[:4] != b'R4B1':
@@ -54,6 +54,8 @@ def main():
                    '-do', 'src/test/run_pcm_audio_player.do'], True)
     run('wav_shared_volume', [binaries['vsim'], '-c', '-lib', library, 'tb_fat32_wav_reader',
                              '-gUSE_SHARED_VOLUME=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
+    run('wav_continuous_bytes', [binaries['vsim'], '-c', '-lib', library, 'tb_wav_canonical_headers',
+                                '-gCONTINUOUS_BYTES=1', '-do', 'src/test/run_pcm_audio_player.do'], True)
     for name, parameters in [('spi_delay19', ['-gWAV_RETURN_DELAY_NS=19']),
                              ('spi_delay20_e8h', ['-gWAV_RETURN_DELAY_NS=20', '-gEXPECT_E8=1']),
                              ('spi_slow_delay25', ['-gHIGH_SPEED_DIV=2', '-gWAV_RETURN_DELAY_NS=25'])]:

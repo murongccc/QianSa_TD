@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 // 规范头、全部固定字段、长度高位、碎片、循环/EOF 及整扇区错误释放。
-module tb_wav_canonical_headers;
+module tb_wav_canonical_headers #(parameter integer CONTINUOUS_BYTES=0);
 reg clk=0,rst=1,sd_valid=0,sd_end=0,volume_valid=1,game_mode=0;
 reg [7:0] sd_data=0;
 reg [31:0] volume_root_cluster=2;
@@ -89,9 +89,12 @@ task send_sector;
             sd_valid=1;
             // 长度 512 的向量在最后一个 PCM 字节同拍结束扇区。
             if(vector_index==1 && byte_index==511)sd_end=1;
-            @(negedge clk);sd_valid=0;sd_end=0;
-            repeat(byte_index%3)@(negedge clk);
+            if(!CONTINUOUS_BYTES)begin
+                @(negedge clk);sd_valid=0;sd_end=0;
+                repeat(byte_index%3)@(negedge clk);
+            end
         end
+        if(CONTINUOUS_BYTES)begin @(negedge clk);sd_valid=0;sd_end=0;end
         if(vector_index!=1)begin
             @(negedge clk);sd_end=1;
             @(negedge clk);sd_end=0;

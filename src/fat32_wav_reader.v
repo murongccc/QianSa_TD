@@ -28,7 +28,7 @@ module fat32_wav_reader #(
  output reg stream_eof, output reg cancelled
 );
  localparam IDLE=0,MBR=1,BPB=2,DIR=3,DIR_FOUND=4,WAIT=5,DATA=6,ST_FAT=7,ST_FATDATA=8,HOLD=9,DIR_FAT=10,ST_DIR_FATDATA=11,
-            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20,CALC_PRODUCT=21,CALC_ADD=22;
+            CALC_OFFSET=12,CALC_SECTOR=13,BPB_CALC=14,CALC_MULTIPLY=15,DATA_END=16,FAT_END=17,DIR_FAT_END=18,DIR_END=19,FILE_SETUP=20,CALC_PRODUCT=21,CALC_ADD=22,DATA_SETTLE=23;
  localparam CALC_ROOT_DIR=2'd0,CALC_FIRST_FILE=2'd1,CALC_NEXT_FILE=2'd2,CALC_NEXT_DIR=2'd3;
  // 每个不可暂停扇区最多产生 128 个立体声帧；计数须能表示水位加整扇区。
  function integer fifo_count_width;
@@ -60,6 +60,10 @@ module fat32_wav_reader #(
  reg base_header_error; reg [5:0] header_pos;
  reg name_match, game_session, cancel_pending;
  reg [31:0] expected_length;
+ // 文件边界宽比较只到一个寄存器，扇区退场再消费，避免直接驱动簇控制。
+ reg file_complete;
+ // WAIT 时文件位置按 512 字节对齐；最后一扇区只消费目录声明的有效字节。
+ reg [9:0] data_bytes_left;
  reg game_dir_end;
  reg [15:0] game_dir_sectors;
  wire cancel_active=ENABLE_GAME && (cancel || cancel_pending);
@@ -145,6 +149,21 @@ module fat32_wav_reader #(
  end
 
  always @(posedge clk or posedge rst) begin
+  if(rst)begin file_complete<=0;entry_size_low<=0;end
+  else begin
+   file_complete<=file_pos>=file_size;
+   // 目录长度临时寄存器只在目录项末字节被消费；其它事务的暂存值无效。
+   // 不用高扇出状态译码控制这组三个字节，完整描述符仍只由 DIR 发布。
+   if(sd_data_valid)case(pos[4:0])
+    5'd28:entry_size_low[7:0]<=sd_data;
+    5'd29:entry_size_low[15:8]<=sd_data;
+    5'd30:entry_size_low[23:16]<=sd_data;
+    default:;
+   endcase
+  end
+ end
+
+ always @(posedge clk or posedge rst) begin
   if(rst) begin
    state<=IDLE;pos<=0;fat_offset<=0;sd_sec_read<=0;sd_sec_read_addr<=0;
    fifo_we<=0;fifo_din<=0;busy<=0;done<=0;file_found<=0;format_ok<=0;format_error<=0;
@@ -156,7 +175,7 @@ module fat32_wav_reader #(
    header_pos<=0;cluster_product<=0;multiply_bit<=0;multiply_selected<=0;
    format_error_detail<=3'd0;
    format_error_pending<=0;
-   entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
+   entry_first<=0;entry_attr<=0;entry_ext<=0;entry_cluster<=0;data_bytes_left<=0;
    base_header_error<=0;
    name_match<=0;game_session<=0;cancel_pending<=0;cancelled<=0;
    song_frames<=0;song_frames_valid<=0;stream_eof<=0;expected_length<=0;
@@ -250,9 +269,6 @@ module fat32_wav_reader #(
           5'd21: entry_cluster[31:24]<=sd_data;
           5'd26: entry_cluster[7:0]<=sd_data;
           5'd27: entry_cluster[15:8]<=sd_data;
-          5'd28: entry_size_low[7:0]<=sd_data;
-          5'd29: entry_size_low[15:8]<=sd_data;
-          5'd30: entry_size_low[23:16]<=sd_data;
           default: ;
       endcase
       pos<=pos+1;
@@ -309,7 +325,10 @@ module fat32_wav_reader #(
       format_error<=1;format_error_detail<=3'd4;busy<=0;done<=1;state<=HOLD;
      end
     end
-    WAIT:if(fifo_room)begin sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;end
+    WAIT:if(fifo_room)begin
+     data_bytes_left<=(file_pos[31:9]==file_size[31:9]) ? {1'b0,file_size[8:0]} : 10'd512;
+     sd_sec_read_addr<=sector;sd_sec_read<=1;state<=DATA;
+    end
     DATA:begin
       // FILE_SETUP 已拒绝小于 48 字节的文件，头偏移 43 的字节必在文件内。
       // 头位置只递增到 44；格式结果不再经过逐字节的 32 位文件边界比较。
@@ -324,7 +343,8 @@ module fat32_wav_reader #(
         song_frames<={2'd0,expected_length[31:2]};song_frames_valid<=1;
        end
       end
-      if(sd_data_valid && file_pos<file_size)begin
+      if(sd_data_valid && data_bytes_left!=0)begin
+       data_bytes_left<=data_bytes_left-10'd1;
        file_pos<=file_pos+1;
        if(header_pos<44)begin
         // 固定字段与两个完整 32 位长度都逐字节校验，不保存输入图头。
@@ -347,15 +367,17 @@ module fat32_wav_reader #(
       end
       end
      if(sd_sec_read_end)begin
-      sd_sec_read<=0;state<=DATA_END;
+      sd_sec_read<=0;state<=DATA_SETTLE;
      end
     end
+    // 末字节与 done 同拍也先提交 file_pos，再让宽比较寄存器更新。
+    DATA_SETTLE:state<=DATA_END;
     DATA_END:begin
-       // 在 done 下一拍检查，包含末字节同拍更新的头错误、文件位置和 PCM 相位。
+       // 在退场等待拍之后检查，包含末字节同拍更新的头错误、文件位置和 PCM 相位。
        // 切断 SD 返回数据经头校验直接驱动扇区地址使能的组合路径。
        if(format_error_pending)begin
        busy<=0; done<=1; format_error_pending<=0; state<=HOLD;
-       end else if(file_pos>=file_size)begin
+       end else if(file_complete)begin
        // Repeat playback from the beginning after the file's declared size.
        cluster<=first_cluster;sector<=first_sector;file_pos<=0;sector_in_cluster<=0;
        header_pos<=0;pcm_index<=0;format_error_pending<=0;done<=1;expected_length<=file_size-32'd8;
