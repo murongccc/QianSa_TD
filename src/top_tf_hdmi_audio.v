@@ -16,6 +16,10 @@ module top(
     input                       uart_rxd,
     output                      uart_txd,
 
+    // CH9350 独立串口：J2 第 1 脚接模块 TX，第 2 脚接模块 RX。
+    input                       touch_rxd,
+    output                      touch_txd,
+
     // HDMI TMDS
     output                      HDMI_CLK_P,
     output                      HDMI_D2_P,
@@ -33,6 +37,8 @@ module top(
     input                       sd_miso
 );
 
+// 资源受限时关闭旧签名诊断，保留 FIFO 空读、刷新与反压诊断。
+parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 0;
 parameter MEM_DATA_BITS = 32;
 parameter ADDR_BITS     = 21;
 parameter BUSRT_BITS    = 10;
@@ -249,8 +255,32 @@ uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_contr
     .echo_valid(uart_echo_valid), .echo_data(uart_echo_data)
 );
 
-uart_echo_tx #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_echo_tx (
-    .clk(clk), .rst(rst_clk), .data_valid(uart_echo_valid), .data(uart_echo_data), .uart_txd(uart_txd)
+// 触摸本阶段只解析与监视；原始坐标尚未标定，不进入四轨判定。
+wire touch_update;
+wire [3:0] touch_a_id, touch_b_id;
+wire touch_a_down, touch_b_down;
+wire [15:0] touch_a_x, touch_a_y, touch_b_x, touch_b_y;
+wire [1:0] touch_press, touch_release;
+wire [7:0] touch_sequence;
+wire [15:0] touch_good, touch_checksum_error, touch_format_error, touch_sequence_gap;
+wire [15:0] touch_timeout, touch_uart_error, touch_ack;
+ch9350_touch_input u_touch_input (
+    .clk(clk),.rst(rst_clk),.touch_rxd(touch_rxd),.touch_txd(touch_txd),.update_valid(touch_update),
+    .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
+    .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
+    .press_mask(touch_press),.release_mask(touch_release),.frame_seq(touch_sequence),
+    .good_count(touch_good),.checksum_error_count(touch_checksum_error),.format_error_count(touch_format_error),
+    .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack)
+);
+touch_serial_monitor u_touch_monitor (
+    .clk(clk),.rst(rst_clk),.update_valid(touch_update),
+    .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
+    .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
+    .press_mask(touch_press),.release_mask(touch_release),.frame_seq(touch_sequence),
+    .good_count(touch_good),.checksum_error_count(touch_checksum_error),.format_error_count(touch_format_error),
+    .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack),
+    .echo_valid(uart_echo_valid),.echo_data(uart_echo_data),.uart_txd(uart_txd),
+    .monitor_drop_count(),.echo_drop_count()
 );
 
 // KEY2 is the manual-next input.  It is synchronized and debounced in
@@ -458,6 +488,8 @@ always @(posedge clk or posedge rst_clk) begin
             diag_page_count <= 27'd0;
             if (diag_page == 3'd5)
                 diag_page <= 3'd0;
+            else if (VIDEO_SIGNATURE_DIAGNOSTICS == 0 && diag_page == 3'd1)
+                diag_page <= 3'd5;
             else
                 diag_page <= diag_page + 1'b1;
         end else begin
@@ -589,7 +621,7 @@ frame_read_write #(
     .write_v_flip      (!bmp_source_top_down)
 );
 
-frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
+frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS),.SIGNATURE_CHECK(VIDEO_SIGNATURE_DIAGNOSTICS)) u_frame_read_monitor (
     .clk                (video_clk),
     .rst                (rst_video),
     // 只统计视频域启动保护已放行的帧，忽略 SDRAM/FIFO 预热阶段。
@@ -606,6 +638,8 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_frame_read_monitor (
     .mismatch_sticky    (video_mismatch_sticky)
 );
 
+generate
+if (VIDEO_SIGNATURE_DIAGNOSTICS != 0) begin : g_video_signature_diagnostics
 sdram_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_sdram_read_monitor (
     .clk                (ext_mem_clk),
     .rst                (rst_mem),
@@ -634,6 +668,13 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_video_output_monitor (
     .mismatch_count     (video_output_mismatch_count),
     .mismatch_sticky    (video_output_mismatch_sticky)
 );
+end else begin : g_without_video_signatures
+    assign sdram_return_mismatch_count=16'd0;
+    assign sdram_return_mismatch_sticky=1'b0;
+    assign video_output_mismatch_count=16'd0;
+    assign video_output_mismatch_sticky=1'b0;
+end
+endgenerate
 
 sdram U3(
     .Clk               (ext_mem_clk),

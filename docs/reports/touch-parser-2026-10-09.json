@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-09",
+  "scope": "CH9350 validation, two-contact raw tracking, automatic ACK and serial monitoring; no lane judgement",
+  "capture_frames": {
+    "single": 244,
+    "double": 1016
+  },
+  "regression_suites": [
+    "parser:1281 snapshot checks plus error/control cases",
+    "UART integration",
+    "monitor FIFO stress",
+    "existing frame monitor regression on candidate",
+    "optional signature switch preserves underflow"
+  ],
+  "all_signatures_on": {
+    "synthesis": {
+      "lut": 18976,
+      "reg": 11222,
+      "bram": 52,
+      "bram32k": 11,
+      "dsp": 24,
+      "pll": 2
+    },
+    "placement_failed_mslices": 5121,
+    "mslice_limit": 4900
+  },
+  "signature_switch_candidate": {
+    "user_approval": "approved",
+    "VIDEO_SIGNATURE_DIAGNOSTICS": 0,
+    "synthesis": {
+      "lut": 18280,
+      "reg": 10439,
+      "bram": 52,
+      "bram32k": 11,
+      "dsp": 24,
+      "pll": 2
+    },
+    "physical": {
+      "lut": 18438,
+      "reg": 10551,
+      "bram": 52,
+      "bram32k": 11,
+      "dsp": 24,
+      "pll": 2
+    },
+    "global_timing": {
+      "SWNS": -2.19,
+      "STNS": -139.218,
+      "HWNS": -0.052,
+      "HTNS": -0.098
+    },
+    "control_50mhz": {
+      "setup_wns_ns": 4.092,
+      "setup_tns_ns": 0,
+      "hold_wns_ns": 0.011,
+      "hold_tns_ns": 0
+    },
+    "placement_mslices": 4871,
+    "route_completed": true,
+    "adopted_source_matches_verified_candidate": true
+  },
+  "previous_main_physical": {
+    "physical": {
+      "lut": 17941,
+      "reg": 10646,
+      "bram": 52,
+      "bram32k": 11,
+      "dsp": 24,
+      "pll": 2
+    },
+    "global_timing": {
+      "SWNS": -0.416,
+      "STNS": -5.61,
+      "HWNS": -0.012,
+      "HTNS": -0.044
+    }
+  },
+  "bitstream_generated": false,
+  "board_tested": false
+}

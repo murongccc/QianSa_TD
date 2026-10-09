@@ -2,6 +2,9 @@
 # the PLL configuration, including the 180-degree SDRAM phase-shifted output;
 # the following commands give those generated clocks stable project names.
 create_clock -name {clk} -period 20.000 -waveform {0.000 10.000} [get_ports {clk}]
+
+# 触摸 UART 异步输入只到达 rx_meta；内部两级同步寄存器之间仍正常分析。
+set_false_path -from [get_ports {touch_rxd}]
 derive_clocks
 
 rename_clock -name {sd_card_clk} -source [get_ports {clk}] -master_clock {clk} [get_pins {sys_pll_m0/pll_inst.clkc[0]}]

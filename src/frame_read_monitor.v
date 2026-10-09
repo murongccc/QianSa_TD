@@ -3,7 +3,8 @@
 // 视频帧读出诊断：分别记录 FIFO 空读和同槽帧数据变化。
 // 所有计数仅在 display_valid 后工作，避免把上电装载阶段计为故障。
 module frame_read_monitor #(
-    parameter integer FRAME_PIXELS = 307200
+    parameter integer FRAME_PIXELS = 307200,
+    parameter integer SIGNATURE_CHECK = 1
 ) (
     input  wire        clk,
     input  wire        rst,
@@ -69,7 +70,7 @@ always @(posedge clk or posedge rst) begin
                 underflow_count <= underflow_count + 1'b1;
         end
 
-        if (frame_start) begin
+        if (SIGNATURE_CHECK && frame_start) begin
             // 先检查刚结束的帧，再为下一帧清零并锁存槽号。
             if (frame_monitor_active && (frame_slot < 3'd5)) begin
                 if (pixel_count != EXPECTED_PIXEL_COUNT) begin
@@ -90,7 +91,7 @@ always @(posedge clk or posedge rst) begin
             frame_slot <= slot_sync;
             pixel_count <= 19'd0;
             frame_signature <= 32'd0;
-        end else if (frame_monitor_active && fifo_valid) begin
+        end else if (SIGNATURE_CHECK && frame_monitor_active && fifo_valid) begin
             frame_signature <= signature_next;
             if (pixel_count != 19'h7ffff)
                 pixel_count <= pixel_count + 1'b1;

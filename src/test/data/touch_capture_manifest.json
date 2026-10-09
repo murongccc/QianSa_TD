@@ -1,0 +1,16 @@
+{
+  "touch_single": {
+    "source": "单指.txt",
+    "source_sha256": "6659f9cd4f9d70c19772c877d914d042ab31a678a41b4a96c50ad34646795a2d",
+    "bytes": 14884,
+    "frames": 244,
+    "first_sequence": 240
+  },
+  "touch_double": {
+    "source": "双指.txt",
+    "source_sha256": "a2d1c1113fbace4382ac405c79fcb2cf7a1a1c6be8fc34c6b5efe961df0f33c0",
+    "bytes": 61976,
+    "frames": 1016,
+    "first_sequence": 64
+  }
+}
