@@ -1,0 +1,13 @@
+{
+  "display": {"width": 640, "height": 480, "orientation": "landscape", "fullscreen": true},
+  "raw_bounds": {"x_min": 96, "x_max": 16144, "y_min": 128, "y_max": 9440},
+  "raw_bounds_hex": {"x_min": "0060", "x_max": "3F10", "y_min": "0080", "y_max": "24E0"},
+  "axis_transform": {"swap_xy": false, "flip_x": false, "flip_y": false},
+  "fixed_point": {"fraction_bits": 16, "x_coefficient": 2610, "y_coefficient": 3371, "rounding_bias": 32768},
+  "sanity_points": [
+    {"name": "earlier center", "raw": [8096, 4816], "pixel": [319, 241]},
+    {"name": "latest center", "raw": [7888, 4528], "pixel": [310, 226]}
+  ],
+  "source": "User boundary measurements; latest message corrected upper Y from 01F0 to 0080.",
+  "status": "Initial fingertip calibration, pending on-screen alignment verification."
+}

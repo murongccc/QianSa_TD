@@ -9,6 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('name')
     parser.add_argument('--rhythm', action='store_true', help='include integrated rhythm RTL source set')
+    parser.add_argument('--touch-markers', action='store_true', help='ensure new touch marker sources despite older GUI source cache')
     parser.add_argument('--route', action='store_true')
     parser.add_argument('--parent')
     parser.add_argument('--td', default='E:/AnLuTD/bin/td_commands_prompt.exe')
@@ -28,6 +29,18 @@ def main():
     source_set = re.search(r'<Verilog>.*?</Verilog>', current_project, re.S)[0]
     source_set = re.sub(r'(<File Path=")([^"]+)(")',
                         lambda m: m[1]+(root/'prj'/m[2]).resolve().as_posix()+m[3], source_set)
+    if args.touch_markers:
+        first_order = 1 + max(map(int, re.findall(r'Name="CompileOrder" Val="(\d+)"', source_set)), default=0)
+        for index, name in enumerate(['touch_pixel_mapper', 'touch_frame_snapshot', 'touch_marker', 'touch_counter_increment']):
+            path = (root/'src'/(name+'.v')).as_posix()
+            if f'Path="{path}"' not in source_set:
+                entry = (f'            <File Path="{path}">\n                <FileInfo>\n'
+                         '                    <Attr Name="UsedInSyn" Val="true"/>\n'
+                         '                    <Attr Name="UsedInP&R" Val="true"/>\n'
+                         '                    <Attr Name="BelongTo" Val="design_1"/>\n'
+                         f'                    <Attr Name="CompileOrder" Val="{first_order+index}"/>\n'
+                         '                </FileInfo>\n            </File>\n')
+                source_set = source_set.replace('</Verilog>', entry+'</Verilog>', 1)
     project = project_path.read_text(encoding='utf-8')
     project = re.sub(r'<Verilog>.*?</Verilog>', lambda _: source_set, project, count=1, flags=re.S)
     project_path.write_text(project, encoding='utf-8')

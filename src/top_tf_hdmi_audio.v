@@ -264,6 +264,8 @@ wire [1:0] touch_press, touch_release;
 wire [7:0] touch_sequence;
 wire [15:0] touch_good, touch_checksum_error, touch_format_error, touch_sequence_gap;
 wire [15:0] touch_timeout, touch_uart_error, touch_ack;
+wire [39:0] touch_pixel_packet,touch_frame_packet;
+wire touch_map_request,touch_pixel_valid,touch_mapper_busy;
 ch9350_touch_input u_touch_input (
     .clk(clk),.rst(rst_clk),.touch_rxd(touch_rxd),.touch_txd(touch_txd),.update_valid(touch_update),
     .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
@@ -282,6 +284,14 @@ touch_serial_monitor u_touch_monitor (
     .echo_valid(uart_echo_valid),.echo_data(uart_echo_data),.uart_txd(uart_txd),
     .monitor_drop_count(),.echo_drop_count()
 );
+
+touch_pixel_mapper #(.ATOMIC_OUTPUT(0)) u_touch_mapper(
+    .clk(clk),.rst(rst_clk),.update_valid(touch_map_request || (touch_update && touch_mapper_busy)),
+    .a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
+    .b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),.pixel_valid(touch_pixel_valid),.pixel_packet(touch_pixel_packet),.busy(touch_mapper_busy));
+touch_frame_snapshot u_touch_frame_snapshot(
+    .src_clk(clk),.src_rst(rst_clk),.src_packet(touch_pixel_packet),.sample_valid(touch_pixel_valid),.sample_request(touch_map_request),
+    .dst_clk(video_clk),.dst_rst(rst_video),.frame_start(vs && !presentation_vs_d1),.frame_packet(touch_frame_packet));
 
 // KEY2 is the manual-next input.  It is synchronized and debounced in
 // sd_card_clk, the domain that consumes the playback commands.
@@ -782,6 +792,7 @@ audio_arc_calculate #(
 // ===================== Presentation layer and RGB/DE to AXIS =====================
 video_presentation #(
     .ENABLE_RHYTHM(1),
+    .ENABLE_TOUCH_MARKERS(1),
     .REFERENCE_SPECTRUM(1),
     .BLOCK_BARS(1),
     .ACTIVE_WIDTH  (640),
@@ -789,6 +800,7 @@ video_presentation #(
 ) u_video_presentation (
     // 会话清理只关闭 UI；背景压暗由稳定的游戏会话状态控制。
     .game_active(game_active),.game_pixel_on(game_pixel_on),.game_pixel_rgb(game_pixel_rgb),
+    .touch_frame_packet(touch_frame_packet),
     .clk                (video_clk),
     .rst                (rst_video),
     .display_valid      (display_valid),

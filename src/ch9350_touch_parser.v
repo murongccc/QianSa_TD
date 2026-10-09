@@ -15,15 +15,30 @@ module ch9350_touch_parser #(
     output reg [15:0] timeout_count, output reg [15:0] uart_error_count
 );
 localparam [2:0] HEAD=3'd0, MAGIC=3'd1, COMMAND=3'd2, LENGTH=3'd3, BODY=3'd4, STATUS=3'd5;
-localparam [31:0] TIMEOUT_LIMIT = (CLK_HZ / 1000) * FRAME_TIMEOUT_MS - 1;
+function integer counter_width;
+    input integer value;
+    integer remaining;
+    begin
+        remaining=value-1;counter_width=0;
+        while(remaining>0)begin counter_width=counter_width+1;remaining=remaining>>1;end
+        if(counter_width==0)counter_width=1;
+    end
+endfunction
+localparam integer TIMEOUT_BITS=counter_width((CLK_HZ / 1000) * FRAME_TIMEOUT_MS);
+localparam [TIMEOUT_BITS-1:0] TIMEOUT_LIMIT = (CLK_HZ / 1000) * FRAME_TIMEOUT_MS - 1;
 reg [2:0] state;
-reg [31:0] idle_ticks;
+reg [TIMEOUT_BITS-1:0] idle_ticks;
 reg [6:0] frame_length, body_index;
 reg [7:0] checksum, identifier, report_id, report_count, frame_sequence;
 reg [7:0] c0_status, c1_status;
 reg [15:0] c0_x, c0_y, c1_x, c1_y;
 reg extra_nonzero, sequence_known, a_known, b_known;
 reg [7:0] last_sequence;
+wire [15:0] next_good,next_checksum_error,next_format_error,next_sequence_gap;
+touch_counter_increment u_good_increment(.clk(clk),.rst(rst),.count(good_count),.next_count(next_good));
+touch_counter_increment u_checksum_increment(.clk(clk),.rst(rst),.count(checksum_error_count),.next_count(next_checksum_error));
+touch_counter_increment u_format_increment(.clk(clk),.rst(rst),.count(format_error_count),.next_count(next_format_error));
+touch_counter_increment u_gap_increment(.clk(clk),.rst(rst),.count(sequence_gap_count),.next_count(next_sequence_gap));
 
 wire c0_present = report_count!=8'd0;
 wire c1_present = report_count==8'd2;
@@ -78,7 +93,7 @@ end
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        state<=HEAD; idle_ticks<=32'd0; frame_length<=7'd0; body_index<=7'd0;
+        state<=HEAD; idle_ticks<={TIMEOUT_BITS{1'b0}}; frame_length<=7'd0; body_index<=7'd0;
         checksum<=8'd0; identifier<=8'd0; report_id<=8'd0; report_count<=8'd0; frame_sequence<=8'd0;
         c0_status<=8'd0; c1_status<=8'd0; c0_x<=16'd0; c0_y<=16'd0; c1_x<=16'd0; c1_y<=16'd0;
         extra_nonzero<=1'b0; sequence_known<=1'b0; last_sequence<=8'd0;
@@ -89,12 +104,12 @@ always @(posedge clk or posedge rst) begin
         sequence_gap_count<=16'd0; timeout_count<=16'd0; uart_error_count<=16'd0;
     end else begin
         ack_request<=1'b0; update_valid<=1'b0; press_mask<=2'd0; release_mask<=2'd0;
-        if (state==HEAD || byte_valid) idle_ticks<=32'd0;
-        else if (idle_ticks!=TIMEOUT_LIMIT) idle_ticks<=idle_ticks+32'd1;
+        if (state==HEAD || byte_valid) idle_ticks<={TIMEOUT_BITS{1'b0}};
+        else if (idle_ticks!=TIMEOUT_LIMIT) idle_ticks<=idle_ticks+1'b1;
         if (byte_error) begin
-            state<=HEAD; idle_ticks<=32'd0; uart_error_count<=uart_error_count+16'd1;
+            state<=HEAD; idle_ticks<={TIMEOUT_BITS{1'b0}}; uart_error_count<=uart_error_count+16'd1;
         end else if (state!=HEAD && idle_ticks==TIMEOUT_LIMIT && !byte_valid) begin
-            state<=HEAD; idle_ticks<=32'd0; timeout_count<=timeout_count+16'd1;
+            state<=HEAD; idle_ticks<={TIMEOUT_BITS{1'b0}}; timeout_count<=timeout_count+16'd1;
         end else if (byte_valid) begin
             case (state)
                 HEAD: if (byte_data==8'h57) state<=MAGIC;
@@ -117,7 +132,7 @@ always @(posedge clk or posedge rst) begin
                             release_mask<={b_down,a_down}; update_valid<=1'b1;
                         end
                     end
-                    else format_error_count<=format_error_count+16'd1;
+                    else format_error_count<=next_format_error;
                     state<=HEAD;
                 end
                 LENGTH: begin
@@ -127,25 +142,25 @@ always @(posedge clk or posedge rst) begin
                         c0_status<=8'd0; c1_status<=8'd0; c0_x<=16'd0; c0_y<=16'd0; c1_x<=16'd0; c1_y<=16'd0;
                         extra_nonzero<=1'b0; state<=BODY;
                     end else begin
-                        format_error_count<=format_error_count+16'd1;
+                        format_error_count<=next_format_error;
                         state<=byte_data==8'h57 ? MAGIC : HEAD;
                     end
                 end
                 BODY: begin
                     if (body_index==frame_length-7'd1) begin
                         state<=HEAD;
-                        if (byte_data!=checksum) checksum_error_count<=checksum_error_count+16'd1;
+                        if (byte_data!=checksum) checksum_error_count<=next_checksum_error;
                         else begin
                             if (sequence_known && frame_sequence!=last_sequence+8'd1)
-                                sequence_gap_count<=sequence_gap_count+16'd1;
+                                sequence_gap_count<=next_sequence_gap;
                             last_sequence<=frame_sequence; sequence_known<=1'b1;
-                            if (!report_ok) format_error_count<=format_error_count+16'd1;
+                            if (!report_ok) format_error_count<=next_format_error;
                             else begin
                                 a_id<=next_a_id; a_down<=next_a_down; a_x<=next_a_x; a_y<=next_a_y; a_known<=next_a_known;
                                 b_id<=next_b_id; b_down<=next_b_down; b_x<=next_b_x; b_y<=next_b_y; b_known<=next_b_known;
                                 press_mask<={next_b_down && (!b_down || next_b_id!=b_id), next_a_down && (!a_down || next_a_id!=a_id)};
                                 release_mask<={b_down && (!next_b_down || next_b_id!=b_id), a_down && (!next_a_down || next_a_id!=a_id)};
-                                frame_seq<=frame_sequence; update_valid<=1'b1; good_count<=good_count+16'd1;
+                                frame_seq<=frame_sequence; update_valid<=1'b1; good_count<=next_good;
                             end
                         end
                     end else begin

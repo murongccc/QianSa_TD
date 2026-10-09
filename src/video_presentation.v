@@ -6,7 +6,8 @@ module video_presentation #(
     parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
     parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0,
-    parameter integer BLOCK_BARS = 0
+    parameter integer BLOCK_BARS = 0,
+    parameter integer ENABLE_TOUCH_MARKERS = 0
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
@@ -27,6 +28,7 @@ module video_presentation #(
     input wire [7:0] spectrum_read_data,
     input wire spectrum_read_valid, input wire spectrum_active,
     input wire game_active,game_pixel_on,input wire [23:0] game_pixel_rgb,
+    input wire [39:0] touch_frame_packet,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
 );
@@ -283,6 +285,16 @@ reg [23:0] adjusted_rgb_stage;
 reg base_valid_stage;
 reg param_osd_stage;
 reg game_stage;
+reg touch_a_stage,touch_b_stage;
+reg [8:0] touch_y;
+wire touch_a_hit,touch_b_hit;
+generate if(ENABLE_TOUCH_MARKERS)begin : g_touch_markers
+    touch_marker u_marker(.active(de),.pixel_x(render_x),.pixel_y({1'b0,touch_y}),
+        .frame_packet(touch_frame_packet),.a_hit(touch_a_hit),.b_hit(touch_b_hit));
+end else begin : g_without_touch_markers
+    assign touch_a_hit=1'b0;
+    assign touch_b_hit=1'b0;
+end endgenerate
 // 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
 reg game_frame_mode;
 wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
@@ -310,6 +322,7 @@ always @(posedge clk or posedge rst) begin
         adjusted_rgb_stage <= 24'd0;
         base_valid_stage <= 1'b0;
         param_osd_stage <= 1'b0;game_stage<=0;game_frame_mode<=0;
+        touch_a_stage<=1'b0;touch_b_stage<=1'b0;touch_y<=9'd0;
         rgb_out <= 24'd0;
     end else begin
         slot_sync0 <= display_slot_async; slot_sync1 <= slot_sync0;
@@ -338,6 +351,9 @@ always @(posedge clk or posedge rst) begin
             osd_count <= osd_count - 27'd1;
         end
         vs_d <= vs; de_d <= de;
+        // 十字使用准确的当前行号：行结束再递增，首行/末行均与 DE 对齐。
+        if(frame_start)touch_y<=9'd0;
+        else if(de_d && !de && touch_y<ACTIVE_HEIGHT-1)touch_y<=touch_y+9'd1;
         if (frame_start) begin
             game_frame_mode<=ENABLE_RHYTHM && game_active;
             pixel_y <= 10'd0;
@@ -378,9 +394,12 @@ always @(posedge clk or posedge rst) begin
         adjusted_rgb_stage <= adjusted_rgb;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
         param_osd_stage <= param_osd_pixel;game_stage<=game_frame_mode;
+        touch_a_stage<=touch_a_hit;touch_b_stage<=touch_b_hit;
 
         // 第二级：参数 OSD/频谱优先于处理后的底图。
-        if(game_stage)rgb_out<=game_pixel_on ? game_pixel_rgb : (base_valid_stage ? dimmed_rgb : 24'd0);
+        // A青色、B品红色、重合白色；同样经过两拍，优先于 OSD/频谱/游戏。
+        if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
+        else if(game_stage)rgb_out<=game_pixel_on ? game_pixel_rgb : (base_valid_stage ? dimmed_rgb : 24'd0);
         else if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;

@@ -21,6 +21,7 @@ video_presentation #(
     .INITIAL_WARMUP_FRAMES(3)
 ) dut (.spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),
+    .touch_frame_packet(40'd0),
     .clk(clk), .rst(rst), .display_valid(display_valid),
     .display_slot_async(display_slot_async),
     .display_switch_toggle_async(display_switch_toggle_async),

@@ -7,7 +7,7 @@ import subprocess
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--case', choices=['parser', 'integration', 'monitor', 'diagnostics'])
+    parser.add_argument('--case', choices=['parser', 'integration', 'monitor', 'diagnostics', 'statistics', 'counter'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = root / 'prj/log/touch_regression_20261009'
@@ -31,15 +31,15 @@ def main():
 
     if not library.exists():
         run('library', [binaries['vlib'], str(library)])
-    cases = [args.case] if args.case else ['parser', 'integration', 'monitor', 'diagnostics']
+    cases = [args.case] if args.case else ['parser', 'integration', 'monitor', 'diagnostics', 'statistics', 'counter']
     sources = ['uart_byte_rx', 'uart_byte_tx', 'ch9350_touch_parser',
-               'ch9350_touch_input', 'touch_serial_monitor', 'uart_command_control', 'frame_read_monitor']
+               'ch9350_touch_input', 'touch_serial_monitor', 'uart_command_control', 'frame_read_monitor', 'touch_counter_increment']
     tops = {'parser': 'tb_ch9350_touch_parser', 'integration': 'tb_touch_uart_integration',
-            'monitor': 'tb_touch_serial_monitor', 'diagnostics': 'tb_frame_signature_switch'}
+            'monitor': 'tb_touch_serial_monitor', 'diagnostics': 'tb_frame_signature_switch', 'statistics': 'tb_touch_stats_atomic', 'counter': 'tb_touch_counter_increment'}
     test_sources = [str(root / 'src/test' / (tops[case] + '.v')) for case in cases]
     if 'diagnostics' in cases:
         test_sources.append(str(root / 'src/test/tb_frame_read_monitor.v'))
-    run('compile', [binaries['vlog'], '-work', str(library),
+    run('compile', [binaries['vlog'], '-work', str(library), 'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v',
                     *[str(root / 'src' / (name + '.v')) for name in sources],
                     *test_sources])
     for case in cases:
