@@ -6,7 +6,8 @@ module frame_fifo_read
 	parameter ADDR_BITS              = 21,
 	parameter BURST_BITS             = 9,
 	parameter FIFO_DEPTH             = 512,
-	parameter BURST_SIZE             = 128
+	parameter BURST_SIZE             = 128,
+	parameter BURST_COUNT_BITS       = ADDR_BITS
 )               
 (
 	input                            rst,                  
@@ -58,7 +59,8 @@ reg                                  read_req_d2;                //third,Why do 
 reg[ADDR_BITS - 1:0]                 read_len_d0;                //asynchronous read_len(read data length), synchronize to 'mem_clk' clock domain first
 reg[ADDR_BITS - 1:0]                 read_len_d1;                //second
 reg[ADDR_BITS - 1:0]                 read_len_latch;             //lock read data length
-reg[ADDR_BITS - 1:0]                 read_cnt;                   //read data counter
+reg[BURST_COUNT_BITS - 1:0]          read_burst_cnt;             // 已完成的 burst 数
+wire [ADDR_BITS - 1:0]               read_word_count;            // 换算为字数，用于原有长度比较
 reg[3:0]                             state;                      //state machine
 reg[2:0]                             read_addr_index_d0;         //synchronize to 'mem_clk' clock domain first
 reg[2:0]                             read_addr_index_d1;         //synchronize to 'mem_clk' clock domain second
@@ -74,6 +76,7 @@ wire rd_vld;
 reg [BURST_BITS - 1:0] rd_data_cnt;
 
 assign App_rd_addr = {App_rd_addr_r[ADDR_BITS - 1:0]};
+assign read_word_count = read_burst_cnt * BURST_SIZE;
 assign rd_vld = (state == S_READ_BURST && burst_cnt >= BURST_SIZE);
 
 assign O_rd_busy = (state == S_READ_BURST);//读指令期间
@@ -167,7 +170,7 @@ begin
 		//rd_burst_req <= 1'b0;
 		App_rd_en_r <= 1'b0;
 		
-		read_cnt <= ZERO[ADDR_BITS - 1:0];
+		read_burst_cnt <= {BURST_COUNT_BITS{1'b0}};
 		fifo_aclr <= 1'b0;
 		//rd_burst_len <= ZERO[BURST_BITS - 1:0];
 		read_req_ack <= 1'b0;
@@ -212,8 +215,8 @@ begin
 					//latch data length
 					read_len_latch <= read_len_d1;
 				end
-				//read data counter reset, read_cnt <= 0;
-				read_cnt <= ZERO[ADDR_BITS - 1:0];
+				// 帧进度清零
+				read_burst_cnt <= {BURST_COUNT_BITS{1'b0}};
 			end
 			S_CHECK_FIFO:
 			begin
@@ -239,8 +242,8 @@ begin
 				begin
 					App_rd_en_r <= 1'b0;
 					state <= S_READ_BURST_END;
-					//read counter + burst length
-					read_cnt <= read_cnt + BURST_SIZE[ADDR_BITS - 1:0];
+					// 一个完整 burst 已返回
+					read_burst_cnt <= read_burst_cnt + 1'b1;
 					//the next burst read address is generated
 					//rd_burst_addr <= rd_burst_addr + BURST_SIZE[ADDR_BITS - 1:0];
 				end     
@@ -254,7 +257,7 @@ begin
 				end
 				//if the read counter value is less than the frame length, continue read,
 				//otherwise the read is complete
-				else if(read_cnt < read_len_latch)
+				else if(read_word_count < read_len_latch)
 				begin
 					state <= S_CHECK_FIFO;
 				end

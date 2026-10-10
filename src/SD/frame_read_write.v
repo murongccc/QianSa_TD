@@ -80,6 +80,23 @@ module frame_read_write
 	input                            write_v_flip                 // runtime vertical flip
 
 );
+function integer bits_required;
+    input integer value;
+    integer remaining;
+    begin
+        remaining = value - 1;
+        bits_required = 0;
+        while (remaining > 0) begin
+            bits_required = bits_required + 1;
+            remaining = remaining >> 1;
+        end
+        if (bits_required == 0)
+            bits_required = 1;
+    end
+endfunction
+// 读写长度由本工程的帧尺寸限定；计数单位为 burst，地址单位仍为 word。
+localparam integer FRAME_BURST_COUNT_BITS =
+    bits_required(((FRAME_WIDTH * FRAME_HEIGHT + BURST_SIZE - 1) / BURST_SIZE) + 1);
 wire[BURST_BITS - 1:0]                           wrusedw;
 wire[BURST_BITS - 1:0]                           rdusedw;
 wire[BURST_BITS - 1:0]                           write_wrusedw;
@@ -123,6 +140,7 @@ frame_fifo_write
 	.ADDR_BITS                  (ADDR_BITS                ),
 	.BURST_BITS                 (BURST_BITS               ),
 	.BURST_SIZE                 (BURST_SIZE               ),
+	.BURST_COUNT_BITS           (FRAME_BURST_COUNT_BITS   ),
 	.WRITE_V_FLIP               (WRITE_V_FLIP             ),
 	.FRAME_WIDTH                (FRAME_WIDTH              ),
 	.FRAME_HEIGHT               (FRAME_HEIGHT             )
@@ -180,7 +198,8 @@ frame_fifo_read
 	.MEM_DATA_BITS              (MEM_DATA_BITS            ),
 	.ADDR_BITS                  (ADDR_BITS                ),
 	.BURST_BITS                 (BURST_BITS               ),
-	.BURST_SIZE                 (BURST_SIZE               )
+	.BURST_SIZE                 (BURST_SIZE               ),
+	.BURST_COUNT_BITS           (FRAME_BURST_COUNT_BITS   )
 )
 frame_fifo_read_m0
 (

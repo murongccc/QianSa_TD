@@ -6,6 +6,7 @@ module frame_fifo_write
 	parameter ADDR_BITS              = 21,
 	parameter BURST_BITS             = 9,
 	parameter BURST_SIZE             = 128,
+	parameter BURST_COUNT_BITS       = ADDR_BITS,
 	parameter WRITE_V_FLIP           = 1,      // 1: write image rows upside-down to cancel BMP bottom-up storage
 	parameter FRAME_WIDTH            = 640,
 	parameter FRAME_HEIGHT           = 480
@@ -53,6 +54,22 @@ localparam [ADDR_BITS - 1:0] VFLIP_FIRST_ADDR_OFFSET = (FRAME_HEIGHT - 1) * FRAM
 localparam [ADDR_BITS - 1:0] VFLIP_LINE_JUMP         = (FRAME_WIDTH * 2) - 1;
 localparam [15:0]            VFLIP_LINE_LAST_X       = FRAME_WIDTH - 1;
 
+function integer bits_required;
+    input integer value;
+    integer remaining;
+    begin
+        remaining = value - 1;
+        bits_required = 0;
+        while (remaining > 0) begin
+            bits_required = bits_required + 1;
+            remaining = remaining >> 1;
+        end
+        if (bits_required == 0)
+            bits_required = 1;
+    end
+endfunction
+localparam integer X_BITS = bits_required(FRAME_WIDTH);
+
 //write state machine code
 localparam S_IDLE                    = 0;                        //idle state,waiting for write
 localparam S_ACK                     = 1;                        //written request response
@@ -68,12 +85,16 @@ reg                                 write_req_d2;                //third,Why do 
 reg[ADDR_BITS - 1:0]                write_len_d0;                //asynchronous write_len(write data length), synchronize to 'mem_clk' clock domain first
 reg[ADDR_BITS - 1:0]                write_len_d1;                //second
 reg[ADDR_BITS - 1:0]                write_len_latch;             //lock write data length
-reg[ADDR_BITS - 1:0]                write_cnt;                   //write data counter
+reg[BURST_COUNT_BITS - 1:0]         write_burst_cnt;             // 已完成的 burst 数
+wire [ADDR_BITS - 1:0]              write_word_count;            // 换算为字数，用于原有长度比较
 reg[2:0]                            write_addr_index_d0;
 reg[2:0]                            write_addr_index_d1;
 reg[3:0]                            state;                       //state machine
 reg [ADDR_BITS - 1:0]	 App_wr_addr_r;
-reg [15:0]                            wr_x;                       // current x position in one input row
+reg [X_BITS - 1:0]                   wr_x;                       // current x position in one input row
+reg [ADDR_BITS - 1:0]                selected_write_addr;
+reg                                  selected_write_addr_valid;
+wire [ADDR_BITS - 1:0]               write_addr_step;
 reg                                    write_v_flip_latch;
 
 reg [BURST_BITS - 1:0]				burst_cnt;
@@ -84,7 +105,25 @@ reg App_wr_en_d0;
 
 wire into_burst;
 reg  into_burst_d;
-assign into_burst = (((write_len_latch <= (rdusedw + write_cnt)) || (rdusedw >= BURST_SIZE)) && ~App_rd_busy);//当rd在突发时不会进入burst
+wire [BURST_BITS:0] burst_progress;
+assign write_word_count = write_burst_cnt * BURST_SIZE;
+assign burst_progress = {1'b0, burst_cnt} + App_wr_en;
+assign write_addr_step = (write_v_flip_latch && wr_x == VFLIP_LINE_LAST_X) ?
+                         -VFLIP_LINE_JUMP : {{(ADDR_BITS-1){1'b0}}, 1'b1};
+assign into_burst = (((write_len_latch <= (rdusedw + write_word_count)) || (rdusedw >= BURST_SIZE)) && ~App_rd_busy);//当rd在突发时不会进入burst
+
+always @* begin
+    selected_write_addr = {ADDR_BITS{1'b0}};
+    selected_write_addr_valid = 1'b1;
+    case (write_addr_index_d1)
+        3'd0: selected_write_addr = write_addr_0;
+        3'd1: selected_write_addr = write_addr_1;
+        3'd2: selected_write_addr = write_addr_2;
+        3'd3: selected_write_addr = write_addr_3;
+        3'd4: selected_write_addr = write_addr_4;
+        default: selected_write_addr_valid = 1'b0;
+    endcase
+end
 
 // rdusedw crosses from the FIFO read side.  Register the completed burst
 // decision before it reaches the write state machine to cut the long
@@ -134,7 +173,7 @@ begin
 		burst_cnt <= ZERO[BURST_BITS - 1:0];
 		App_wr_addr_r <= ZERO[ADDR_BITS - 1:0];
 		App_wr_en_d0 <= 1'b0;
-		wr_x <= 16'd0;
+		wr_x <= {X_BITS{1'b0}};
 	end
 	else begin
 	
@@ -147,17 +186,10 @@ begin
 		//
 		if(state == S_ACK)
 			begin
-				wr_x <= 16'd0;
-				if(write_addr_index_d1 == 3'd0)
-					App_wr_addr_r <= write_v_flip_latch ? (write_addr_0 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_0;
-				else if(write_addr_index_d1 == 3'd1)
-					App_wr_addr_r <= write_v_flip_latch ? (write_addr_1 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_1;
-				else if(write_addr_index_d1 == 3'd2)
-					App_wr_addr_r <= write_v_flip_latch ? (write_addr_2 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_2;
-				else if(write_addr_index_d1 == 3'd3)
-					App_wr_addr_r <= write_v_flip_latch ? (write_addr_3 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_3;
-				else if(write_addr_index_d1 == 3'd4)
-					App_wr_addr_r <= write_v_flip_latch ? (write_addr_4 + VFLIP_FIRST_ADDR_OFFSET) : write_addr_4;
+				wr_x <= {X_BITS{1'b0}};
+				if (selected_write_addr_valid)
+					App_wr_addr_r <= selected_write_addr +
+					                 (write_v_flip_latch ? VFLIP_FIRST_ADDR_OFFSET : {ADDR_BITS{1'b0}});
 			end
 		else if(App_wr_en)
 			begin
@@ -165,22 +197,19 @@ begin
 				begin
 					if(wr_x == VFLIP_LINE_LAST_X)
 					begin
-						wr_x <= 16'd0;
-						App_wr_addr_r <= App_wr_addr_r - VFLIP_LINE_JUMP;
+						wr_x <= {X_BITS{1'b0}};
 					end
 					else
 					begin
 						wr_x <= wr_x + 1'b1;
-						App_wr_addr_r <= App_wr_addr_r + 1'b1;
 					end
 				end
-				else
-					App_wr_addr_r <= App_wr_addr_r + 1'b1;
+				App_wr_addr_r <= App_wr_addr_r + write_addr_step;
 			end
 		else
 			App_wr_addr_r <= App_wr_addr_r;
 		//
-		if(App_wr_en_r && burst_cnt + App_wr_en < BURST_SIZE && (burst_cnt + write_cnt + App_wr_en < write_len_latch))begin
+		if(App_wr_en_r && burst_progress < BURST_SIZE && (burst_progress + write_word_count < write_len_latch))begin
             App_wr_en_d0 <= 1'b1;
         end
 		else
@@ -200,7 +229,7 @@ begin
 		//wr_burst_req <= 1'b0;
 		App_wr_en_r <= 1'b0;
 		
-		write_cnt <= ZERO[ADDR_BITS - 1:0];
+		write_burst_cnt <= {BURST_COUNT_BITS{1'b0}};
 		fifo_aclr <= 1'b0;
 		write_req_ack <= 1'b0;
 		//wr_burst_len <= ZERO[BURST_BITS - 1:0];
@@ -249,8 +278,8 @@ begin
 					write_len_latch <= write_len_d1;                    
 					write_v_flip_latch <= write_v_flip;
 				end
-				//write data counter reset, write_cnt <= 0;
-				write_cnt <= ZERO[ADDR_BITS - 1:0];
+				// 帧进度清零
+				write_burst_cnt <= {BURST_COUNT_BITS{1'b0}};
 			end
 			S_CHECK_FIFO:
 			begin
@@ -276,8 +305,8 @@ begin
 				begin
 					App_wr_en_r <= 1'b0;
 					state <= S_WRITE_BURST_END;
-					//write counter + burst length
-					write_cnt <= write_cnt + BURST_SIZE[ADDR_BITS - 1:0];
+					// 一个完整 burst 已写出
+					write_burst_cnt <= write_burst_cnt + 1'b1;
 					//the next burst write address is generated
 					//wr_burst_addr <= wr_burst_addr + BURST_SIZE[ADDR_BITS - 1:0];
 				end     
@@ -291,7 +320,7 @@ begin
 				end
 				//if the write counter value is less than the frame length, continue writing,
 				//otherwise the writing is complete
-				else if(write_cnt < write_len_latch)
+				else if(write_word_count < write_len_latch)
 				begin
 					state <= S_CHECK_FIFO;
 				end
