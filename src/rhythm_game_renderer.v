@@ -30,7 +30,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg which_end,negative;
     reg [9:0] head_y;
     reg [16:0] dividend;reg [8:0] quotient,remainder;
-    reg [5:0] left;wire [9:0] trial={remainder,dividend[16]};
+    reg [4:0] left;wire [9:0] trial={remainder,dividend[16]};
     wire subtract_ok=trial>=10'd300;
     wire [8:0] quotient_next={quotient[7:0],subtract_ok};
     reg [40:0] progress_remaining;
@@ -54,10 +54,12 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     end endgenerate
 
     wire signed [33:0] difference=$signed({2'd0,(which_end ? view_end : view_start)})-$signed({time_snapshot[32],time_snapshot});
-    wire [33:0] magnitude=difference[33] ? -difference : difference;
+    // 超出有符号 18 位的时间差直接限幅，近处只构造 18 位绝对值。
+    wire difference_fits=(difference[33:17]==17'd0) || (difference[33:17]==17'h1ffff);
+    wire [17:0] magnitude=difference[17] ? -difference[17:0] : difference[17:0];
     wire [9:0] converted_y=negative ? (quotient>9'd24 ? 10'd408 : 10'd384+{1'b0,quotient}) :
         (quotient>9'd320 ? 10'd64 : 10'd384-{1'b0,quotient});
-    reg [9:0] progress;
+    reg [8:0] progress;
     assign view_index=index;
     assign capture_busy=(work!=IDLE) || (frame_start && enabled);
     // 只读一个几何端口，64 拍完成下一行四轨样式计算，行消隐有 160 拍。
@@ -118,7 +120,8 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         else if(px>=10'd320)begin track=2;track_left=320;end
         else if(px>=10'd208)begin track=1;track_left=208;end
     end
-    wire [9:0] local_x=px-track_left;
+    // 有效轨道内局部坐标为 0..111，低七位减法保留四条轨道的精确位置。
+    wire [6:0] local_x=px[6:0]-track_left[6:0];
     reg [5:0] active_head_style;
     reg [23:0] note_color,body_color;
     always @*begin
@@ -146,14 +149,14 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             default:tail_inset=1;
         endcase
     end
-    wire head_fill=local_x>=10'd18+{7'd0,head_inset} && local_x<10'd94-{7'd0,head_inset};
-    wire body_fill=local_x>=10'd18+{7'd0,tail_inset} && local_x<10'd94-{7'd0,tail_inset};
-    wire [9:0] mark_distance=local_x<10'd56 ? 10'd56-local_x : local_x-10'd56;
+    wire head_fill=local_x>=7'd18+{4'd0,head_inset} && local_x<7'd94-{4'd0,head_inset};
+    wire body_fill=local_x>=7'd18+{4'd0,tail_inset} && local_x<7'd94-{4'd0,tail_inset};
+    wire [6:0] mark_distance=local_x<7'd56 ? 7'd56-local_x : local_x-7'd56;
     wire [4:0] arrow_top=5'd17-{1'b0,mark_distance[4:1]};
-    wire arrow_mark=mark_distance<=10'd12 && active_head_style[4:0]>=arrow_top && active_head_style[4:0]<arrow_top+5'd3;
+    wire arrow_mark=mark_distance<=7'd12 && active_head_style[4:0]>=arrow_top && active_head_style[4:0]<arrow_top+5'd3;
     wire dash_mark=(active_head_style[4:0]==5'd13 || active_head_style[4:0]==5'd16) ?
-        (local_x>=10'd45 && local_x<10'd67) :
-        ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=10'd44 && local_x<10'd68);
+        (local_x>=7'd45 && local_x<7'd67) :
+        ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=7'd44 && local_x<7'd68);
     wire head_white=active_head_style[4:0]>=5'd28 || (active_head_style[5] ? dash_mark : arrow_mark);
     reg overlay;reg [23:0] color;
     wire [7:0] character;wire [9:0] rel_x,rel_y;wire text_area;
@@ -205,9 +208,9 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             end else begin
                 case(work)
                     COPY:if(copy_wait!=0)copy_wait<=copy_wait-4'd1;else work<=SETUP;
-                    SETUP:begin dividend<=magnitude>34'd96000 ? 17'd96000 : magnitude[16:0];quotient<=0;remainder<=0;left<=17;negative<=difference[33];work<=DIVIDE;end
+                    SETUP:begin dividend<=!difference_fits || magnitude>18'd96000 ? 17'd96000 : magnitude[16:0];quotient<=0;remainder<=0;left<=5'd17;negative<=difference[33];work<=DIVIDE;end
                     DIVIDE:begin
-                        dividend<=dividend<<1;quotient<=quotient_next;left<=left-6'd1;
+                        dividend<=dividend<<1;quotient<=quotient_next;left<=left-5'd1;
                         remainder<=subtract_ok ? trial-10'd300 : trial[8:0];
                         if(left==1)work<=STORE;
                     end
@@ -220,8 +223,8 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                         progress<=0;work<=PUBLISH;
                     end
                     PUBLISH:begin
-                        if(progress_remaining>={9'd0,frames_snapshot} && progress<10'd448 && frames_snapshot!=0)begin
-                            progress_remaining<=progress_remaining-{9'd0,frames_snapshot};progress<=progress+10'd1;
+                        if(progress_remaining>={9'd0,frames_snapshot} && progress<9'd448 && frames_snapshot!=0)begin
+                            progress_remaining<=progress_remaining-{9'd0,frames_snapshot};progress<=progress+9'd1;
                         end else begin front_bank<=!front_bank;work<=IDLE;
                             row_busy<=1;row_wait<=1;row_index<=0;row_y<=y;row_heads<=0;row_bodies<=0;row_head_style<=0;end
                     end

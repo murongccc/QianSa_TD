@@ -32,11 +32,12 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     wire queue_write_busy,queue_current_ready;
     reg memory_wait;
     wire signed [33:0] now_time = processing_event ? {captured_time[32],captured_time} : {song_time[32],song_time};
-    wire signed [33:0] delta = now_time - $signed({2'b00,current_start});
+    // Tap 起点与 Hold 尾部在判定中互斥，共用时间差，完整时间范围保持 34 位。
+    wire [31:0] judge_reference=holding[lane] ? current_end : current_start;
+    wire signed [33:0] delta = now_time - $signed({2'b00,judge_reference});
     // 判定窗不超过 7200 帧，只对可表示的 ±8192 区间取 14 位绝对值。
     wire delta_near=(delta[33:13]==21'd0) || (delta[33:13]==21'h1fffff);
     wire [13:0] distance=delta[13] ? -delta[13:0] : delta[13:0];
-    wire signed [33:0] tail_time = $signed({2'b00,current_end});
     reg retire, begin_hold;
     reg [1:0] grade;
     always @* begin
@@ -45,12 +46,12 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
             if(holding[lane]) begin
                 if(processing_event && captured_release[lane]) begin
                     retire=1'b1;
-                    if(now_time>=tail_time-34'sd2400) grade=hold_grade[lane];
+                    if(delta>=-34'sd2400) grade=hold_grade[lane];
                 end else if(!processing_event) begin
-                    if(now_time>=tail_time) begin retire=1'b1;grade=hold_grade[lane];end
+                    if(delta>=34'sd0) begin retire=1'b1;grade=hold_grade[lane];end
                     else if(!down_mask[lane]) begin
                         retire=1'b1;
-                        if(now_time>=tail_time-34'sd2400)grade=hold_grade[lane];
+                        if(delta>=-34'sd2400)grade=hold_grade[lane];
                     end
                 end
             end else if(processing_event && captured_press[lane] && delta_near && distance<=14'd7200) begin
@@ -153,16 +154,25 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     end endgenerate
     reg [15:0] resolved;
     reg [19:0] weight;
+    // 三种命中等级只选择增量，共用一个完整 20 位权重加法器。
+    reg [3:0] weight_increment;
+    always @*case(grade)
+        2'd3:weight_increment=4'd10;
+        2'd2:weight_increment=4'd7;
+        2'd1:weight_increment=4'd3;
+        default:weight_increment=4'd0;
+    endcase
     // 精确百万分归一化；移位长除法，板级可选 DSP 计算分子，不使用组合除法器。
     // 判定可继续发生，分数按快照计算，若有新结果则自动再算最新快照。
     reg dividing;
     reg [5:0] divide_left;
     reg [35:0] dividend, quotient;
-    reg [16:0] remainder;
+    // 每拍余数严格小于 16 位除数；试减保留额外一位。
+    reg [15:0] remainder;
     reg [19:0] scored_weight, target_weight;
     reg [15:0] divisor;
-    wire [17:0] trial={remainder,dividend[35]};
-    wire subtract_ok=trial>={2'b00,divisor};
+    wire [16:0] trial={remainder,dividend[35]};
+    wire subtract_ok=trial>={1'b0,divisor};
     wire [35:0] next_quotient={quotient[34:0],subtract_ok};
     wire [35:0] numerator;
     generate if(SCORE_DSP)begin: dsp_score
@@ -215,10 +225,11 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
                     if(actual_retire)begin
                         read_ptr[lane]<=read_ptr[lane]+3'd1;holding[lane]<=1'b0;
                         resolved<=resolved+16'd1;result_valid<=1'b1;result_lane<=lane;result_grade<=grade;
+                        if(grade!=2'd0)weight<=weight+{16'd0,weight_increment};
                         case(grade)
-                            2'd3:begin perfect_count<=perfect_count+16'd1;weight<=weight+20'd10;end
-                            2'd2:begin good_count<=good_count+16'd1;weight<=weight+20'd7;end
-                            2'd1:begin bad_count<=bad_count+16'd1;weight<=weight+20'd3;end
+                            2'd3:perfect_count<=perfect_count+16'd1;
+                            2'd2:good_count<=good_count+16'd1;
+                            2'd1:bad_count<=bad_count+16'd1;
                             default:miss_count<=miss_count+16'd1;
                         endcase
                         if(grade>=2'd2)begin
@@ -233,7 +244,7 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
                 divisor<=total_notes;target_weight<=weight;
             end else if(dividing)begin
                 dividend<={dividend[34:0],1'b0};quotient<=next_quotient;
-                if(subtract_ok)remainder<=trial-{2'b00,divisor};else remainder<=trial[16:0];
+                if(subtract_ok)remainder<=trial-{1'b0,divisor};else remainder<=trial[15:0];
                 divide_left<=divide_left-6'd1;
                 if(divide_left==6'd1)begin score<=next_quotient[19:0];scored_weight<=target_weight;dividing<=1'b0;end
             end

@@ -1,0 +1,515 @@
+{
+  "baseline_revision": "c80969ae2248bfacb6c3c57d628f1b437562a376",
+  "baseline_report": "E:/AnLuTD_Project/SD_to_Video/prj/log/touch_markers_final_syn_20261009/SD_to_Video_gate.area",
+  "candidate_report": "E:/AnLuTD_Project/SD_to_Video/prj/log/rhythm_priority1_final_syn_20261010/SD_to_Video_gate.area",
+  "global_before": {
+    "lut": 18401,
+    "reg": 10370,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 29
+  },
+  "global_after": {
+    "lut": 18180,
+    "reg": 10393,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 29
+  },
+  "chain": {
+    "before": {
+      "lut": 4818,
+      "seq": 2457,
+      "ram": 12,
+      "dsp": 3
+    },
+    "after": {
+      "lut": 4638,
+      "seq": 2480,
+      "ram": 12,
+      "dsp": 3
+    }
+  },
+  "module_changes": [
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart",
+      "module": "fat32_chart_reader",
+      "before": {
+        "module": "fat32_chart_reader",
+        "lut": 1215,
+        "seq": 810,
+        "ram": 0,
+        "dsp": 0
+      },
+      "after": {
+        "module": "fat32_chart_reader",
+        "lut": 1185,
+        "seq": 836,
+        "ram": 0,
+        "dsp": 0
+      },
+      "delta": {
+        "lut": -30,
+        "seq": 26,
+        "ram": 0,
+        "dsp": 0
+      }
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources/u_buffer",
+      "module": "rhythm_chart_buffer",
+      "before": {
+        "module": "rhythm_chart_buffer",
+        "lut": 63,
+        "seq": 65,
+        "ram": 4,
+        "dsp": 0
+      },
+      "after": {
+        "module": "rhythm_chart_buffer",
+        "lut": 63,
+        "seq": 65,
+        "ram": 4,
+        "dsp": 0
+      },
+      "delta": {
+        "lut": 0,
+        "seq": 0,
+        "ram": 0,
+        "dsp": 0
+      }
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources/metadata_ram$ram",
+      "module": "rhythm_block_ram",
+      "before": {
+        "module": "rhythm_block_ram",
+        "lut": 9,
+        "seq": 0,
+        "ram": 1,
+        "dsp": 0
+      },
+      "after": {
+        "module": "rhythm_block_ram",
+        "lut": 9,
+        "seq": 0,
+        "ram": 1,
+        "dsp": 0
+      },
+      "delta": {
+        "lut": 0,
+        "seq": 0,
+        "ram": 0,
+        "dsp": 0
+      }
+    },
+    {
+      "path": "top/u_game_engine",
+      "module": "rhythm_game_engine",
+      "before": {
+        "module": "rhythm_game_engine",
+        "lut": 1072,
+        "seq": 632,
+        "ram": 2,
+        "dsp": 1
+      },
+      "after": {
+        "module": "rhythm_game_engine",
+        "lut": 1014,
+        "seq": 631,
+        "ram": 2,
+        "dsp": 1
+      },
+      "delta": {
+        "lut": -58,
+        "seq": -1,
+        "ram": 0,
+        "dsp": 0
+      }
+    },
+    {
+      "path": "top/u_game_renderer",
+      "module": "rhythm_game_renderer",
+      "before": {
+        "module": "rhythm_game_renderer",
+        "lut": 1798,
+        "seq": 473,
+        "ram": 5,
+        "dsp": 2
+      },
+      "after": {
+        "module": "rhythm_game_renderer",
+        "lut": 1703,
+        "seq": 471,
+        "ram": 5,
+        "dsp": 2
+      },
+      "delta": {
+        "lut": -95,
+        "seq": -2,
+        "ram": 0,
+        "dsp": 0
+      }
+    },
+    {
+      "path": "top/u_game_session",
+      "module": "rhythm_session_controller",
+      "before": {
+        "module": "rhythm_session_controller",
+        "lut": 661,
+        "seq": 477,
+        "ram": 0,
+        "dsp": 0
+      },
+      "after": {
+        "module": "rhythm_session_controller",
+        "lut": 664,
+        "seq": 477,
+        "ram": 0,
+        "dsp": 0
+      },
+      "delta": {
+        "lut": 3,
+        "seq": 0,
+        "ram": 0,
+        "dsp": 0
+      }
+    }
+  ],
+  "clocks_before": {
+    "video_clk": {
+      "setup_wns": 8.411,
+      "setup_tns": 0.0,
+      "fmax": 31.657,
+      "hold_wns": 0.471
+    },
+    "sd_card_clk": {
+      "setup_wns": -1.077,
+      "setup_tns": -4.155,
+      "fmax": 90.277,
+      "hold_wns": 0.471
+    },
+    "clk": {
+      "setup_wns": 5.508,
+      "setup_tns": 0.0,
+      "fmax": 69.004,
+      "hold_wns": 0.471
+    },
+    "ext_mem_clk": {
+      "setup_wns": 0.994,
+      "setup_tns": 0.0,
+      "fmax": 111.037,
+      "hold_wns": 0.659
+    },
+    "hdmi_5x_clk": {
+      "setup_wns": 5.552,
+      "setup_tns": 0.0,
+      "fmax": 408.497,
+      "hold_wns": 0.674
+    },
+    "ext_mem_clk_sft": {
+      "setup_wns": -0.213,
+      "setup_tns": -3.408,
+      "fmax": 95.914,
+      "hold_wns": 8.364
+    }
+  },
+  "clocks_after": {
+    "video_clk": {
+      "setup_wns": 11.537,
+      "setup_tns": 0.0,
+      "fmax": 35.133,
+      "hold_wns": 0.471
+    },
+    "sd_card_clk": {
+      "setup_wns": -0.982,
+      "setup_tns": -3.88,
+      "fmax": 91.058,
+      "hold_wns": 0.471
+    },
+    "clk": {
+      "setup_wns": 6.487,
+      "setup_tns": 0.0,
+      "fmax": 74.003,
+      "hold_wns": 0.471
+    },
+    "ext_mem_clk": {
+      "setup_wns": 0.994,
+      "setup_tns": 0.0,
+      "fmax": 111.037,
+      "hold_wns": 0.659
+    },
+    "hdmi_5x_clk": {
+      "setup_wns": 5.552,
+      "setup_tns": 0.0,
+      "fmax": 408.497,
+      "hold_wns": 0.674
+    },
+    "ext_mem_clk_sft": {
+      "setup_wns": -0.213,
+      "setup_tns": -3.408,
+      "fmax": 95.914,
+      "hold_wns": 8.364
+    }
+  },
+  "timing_before": "SWNS: -1.077ns, STNS: -7.563ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+  "timing_after": "SWNS: -0.982ns, STNS: -7.288ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+  "warning_categories_before": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 3,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "warning_categories_after": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 3,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "tests": {
+    "stage3": 4,
+    "stage4": 9,
+    "new_equivalence": 12,
+    "total": 25,
+    "clamp_vectors": 10024,
+    "score_divisions": 1005,
+    "real_song": "SKIP: source asset absent",
+    "compile_errors": 0,
+    "compile_warnings": 0,
+    "runtime_warnings": "existing optional ports: bmp_data/response_busy/touch_frame_packet"
+  },
+  "synthesis_runs": 1,
+  "place_route_runs": 0,
+  "bitstreams": 0,
+  "source_hashes": {
+    "src/fat32_chart_reader.v": "df362f2d5f00c0b3d003f74dea1a4a8f98bbd52623bc57b54d9f5e11796f0aca",
+    "src/rhythm_judge_core.v": "6f26b828399291437c1edd51f20ab354c66476e748840132ce80efdae468e140",
+    "src/rhythm_game_renderer.v": "64342fa0ad717d33447554aae623f7cdd69c6989a94e2773eb3410b22484c22d",
+    "src/rhythm_session_controller.v": "19732a42669ca8822f8cb06b007da938357138b10a1d2cef1f4f6b7a9206c247"
+  },
+  "hierarchy_mapping_changes": [
+    {
+      "path": "top",
+      "before": 18401,
+      "after": 18180
+    },
+    {
+      "path": "top/U3",
+      "before": 96,
+      "after": 95
+    },
+    {
+      "path": "top/U3/u2_ram",
+      "before": 96,
+      "after": 95
+    },
+    {
+      "path": "top/U3/u2_ram/u2_wrrd",
+      "before": 71,
+      "after": 70
+    },
+    {
+      "path": "top/sd_media_pipeline_m0",
+      "before": 6521,
+      "after": 6480
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources",
+      "before": 2840,
+      "after": 2814
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart",
+      "before": 1215,
+      "after": 1185
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/rhythm_resources$resources/u_wav",
+      "before": 1392,
+      "after": 1397
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/u_bmp_catalog",
+      "before": 844,
+      "after": 843
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/u_bmp_read",
+      "before": 1065,
+      "after": 1055
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/u_sd",
+      "before": 279,
+      "after": 277
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/u_sd/sd_card_cmd_m0",
+      "before": 150,
+      "after": 148
+    },
+    {
+      "path": "top/sd_media_pipeline_m0/u_session",
+      "before": 214,
+      "after": 212
+    },
+    {
+      "path": "top/seg_scan_m0",
+      "before": 147,
+      "after": 148
+    },
+    {
+      "path": "top/u_audio_fft_spectrum",
+      "before": 2110,
+      "after": 2100
+    },
+    {
+      "path": "top/u_audio_fft_spectrum/g_reference$u_reference",
+      "before": 2110,
+      "after": 2100
+    },
+    {
+      "path": "top/u_game_engine",
+      "before": 1072,
+      "after": 1014
+    },
+    {
+      "path": "top/u_game_engine/auto_input",
+      "before": 69,
+      "after": 72
+    },
+    {
+      "path": "top/u_game_engine/judge",
+      "before": 1001,
+      "after": 940
+    },
+    {
+      "path": "top/u_game_renderer",
+      "before": 1798,
+      "after": 1703
+    },
+    {
+      "path": "top/u_game_renderer/hud",
+      "before": 668,
+      "after": 646
+    },
+    {
+      "path": "top/u_game_renderer/hud/block_characters$ram",
+      "before": 198,
+      "after": 199
+    },
+    {
+      "path": "top/u_game_session",
+      "before": 661,
+      "after": 664
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper",
+      "before": 1605,
+      "after": 1596
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper",
+      "before": 227,
+      "after": 226
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper",
+      "before": 217,
+      "after": 216
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_bit_transmitter",
+      "before": 77,
+      "after": 78
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller",
+      "before": 140,
+      "after": 138
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller/u_iic_w11_d1024_fifo",
+      "before": 28,
+      "after": 27
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper",
+      "before": 1378,
+      "after": 1370
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen",
+      "before": 330,
+      "after": 323
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel",
+      "before": 142,
+      "after": 140
+    },
+    {
+      "path": "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_source",
+      "before": 224,
+      "after": 223
+    },
+    {
+      "path": "top/u_image_controls",
+      "before": 193,
+      "after": 189
+    },
+    {
+      "path": "top/u_touch_input",
+      "before": 538,
+      "after": 529
+    },
+    {
+      "path": "top/u_touch_input/u_parser",
+      "before": 410,
+      "after": 401
+    },
+    {
+      "path": "top/u_touch_monitor",
+      "before": 480,
+      "after": 478
+    },
+    {
+      "path": "top/u_touch_monitor/u_tx",
+      "before": 96,
+      "after": 94
+    },
+    {
+      "path": "top/u_video_presentation",
+      "before": 1490,
+      "after": 1496
+    },
+    {
+      "path": "top/video_timing_data_m0",
+      "before": 42,
+      "after": 41
+    },
+    {
+      "path": "top/video_timing_data_m0/color_bar_m0",
+      "before": 41,
+      "after": 40
+    }
+  ]
+}

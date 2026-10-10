@@ -46,7 +46,8 @@ module rhythm_session_controller #(
         begin bits_for=1;for(v=count-1;v>1;v=v>>1)bits_for=bits_for+1;end
     endfunction
     localparam PHASE_BITS=bits_for(CLOCK_HZ+48000),PRE_BITS=bits_for(PREROLL_SAMPLES+1),TAIL_BITS=bits_for(TAIL_SAMPLES+1);
-    reg [4:0] guard;
+    // CLEAR/SETTLE 的等待上限均为 15，不需要第五位。
+    reg [3:0] guard;
     reg [PHASE_BITS-1:0] phase;reg [PRE_BITS-1:0] pre_count;reg [TAIL_BITS-1:0] tail_count;
     localparam [PHASE_BITS:0] CLOCK_RATE=CLOCK_HZ;
     localparam [PHASE_BITS:0] SAMPLE_RATE=48000;
@@ -88,10 +89,10 @@ module rhythm_session_controller #(
                 RETIRE:if(cancelled && quiet)begin state<=CLEAR;guard<=0;active_game<=want_game;end
                 CLEAR:begin
                     song_time<=0;song_frames<=0;total_notes<=0;chart_offset<=0;error_code<=0;pre_count<=0;tail_count<=0;
-                    if(guard==5'd15)begin state<=STOP;guard<=0;end else guard<=guard+5'd1;
+                    if(guard==4'd15)begin state<=STOP;guard<=0;end else guard<=guard+4'd1;
                 end
                 STOP:if(want_run)begin state<=SETTLE;guard<=0;end
-                SETTLE:if(guard==5'd15)begin state<=LOAD;guard<=0;end else guard<=guard+5'd1;
+                SETTLE:if(guard==4'd15)begin state<=LOAD;guard<=0;end else guard<=guard+4'd1;
                 LOAD:if(ready && prefetch_ready)begin
                     song_frames<=frames_sync;total_notes<=notes_sync;chart_offset<=offset_sync;
                     if(active_game)begin state<=PREROLL;song_time<=-PREROLL_SAMPLES;pre_count<=0;end
