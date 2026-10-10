@@ -1,0 +1,3474 @@
+{
+  "baseline_revision": "936a97b",
+  "variants": [
+    {
+      "folder": "E:/AnLuTD_Project/SD_to_Video/prj/log/rhythm_priority1_final_syn_20261010",
+      "counts": {
+        "lut": 18180,
+        "reg": 10393,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 29
+      },
+      "rows": {
+        "top": {
+          "lut": 18180,
+          "seq": 10427,
+          "ram": 68,
+          "dsp": 29
+        },
+        "top/U3": {
+          "lut": 95,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram": {
+          "lut": 95,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u1_init_ref": {
+          "lut": 25,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u2_wrrd": {
+          "lut": 70,
+          "seq": 341,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0": {
+          "lut": 522,
+          "seq": 367,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_read_m0": {
+          "lut": 129,
+          "seq": 74,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_write_m0": {
+          "lut": 239,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf": {
+          "lut": 72,
+          "seq": 118,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/ram_inst": {
+          "lut": 0,
+          "seq": 24,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf": {
+          "lut": 82,
+          "seq": 94,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/ram_inst": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0": {
+          "lut": 6480,
+          "seq": 4118,
+          "ram": 12,
+          "dsp": 5
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$clear_sync": {
+          "lut": 7,
+          "seq": 6,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources": {
+          "lut": 2814,
+          "seq": 1672,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/metadata_ram$ram": {
+          "lut": 9,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_arbiter": {
+          "lut": 118,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_buffer": {
+          "lut": 63,
+          "seq": 65,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart": {
+          "lut": 1185,
+          "seq": 836,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_wav": {
+          "lut": 1397,
+          "seq": 715,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo": {
+          "lut": 73,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr": {
+          "lut": 49,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr/al_soft_fifo_eSCWbQZ_": {
+          "lut": 2,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW": {
+          "lut": 2,
+          "seq": 25,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW/al_soft_fifo_BpJUKxcz": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr": {
+          "lut": 21,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_asSgfuf5": {
+          "lut": 7,
+          "seq": 27,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_whu47jXM": {
+          "lut": 14,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog": {
+          "lut": 843,
+          "seq": 754,
+          "ram": 1,
+          "dsp": 2
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog/descriptor_cache": {
+          "lut": 3,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_read": {
+          "lut": 1055,
+          "seq": 646,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_reset_local": {
+          "lut": 7,
+          "seq": 7,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler": {
+          "lut": 1160,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_even": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_odd": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd": {
+          "lut": 277,
+          "seq": 180,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_cmd_m0": {
+          "lut": 148,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_sec_read_write_m0": {
+          "lut": 62,
+          "seq": 89,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/spi_master_m0": {
+          "lut": 67,
+          "seq": 44,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session/u_key_next": {
+          "lut": 59,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/seg_scan_m0": {
+          "lut": 148,
+          "seq": 19,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sys_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_arc_calculate": {
+          "lut": 57,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum": {
+          "lut": 2100,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference": {
+          "lut": 2100,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/block_bars$cache": {
+          "lut": 2,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank0": {
+          "lut": 73,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank1": {
+          "lut": 46,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fifo": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_frame_read_monitor": {
+          "lut": 20,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine": {
+          "lut": 1014,
+          "seq": 631,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/auto_input": {
+          "lut": 72,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge": {
+          "lut": 940,
+          "seq": 582,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/judge/block_queue$judge_ram": {
+          "lut": 6,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge/block_queue$view_ram": {
+          "lut": 5,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer": {
+          "lut": 1703,
+          "seq": 471,
+          "ram": 5,
+          "dsp": 2
+        },
+        "top/u_game_renderer/block_geometry$ram": {
+          "lut": 24,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/font": {
+          "lut": 22,
+          "seq": 1,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud": {
+          "lut": 646,
+          "seq": 148,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud/block_characters$ram": {
+          "lut": 199,
+          "seq": 72,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_session": {
+          "lut": 664,
+          "seq": 477,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/gsw": {
+          "lut": 52,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key2": {
+          "lut": 53,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key3": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key4": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/rsw": {
+          "lut": 52,
+          "seq": 21,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper": {
+          "lut": 34,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u0_lane_lvds_8_1": {
+          "lut": 12,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u1_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u2_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u3_lane_lvds_8_1": {
+          "lut": 2,
+          "seq": 5,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper": {
+          "lut": 1596,
+          "seq": 1573,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u0_reset_sync": {
+          "lut": 0,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper": {
+          "lut": 226,
+          "seq": 155,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_hdmi_edid_read_controller": {
+          "lut": 10,
+          "seq": 11,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper": {
+          "lut": 216,
+          "seq": 144,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_bit_transmitter": {
+          "lut": 78,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller": {
+          "lut": 138,
+          "seq": 113,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller/u_iic_w11_d1024_fifo": {
+          "lut": 27,
+          "seq": 55,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper": {
+          "lut": 1370,
+          "seq": 1416,
+          "ram": 14,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u0_hdmi_tmds_encode": {
+          "lut": 162,
+          "seq": 160,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u1_hdmi_tmds_encode": {
+          "lut": 159,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u2_hdmi_tmds_encode": {
+          "lut": 157,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_data_distribution": {
+          "lut": 2,
+          "seq": 43,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_assemble": {
+          "lut": 277,
+          "seq": 418,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen": {
+          "lut": 323,
+          "seq": 422,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel": {
+          "lut": 140,
+          "seq": 219,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo": {
+          "lut": 24,
+          "seq": 55,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_32_24_encode": {
+          "lut": 0,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet": {
+          "lut": 27,
+          "seq": 63,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_data_assemble": {
+          "lut": 0,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_source": {
+          "lut": 223,
+          "seq": 38,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver": {
+          "lut": 67,
+          "seq": 79,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver/u_w24_d1024_fifo": {
+          "lut": 50,
+          "seq": 76,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_image_controls": {
+          "lut": 189,
+          "seq": 70,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_dec": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_inc": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_pcm_audio_player": {
+          "lut": 467,
+          "seq": 171,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_clk": {
+          "lut": 13,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_mem": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_sd": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_video": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_sdram_refresh_scheduler": {
+          "lut": 93,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_startup_pulse": {
+          "lut": 27,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input": {
+          "lut": 529,
+          "seq": 368,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_ack_tx": {
+          "lut": 36,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input/u_parser": {
+          "lut": 401,
+          "seq": 288,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_parser/u_checksum_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_format_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_gap_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_good_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_rx": {
+          "lut": 63,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_monitor": {
+          "lut": 478,
+          "seq": 162,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_monitor/u_tx": {
+          "lut": 94,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_uart_command_control": {
+          "lut": 84,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation": {
+          "lut": 1496,
+          "seq": 238,
+          "ram": 0,
+          "dsp": 11
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/u_ring_spectrum_renderer": {
+          "lut": 669,
+          "seq": 64,
+          "ram": 0,
+          "dsp": 8
+        },
+        "top/u_video_rgb_to_axis_640x480": {
+          "lut": 23,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_delay_m0": {
+          "lut": 24,
+          "seq": 66,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0": {
+          "lut": 41,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0/color_bar_m0": {
+          "lut": 40,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      },
+      "timing": "SWNS: -0.982ns, STNS: -7.288ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+      "clocks": [
+        "clk0           local            0.000     20.000                40.000          25.000                28.463          35.133           11.537      0.000            0.471      0.000            0.000             4621               26             no       no",
+        "clk1           local            0.000      5.000                10.000         100.000                10.982          91.058           -0.982     -3.880            0.471      0.000            0.000             4200                9             no       no",
+        "clk2           local            0.000     10.000                20.000          50.000                13.513          74.003            6.487      0.000            0.471      0.000            0.000              997               12             no       no",
+        "clk3           local            0.000      5.000                10.000         100.000                 9.006         111.037            0.994      0.000            0.659      0.000            0.000              766                8             no       no",
+        "clk4           local            0.000      4.000                 8.000         125.000                 2.448         408.497            5.552      0.000            0.674      0.000            0.000               50                1             no       no",
+        "clk5           local            5.000      0.000                10.000         100.000                10.426          95.914           -0.213     -3.408            8.364      0.000            0.000                1                1             no       no"
+      ],
+      "chain": {
+        "lut": 4638,
+        "seq": 2480,
+        "ram": 12,
+        "dsp": 3
+      }
+    },
+    {
+      "folder": "E:/AnLuTD_Project/SD_to_Video/prj/log/rhythm_priority1_complete_candidate_syn_20261010",
+      "counts": {
+        "lut": 18194,
+        "reg": 10431,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 28
+      },
+      "rows": {
+        "top": {
+          "lut": 18194,
+          "seq": 10465,
+          "ram": 68,
+          "dsp": 28
+        },
+        "top/U3": {
+          "lut": 96,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram": {
+          "lut": 96,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u1_init_ref": {
+          "lut": 25,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u2_wrrd": {
+          "lut": 71,
+          "seq": 341,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0": {
+          "lut": 522,
+          "seq": 367,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_read_m0": {
+          "lut": 129,
+          "seq": 74,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_write_m0": {
+          "lut": 239,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf": {
+          "lut": 72,
+          "seq": 118,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/ram_inst": {
+          "lut": 0,
+          "seq": 24,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf": {
+          "lut": 82,
+          "seq": 94,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/ram_inst": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0": {
+          "lut": 6483,
+          "seq": 4118,
+          "ram": 12,
+          "dsp": 5
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$clear_sync": {
+          "lut": 7,
+          "seq": 6,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources": {
+          "lut": 2810,
+          "seq": 1672,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/metadata_ram$ram": {
+          "lut": 9,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_arbiter": {
+          "lut": 118,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_buffer": {
+          "lut": 63,
+          "seq": 65,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart": {
+          "lut": 1181,
+          "seq": 836,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_wav": {
+          "lut": 1398,
+          "seq": 715,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo": {
+          "lut": 73,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr": {
+          "lut": 49,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr/al_soft_fifo_eSCWbQZ_": {
+          "lut": 2,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW": {
+          "lut": 2,
+          "seq": 25,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW/al_soft_fifo_BpJUKxcz": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr": {
+          "lut": 21,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_asSgfuf5": {
+          "lut": 7,
+          "seq": 27,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_whu47jXM": {
+          "lut": 14,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog": {
+          "lut": 840,
+          "seq": 754,
+          "ram": 1,
+          "dsp": 2
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog/descriptor_cache": {
+          "lut": 3,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_read": {
+          "lut": 1069,
+          "seq": 646,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_reset_local": {
+          "lut": 7,
+          "seq": 7,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler": {
+          "lut": 1160,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_even": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_odd": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd": {
+          "lut": 273,
+          "seq": 180,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_cmd_m0": {
+          "lut": 144,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_sec_read_write_m0": {
+          "lut": 62,
+          "seq": 89,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/spi_master_m0": {
+          "lut": 67,
+          "seq": 44,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session/u_key_next": {
+          "lut": 59,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/seg_scan_m0": {
+          "lut": 148,
+          "seq": 19,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sys_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_arc_calculate": {
+          "lut": 57,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum": {
+          "lut": 2110,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference": {
+          "lut": 2110,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/block_bars$cache": {
+          "lut": 2,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank0": {
+          "lut": 73,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank1": {
+          "lut": 46,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fifo": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_frame_read_monitor": {
+          "lut": 20,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine": {
+          "lut": 1001,
+          "seq": 631,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/auto_input": {
+          "lut": 70,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge": {
+          "lut": 929,
+          "seq": 582,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/judge/block_queue$judge_ram": {
+          "lut": 6,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge/block_queue$view_ram": {
+          "lut": 5,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer": {
+          "lut": 1706,
+          "seq": 509,
+          "ram": 5,
+          "dsp": 1
+        },
+        "top/u_game_renderer/block_geometry$ram": {
+          "lut": 24,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/font": {
+          "lut": 22,
+          "seq": 1,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud": {
+          "lut": 652,
+          "seq": 148,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud/block_characters$ram": {
+          "lut": 241,
+          "seq": 72,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_session": {
+          "lut": 668,
+          "seq": 477,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/gsw": {
+          "lut": 52,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key2": {
+          "lut": 53,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key3": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key4": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/rsw": {
+          "lut": 52,
+          "seq": 21,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper": {
+          "lut": 34,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u0_lane_lvds_8_1": {
+          "lut": 12,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u1_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u2_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u3_lane_lvds_8_1": {
+          "lut": 2,
+          "seq": 5,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper": {
+          "lut": 1603,
+          "seq": 1573,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u0_reset_sync": {
+          "lut": 0,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper": {
+          "lut": 228,
+          "seq": 155,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_hdmi_edid_read_controller": {
+          "lut": 12,
+          "seq": 11,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper": {
+          "lut": 216,
+          "seq": 144,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_bit_transmitter": {
+          "lut": 78,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller": {
+          "lut": 138,
+          "seq": 113,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller/u_iic_w11_d1024_fifo": {
+          "lut": 26,
+          "seq": 55,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper": {
+          "lut": 1375,
+          "seq": 1416,
+          "ram": 14,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u0_hdmi_tmds_encode": {
+          "lut": 162,
+          "seq": 160,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u1_hdmi_tmds_encode": {
+          "lut": 159,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u2_hdmi_tmds_encode": {
+          "lut": 157,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_data_distribution": {
+          "lut": 2,
+          "seq": 43,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_assemble": {
+          "lut": 277,
+          "seq": 418,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen": {
+          "lut": 327,
+          "seq": 422,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel": {
+          "lut": 140,
+          "seq": 219,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo": {
+          "lut": 24,
+          "seq": 55,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_32_24_encode": {
+          "lut": 0,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet": {
+          "lut": 26,
+          "seq": 63,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_data_assemble": {
+          "lut": 0,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_source": {
+          "lut": 224,
+          "seq": 38,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver": {
+          "lut": 67,
+          "seq": 79,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver/u_w24_d1024_fifo": {
+          "lut": 50,
+          "seq": 76,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_image_controls": {
+          "lut": 189,
+          "seq": 70,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_dec": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_inc": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_pcm_audio_player": {
+          "lut": 466,
+          "seq": 171,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_clk": {
+          "lut": 13,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_mem": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_sd": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_video": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_sdram_refresh_scheduler": {
+          "lut": 93,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_startup_pulse": {
+          "lut": 27,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input": {
+          "lut": 533,
+          "seq": 368,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_ack_tx": {
+          "lut": 35,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input/u_parser": {
+          "lut": 406,
+          "seq": 288,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_parser/u_checksum_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_format_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_gap_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_good_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_rx": {
+          "lut": 63,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_monitor": {
+          "lut": 475,
+          "seq": 162,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_monitor/u_tx": {
+          "lut": 91,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_uart_command_control": {
+          "lut": 84,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation": {
+          "lut": 1493,
+          "seq": 238,
+          "ram": 0,
+          "dsp": 11
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/u_ring_spectrum_renderer": {
+          "lut": 668,
+          "seq": 64,
+          "ram": 0,
+          "dsp": 8
+        },
+        "top/u_video_rgb_to_axis_640x480": {
+          "lut": 23,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_delay_m0": {
+          "lut": 24,
+          "seq": 66,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0": {
+          "lut": 42,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0/color_bar_m0": {
+          "lut": 41,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      },
+      "timing": "SWNS: -0.878ns, STNS: -6.872ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+      "clocks": [
+        "clk0           local            0.000     20.000                40.000          25.000                30.777          32.492            9.223      0.000            0.471      0.000            0.000             4657               25             no       no",
+        "clk1           local            0.000      5.000                10.000         100.000                10.878          91.929           -0.878     -3.464            0.471      0.000            0.000             4200                9             no       no",
+        "clk2           local            0.000     10.000                20.000          50.000                14.510          68.918            5.490      0.000            0.471      0.000            0.000              997               13             no       no",
+        "clk3           local            0.000      5.000                10.000         100.000                 9.006         111.037            0.994      0.000            0.659      0.000            0.000              766                8             no       no",
+        "clk4           local            0.000      4.000                 8.000         125.000                 2.448         408.497            5.552      0.000            0.674      0.000            0.000               50                1             no       no",
+        "clk5           local            5.000      0.000                10.000         100.000                10.426          95.914           -0.213     -3.408            8.364      0.000            0.000                1                1             no       no"
+      ],
+      "chain": {
+        "lut": 4628,
+        "seq": 2518,
+        "ram": 12,
+        "dsp": 2
+      }
+    },
+    {
+      "folder": "E:/AnLuTD_Project/SD_to_Video/prj/log/rhythm_priority1_complete_final_syn_20261010",
+      "counts": {
+        "lut": 18244,
+        "reg": 10431,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 28
+      },
+      "rows": {
+        "top": {
+          "lut": 18244,
+          "seq": 10465,
+          "ram": 68,
+          "dsp": 28
+        },
+        "top/U3": {
+          "lut": 95,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram": {
+          "lut": 95,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u1_init_ref": {
+          "lut": 25,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u2_wrrd": {
+          "lut": 70,
+          "seq": 341,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0": {
+          "lut": 522,
+          "seq": 367,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_read_m0": {
+          "lut": 129,
+          "seq": 74,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_write_m0": {
+          "lut": 239,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf": {
+          "lut": 72,
+          "seq": 118,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/ram_inst": {
+          "lut": 0,
+          "seq": 24,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf": {
+          "lut": 82,
+          "seq": 94,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/ram_inst": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0": {
+          "lut": 6489,
+          "seq": 4118,
+          "ram": 12,
+          "dsp": 5
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$clear_sync": {
+          "lut": 7,
+          "seq": 6,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources": {
+          "lut": 2805,
+          "seq": 1672,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/metadata_ram$ram": {
+          "lut": 9,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_arbiter": {
+          "lut": 118,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_buffer": {
+          "lut": 63,
+          "seq": 65,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart": {
+          "lut": 1183,
+          "seq": 836,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_wav": {
+          "lut": 1390,
+          "seq": 715,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst": {
+          "lut": 71,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr": {
+          "lut": 49,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr/al_soft_fifo_eSCWbQZ_": {
+          "lut": 2,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW": {
+          "lut": 2,
+          "seq": 25,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW/al_soft_fifo_BpJUKxcz": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr": {
+          "lut": 20,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_asSgfuf5": {
+          "lut": 7,
+          "seq": 27,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_whu47jXM": {
+          "lut": 13,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog": {
+          "lut": 843,
+          "seq": 754,
+          "ram": 1,
+          "dsp": 2
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog/descriptor_cache": {
+          "lut": 3,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_read": {
+          "lut": 1074,
+          "seq": 646,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_reset_local": {
+          "lut": 7,
+          "seq": 7,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler": {
+          "lut": 1160,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_even": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_odd": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd": {
+          "lut": 277,
+          "seq": 180,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_cmd_m0": {
+          "lut": 148,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_sec_read_write_m0": {
+          "lut": 62,
+          "seq": 89,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/spi_master_m0": {
+          "lut": 67,
+          "seq": 44,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session/u_key_next": {
+          "lut": 59,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/seg_scan_m0": {
+          "lut": 147,
+          "seq": 19,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sys_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_arc_calculate": {
+          "lut": 57,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum": {
+          "lut": 2113,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference": {
+          "lut": 2113,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/block_bars$cache": {
+          "lut": 2,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank0": {
+          "lut": 73,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank1": {
+          "lut": 46,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fifo": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_frame_read_monitor": {
+          "lut": 20,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine": {
+          "lut": 1009,
+          "seq": 631,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/auto_input": {
+          "lut": 72,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge": {
+          "lut": 935,
+          "seq": 582,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/judge/block_queue$judge_ram": {
+          "lut": 6,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge/block_queue$view_ram": {
+          "lut": 5,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer": {
+          "lut": 1736,
+          "seq": 509,
+          "ram": 5,
+          "dsp": 1
+        },
+        "top/u_game_renderer/block_geometry$ram": {
+          "lut": 24,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/font": {
+          "lut": 22,
+          "seq": 1,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud": {
+          "lut": 676,
+          "seq": 148,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud/block_characters$ram": {
+          "lut": 237,
+          "seq": 72,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_session": {
+          "lut": 668,
+          "seq": 477,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/gsw": {
+          "lut": 52,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key2": {
+          "lut": 53,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key3": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key4": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/rsw": {
+          "lut": 52,
+          "seq": 21,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper": {
+          "lut": 34,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u0_lane_lvds_8_1": {
+          "lut": 12,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u1_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u2_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u3_lane_lvds_8_1": {
+          "lut": 2,
+          "seq": 5,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper": {
+          "lut": 1604,
+          "seq": 1573,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u0_reset_sync": {
+          "lut": 0,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper": {
+          "lut": 228,
+          "seq": 155,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_hdmi_edid_read_controller": {
+          "lut": 10,
+          "seq": 11,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper": {
+          "lut": 218,
+          "seq": 144,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_bit_transmitter": {
+          "lut": 78,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller": {
+          "lut": 140,
+          "seq": 113,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller/u_iic_w11_d1024_fifo": {
+          "lut": 28,
+          "seq": 55,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper": {
+          "lut": 1376,
+          "seq": 1416,
+          "ram": 14,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u0_hdmi_tmds_encode": {
+          "lut": 162,
+          "seq": 160,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u1_hdmi_tmds_encode": {
+          "lut": 159,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u2_hdmi_tmds_encode": {
+          "lut": 157,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_data_distribution": {
+          "lut": 2,
+          "seq": 43,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_assemble": {
+          "lut": 277,
+          "seq": 418,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen": {
+          "lut": 328,
+          "seq": 422,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel": {
+          "lut": 141,
+          "seq": 219,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo": {
+          "lut": 24,
+          "seq": 55,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_32_24_encode": {
+          "lut": 0,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet": {
+          "lut": 26,
+          "seq": 63,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_data_assemble": {
+          "lut": 0,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_source": {
+          "lut": 224,
+          "seq": 38,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver": {
+          "lut": 67,
+          "seq": 79,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver/u_w24_d1024_fifo": {
+          "lut": 50,
+          "seq": 76,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_image_controls": {
+          "lut": 189,
+          "seq": 70,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_dec": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_inc": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_pcm_audio_player": {
+          "lut": 467,
+          "seq": 171,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_clk": {
+          "lut": 13,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_mem": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_sd": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_video": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_sdram_refresh_scheduler": {
+          "lut": 93,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_startup_pulse": {
+          "lut": 27,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input": {
+          "lut": 535,
+          "seq": 368,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_ack_tx": {
+          "lut": 36,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input/u_parser": {
+          "lut": 407,
+          "seq": 288,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_parser/u_checksum_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_format_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_gap_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_good_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_rx": {
+          "lut": 63,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_monitor": {
+          "lut": 480,
+          "seq": 162,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_monitor/u_tx": {
+          "lut": 97,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_uart_command_control": {
+          "lut": 85,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation": {
+          "lut": 1488,
+          "seq": 238,
+          "ram": 0,
+          "dsp": 11
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/u_ring_spectrum_renderer": {
+          "lut": 667,
+          "seq": 64,
+          "ram": 0,
+          "dsp": 8
+        },
+        "top/u_video_rgb_to_axis_640x480": {
+          "lut": 23,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_delay_m0": {
+          "lut": 24,
+          "seq": 66,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0": {
+          "lut": 42,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0/color_bar_m0": {
+          "lut": 41,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      },
+      "timing": "SWNS: -0.463ns, STNS: -4.482ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+      "clocks": [
+        "clk0           local            0.000     20.000                40.000          25.000                30.131          33.188            9.869      0.000            0.471      0.000            0.000             4657               25             no       no",
+        "clk1           local            0.000      5.000                10.000         100.000                10.463          95.575           -0.463     -1.074            0.471      0.000            0.000             4200                9             no       no",
+        "clk2           local            0.000     10.000                20.000          50.000                14.413          69.382            5.587      0.000            0.471      0.000            0.000              997               13             no       no",
+        "clk3           local            0.000      5.000                10.000         100.000                 9.006         111.037            0.994      0.000            0.659      0.000            0.000              766                8             no       no",
+        "clk4           local            0.000      4.000                 8.000         125.000                 2.448         408.497            5.552      0.000            0.674      0.000            0.000               50                1             no       no",
+        "clk5           local            5.000      0.000                10.000         100.000                10.426          95.914           -0.213     -3.408            8.364      0.000            0.000                1                1             no       no"
+      ],
+      "chain": {
+        "lut": 4668,
+        "seq": 2518,
+        "ram": 12,
+        "dsp": 2
+      }
+    },
+    {
+      "folder": "E:/AnLuTD_Project/SD_to_Video/prj/log/rhythm_priority1_complete_accepted_syn_20261010",
+      "counts": {
+        "lut": 18183,
+        "reg": 10430,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 28
+      },
+      "rows": {
+        "top": {
+          "lut": 18183,
+          "seq": 10464,
+          "ram": 68,
+          "dsp": 28
+        },
+        "top/U3": {
+          "lut": 96,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram": {
+          "lut": 96,
+          "seq": 422,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u1_init_ref": {
+          "lut": 25,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/U3/u2_ram/u2_wrrd": {
+          "lut": 71,
+          "seq": 341,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0": {
+          "lut": 522,
+          "seq": 367,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_read_m0": {
+          "lut": 129,
+          "seq": 74,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/frame_fifo_write_m0": {
+          "lut": 239,
+          "seq": 81,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf": {
+          "lut": 72,
+          "seq": 118,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/ram_inst": {
+          "lut": 0,
+          "seq": 24,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/read_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf": {
+          "lut": 82,
+          "seq": 94,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/ram_inst": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/rd_to_wr_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/frame_read_write_m0/write_buf/wr_to_rd_cross_inst": {
+          "lut": 16,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0": {
+          "lut": 6474,
+          "seq": 4118,
+          "ram": 12,
+          "dsp": 5
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$clear_sync": {
+          "lut": 7,
+          "seq": 6,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources": {
+          "lut": 2806,
+          "seq": 1672,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/metadata_ram$ram": {
+          "lut": 9,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_arbiter": {
+          "lut": 118,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_buffer": {
+          "lut": 63,
+          "seq": 65,
+          "ram": 4,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_chart": {
+          "lut": 1183,
+          "seq": 836,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/rhythm_resources$resources/u_wav": {
+          "lut": 1392,
+          "seq": 715,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo": {
+          "lut": 73,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr": {
+          "lut": 49,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ELyPIOfr/al_soft_fifo_eSCWbQZ_": {
+          "lut": 2,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW": {
+          "lut": 2,
+          "seq": 25,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_ktZv2ExW/al_soft_fifo_BpJUKxcz": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr": {
+          "lut": 21,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_asSgfuf5": {
+          "lut": 7,
+          "seq": 27,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/source_pixel_fifo/soft_fifo_f9a960ae4922_Inst/al_soft_fifo_pXuL5aOr/al_soft_fifo_whu47jXM": {
+          "lut": 14,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog": {
+          "lut": 845,
+          "seq": 754,
+          "ram": 1,
+          "dsp": 2
+        },
+        "top/sd_media_pipeline_m0/u_bmp_catalog/descriptor_cache": {
+          "lut": 3,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_bmp_read": {
+          "lut": 1051,
+          "seq": 646,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_reset_local": {
+          "lut": 7,
+          "seq": 7,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler": {
+          "lut": 1161,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_even": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_scaler/u_line_odd": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd": {
+          "lut": 279,
+          "seq": 180,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_cmd_m0": {
+          "lut": 150,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/sd_card_sec_read_write_m0": {
+          "lut": 62,
+          "seq": 89,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_sd/spi_master_m0": {
+          "lut": 67,
+          "seq": 44,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session": {
+          "lut": 213,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sd_media_pipeline_m0/u_session/u_key_next": {
+          "lut": 59,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/seg_scan_m0": {
+          "lut": 145,
+          "seq": 19,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/sys_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_arc_calculate": {
+          "lut": 57,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum": {
+          "lut": 2108,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference": {
+          "lut": 2108,
+          "seq": 557,
+          "ram": 8,
+          "dsp": 5
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/block_bars$cache": {
+          "lut": 2,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank0": {
+          "lut": 73,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fft_spectrum/g_reference$u_reference/u_bank1": {
+          "lut": 46,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_audio_fifo": {
+          "lut": 1,
+          "seq": 0,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_frame_read_monitor": {
+          "lut": 20,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine": {
+          "lut": 1008,
+          "seq": 631,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/auto_input": {
+          "lut": 70,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge": {
+          "lut": 936,
+          "seq": 582,
+          "ram": 2,
+          "dsp": 1
+        },
+        "top/u_game_engine/judge/block_queue$judge_ram": {
+          "lut": 6,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_engine/judge/block_queue$view_ram": {
+          "lut": 5,
+          "seq": 0,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer": {
+          "lut": 1690,
+          "seq": 508,
+          "ram": 5,
+          "dsp": 1
+        },
+        "top/u_game_renderer/block_geometry$ram": {
+          "lut": 24,
+          "seq": 0,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/font": {
+          "lut": 22,
+          "seq": 1,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud": {
+          "lut": 646,
+          "seq": 148,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_game_renderer/hud/block_characters$ram": {
+          "lut": 235,
+          "seq": 72,
+          "ram": 1,
+          "dsp": 0
+        },
+        "top/u_game_session": {
+          "lut": 671,
+          "seq": 477,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/gsw": {
+          "lut": 52,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key2": {
+          "lut": 53,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key3": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/key4": {
+          "lut": 53,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_game_session/rsw": {
+          "lut": 52,
+          "seq": 21,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper": {
+          "lut": 34,
+          "seq": 47,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u0_lane_lvds_8_1": {
+          "lut": 12,
+          "seq": 18,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u1_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u2_lane_lvds_8_1": {
+          "lut": 10,
+          "seq": 12,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi2phy_wrapper/u3_lane_lvds_8_1": {
+          "lut": 2,
+          "seq": 5,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper": {
+          "lut": 1603,
+          "seq": 1573,
+          "ram": 16,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u0_reset_sync": {
+          "lut": 0,
+          "seq": 2,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper": {
+          "lut": 229,
+          "seq": 155,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_hdmi_edid_read_controller": {
+          "lut": 10,
+          "seq": 11,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper": {
+          "lut": 219,
+          "seq": 144,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_bit_transmitter": {
+          "lut": 78,
+          "seq": 31,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller": {
+          "lut": 141,
+          "seq": 113,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_edid_wrapper/u_iic_master_wrapper/u_iic_transmitter_controller/u_iic_w11_d1024_fifo": {
+          "lut": 28,
+          "seq": 55,
+          "ram": 2,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper": {
+          "lut": 1374,
+          "seq": 1416,
+          "ram": 14,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u0_hdmi_tmds_encode": {
+          "lut": 162,
+          "seq": 160,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u1_hdmi_tmds_encode": {
+          "lut": 159,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u2_hdmi_tmds_encode": {
+          "lut": 157,
+          "seq": 108,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_data_distribution": {
+          "lut": 2,
+          "seq": 43,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_assemble": {
+          "lut": 277,
+          "seq": 418,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen": {
+          "lut": 326,
+          "seq": 422,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel": {
+          "lut": 138,
+          "seq": 219,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_w96_d1024_fifo": {
+          "lut": 24,
+          "seq": 55,
+          "ram": 11,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_32_24_encode": {
+          "lut": 0,
+          "seq": 1,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/U_audio_sample_packet_2_channel/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet": {
+          "lut": 27,
+          "seq": 63,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_island_data_gen/u_audio_clock_regeneration_packet/u_BCH_64_56_encode": {
+          "lut": 0,
+          "seq": 8,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_data_assemble": {
+          "lut": 0,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_hdmi_video_source": {
+          "lut": 224,
+          "seq": 38,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver": {
+          "lut": 67,
+          "seq": 79,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_hdmi_1_4b_transmitter_core_wrapper/u_hdmi_tx_controller_wrapper/u_video_axi_stream_receiver/u_w24_d1024_fifo": {
+          "lut": 50,
+          "seq": 76,
+          "ram": 3,
+          "dsp": 0
+        },
+        "top/u_image_controls": {
+          "lut": 193,
+          "seq": 70,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_dec": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_image_controls/u_inc": {
+          "lut": 56,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_pcm_audio_player": {
+          "lut": 467,
+          "seq": 171,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_clk": {
+          "lut": 13,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_mem": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_sd": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_reset_video": {
+          "lut": 12,
+          "seq": 13,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_sdram_refresh_scheduler": {
+          "lut": 93,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_startup_pulse": {
+          "lut": 27,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input": {
+          "lut": 536,
+          "seq": 368,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_ack_tx": {
+          "lut": 35,
+          "seq": 22,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_input/u_parser": {
+          "lut": 409,
+          "seq": 288,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_input/u_parser/u_checksum_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_format_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_gap_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_parser/u_good_increment": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_input/u_rx": {
+          "lut": 63,
+          "seq": 36,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_monitor": {
+          "lut": 480,
+          "seq": 162,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_monitor/u_tx": {
+          "lut": 94,
+          "seq": 23,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_uart_command_control": {
+          "lut": 78,
+          "seq": 54,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation": {
+          "lut": 1495,
+          "seq": 238,
+          "ram": 0,
+          "dsp": 11
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/u_ring_spectrum_renderer": {
+          "lut": 665,
+          "seq": 64,
+          "ram": 0,
+          "dsp": 8
+        },
+        "top/u_video_rgb_to_axis_640x480": {
+          "lut": 23,
+          "seq": 40,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_delay_m0": {
+          "lut": 24,
+          "seq": 66,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_pll_m0": {
+          "lut": 0,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0": {
+          "lut": 42,
+          "seq": 33,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/video_timing_data_m0/color_bar_m0": {
+          "lut": 41,
+          "seq": 28,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      },
+      "timing": "SWNS: -0.885ns, STNS: -6.047ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+      "clocks": [
+        "clk0           local            0.000     20.000                40.000          25.000                29.078          34.390           10.922      0.000            0.471      0.000            0.000             4656               24             no       no",
+        "clk1           local            0.000      5.000                10.000         100.000                10.885          91.870           -0.885     -2.639            0.471      0.000            0.000             4200                9             no       no",
+        "clk2           local            0.000     10.000                20.000          50.000                14.426          69.319            5.574      0.000            0.471      0.000            0.000              997               13             no       no",
+        "clk3           local            0.000      5.000                10.000         100.000                 9.006         111.037            0.994      0.000            0.659      0.000            0.000              766                8             no       no",
+        "clk4           local            0.000      4.000                 8.000         125.000                 2.448         408.497            5.552      0.000            0.674      0.000            0.000               50                1             no       no",
+        "clk5           local            5.000      0.000                10.000         100.000                10.426          95.914           -0.213     -3.408            8.364      0.000            0.000                1                1             no       no"
+      ],
+      "chain": {
+        "lut": 4624,
+        "seq": 2517,
+        "ram": 12,
+        "dsp": 2
+      }
+    }
+  ],
+  "final_tests": {
+    "baseline": "936a97b",
+    "results": [
+      {
+        "name": "library",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "compile",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "constants",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "constants_lut",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "hud_coordinates",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "arithmetic",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "volume",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "directory_1024_128",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "directory_2_1",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "directory_1_128",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "judge_equivalence",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "judge_packed_equivalence",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "session_equivalence",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "resources_equivalence",
+        "status": "PASS",
+        "warnings": 6
+      },
+      {
+        "name": "style_equivalence",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "style_distributed_equivalence",
+        "status": "PASS",
+        "warnings": 0
+      },
+      {
+        "name": "renderer_equivalence",
+        "status": "PASS",
+        "warnings": 2
+      }
+    ]
+  },
+  "existing_tests": {
+    "stage3": 4,
+    "stage4": 9
+  },
+  "synthesis_runs": 3,
+  "place_route_runs": 0,
+  "bitstreams": 0,
+  "source_hashes": {
+    "src/rhythm_game_renderer.v": "72ae15c988fb5bb26e9d503537862721e0e4c50c974b2c39720f8f6d78f4a1d0",
+    "src/rhythm_judge_core.v": "7e0e543443289b99397faaea0847859a8b98a0e085be814b26eaf4a9df7400ff",
+    "src/rhythm_hud.v": "c8ee58cb70b2497b2a17ddc29bdd693cdcd9c683617ebb1102b23e2eddcc62d7"
+  },
+  "dispositions": {
+    "width": "geometry20 and bounded coordinates9 retained; full time/count/BCD preserved",
+    "common_expressions": "HUD shared and reverted variants measured; shared retained",
+    "constants": "exact 3125x32 and 7x64 retained; all 20-bit weights verified in DSP/LUT modes",
+    "sharing": "one progress DSP reused in original SETUP cycles",
+    "debug": "no target keep/dont_touch/mark_debug attributes; unused parameter branches already eliminated"
+  }
+}

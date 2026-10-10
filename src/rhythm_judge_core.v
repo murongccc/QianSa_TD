@@ -177,21 +177,25 @@ module rhythm_judge_core #(parameter integer BLOCK_QUEUE=0,parameter integer SCO
     wire [35:0] numerator;
     generate if(SCORE_DSP)begin: dsp_score
         wire [35:0] low_product;
-        reg [18:0] high_product;
+        reg [13:0] high_product;
+        wire [30:0] compact_numerator;
         // 一颗 18x18 DSP 处理低位，高两位是四选一常数；覆盖 65535*10 权重。
         EG_LOGIC_MULT #(.INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
             .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
             .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) multiplier(
-            .p(low_product),.a(weight[17:0]),.b(18'd100000),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+            .p(low_product),.a(weight[17:0]),.b(18'd3125),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
             .clk(clk),.rstan(rst_n),.rstbn(rst_n),.rstpdn(rst_n));
         always @*case(weight[19:18])
-            0:high_product=19'd0;1:high_product=19'd100000;
-            2:high_product=19'd200000;default:high_product=19'd300000;
+            0:high_product=14'd0;1:high_product=14'd3125;
+            2:high_product=14'd6250;default:high_product=14'd9375;
         endcase
-        assign numerator=low_product+{high_product[17:0],18'd0};
+        // 100000=3125×32；先按原 36 位结果对应的模数拼接，再补五个零位。
+        assign compact_numerator={1'b0,low_product[29:0]}+{high_product[12:0],18'd0};
+        assign numerator={compact_numerator,5'd0};
     end else begin: lut_score
-        wire [35:0] expanded_weight={16'd0,weight};
-        assign numerator=(expanded_weight<<16)+(expanded_weight<<15)+(expanded_weight<<10)+(expanded_weight<<9)+(expanded_weight<<7)+(expanded_weight<<5);
+        wire [30:0] expanded_weight={11'd0,weight};
+        wire [30:0] compact_numerator=(expanded_weight<<11)+(expanded_weight<<10)+(expanded_weight<<5)+(expanded_weight<<4)+(expanded_weight<<2)+expanded_weight;
+        assign numerator={compact_numerator,5'd0};
     end endgenerate
     assign done=chart_eof && total_notes!=0 && resolved==total_notes && !dividing && scored_weight==weight;
     integer i;

@@ -6,12 +6,12 @@ import re
 import shutil
 import subprocess
 
-BASELINE = 'c80969ae2248bfacb6c3c57d628f1b437562a376'
+BASELINE = '936a97b'
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, default=Path('prj/log/rhythm_priority1_equivalence_20261010'))
+    parser.add_argument('--output', type=Path, default=Path('prj/log/rhythm_priority1_complete_equivalence_20261010'))
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = (root / args.output).resolve()
@@ -33,7 +33,7 @@ def main():
         print('PASS '+name, flush=True)
 
     names = ['fat32_chart_reader', 'rhythm_judge_core', 'rhythm_game_renderer',
-             'rhythm_session_controller', 'rhythm_game_engine', 'rhythm_sd_resources']
+             'rhythm_session_controller', 'rhythm_game_engine', 'rhythm_sd_resources','rhythm_hud']
     references = []
     for name in names:
         text = subprocess.check_output([binaries['git'], 'show', f'{BASELINE}:src/{name}.v'], cwd=root).decode('utf-8')
@@ -138,12 +138,16 @@ def main():
              'rhythm_font','rhythm_hud','rhythm_session_controller','pcm_audio_player','ring_spectrum_renderer',
              'video_presentation','image_controls','media_session_controller','domain_reset_sync','fat32_bmp_catalog',
              'sd_media_pipeline','touch_marker']
-    tests=['tb_rhythm_priority1_arithmetic','tb_rhythm_priority1_directory','tb_chart_volume_validation']
+    tests=['tb_rhythm_priority1_arithmetic','tb_rhythm_priority1_directory','tb_chart_volume_validation',
+           'tb_rhythm_priority1_constants','tb_rhythm_priority1_hud_coordinates']
     run('library',[binaries['vlib'],library])
     run('compile',[binaries['vlog'],'-work',library,'+incdir+src/SD',
         'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','src/test/eg_logic_mult_model.v','src/SD/color_bar.v',
         *[f'src/{n}.v' for n in sources],*references,*generated,*[f'src/test/{n}.v' for n in tests]])
-    cases=[('arithmetic','tb_rhythm_priority1_arithmetic',[]),
+    cases=[('constants','tb_rhythm_priority1_constants',[]),
+           ('constants_lut','tb_rhythm_priority1_constants',['-gSCORE_DSP=0']),
+           ('hud_coordinates','tb_rhythm_priority1_hud_coordinates',[]),
+           ('arithmetic','tb_rhythm_priority1_arithmetic',[]),
            ('volume','tb_chart_volume_validation',[]),
            ('directory_1024_128','tb_rhythm_priority1_directory',[]),
            ('directory_2_1','tb_rhythm_priority1_directory',['-gLIMIT=2','-gSPC=1']),

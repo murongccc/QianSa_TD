@@ -11,7 +11,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     input wire [3:0] holding_mask,output wire capture_busy,
     output reg frame_enabled,output wire pixel_on,output wire [23:0] pixel_rgb
 );
-    reg vs_d,de_d,vs_seen_low;reg [9:0] x,y;
+    reg vs_d,de_d,vs_seen_low;reg [9:0] x;reg [8:0] y;
     // 会话清理不复位板级扫描。VS 持续为高时解除复位不能伪造帧边界；
     // 先观察一次低电平，再接受真实上升沿，期间保持游戏图层关闭。
     wire frame_start=vs_seen_low && vs && !vs_d;
@@ -28,7 +28,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     // 双缓冲几何，每槽 {有效,Hold,头部 y[9:0],尾部 y[9:0]}。
     reg front_bank;
     reg which_end,negative;
-    reg [9:0] head_y;
+    reg [8:0] head_y;
     reg [16:0] dividend;reg [8:0] quotient,remainder;
     reg [4:0] left;wire [9:0] trial={remainder,dividend[16]};
     wire subtract_ok=trial>=10'd300;
@@ -36,19 +36,25 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg [40:0] progress_remaining;
     wire [40:0] progress_numerator;
     generate if(BLOCK_HUD)begin: dsp_progress
-        wire [35:0] low_product,high_product;
-        // 用空闲 DSP 分段计算 33 位时间乘 448，减少宽常量加法器。
+        wire [35:0] product;
+        reg [20:0] low_product;
+        reg [16:0] high_product;
+        wire [34:0] compact_numerator;
+        wire [17:0] progress_operand=which_end ? {3'd0,time_snapshot[32:18]} : time_snapshot[17:0];
+        // 448=7×64；头/尾 SETUP 拍复用同一 DSP，不增加快照处理周期。
         EG_LOGIC_MULT #(.INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
             .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
-            .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) low_mul(
-            .p(low_product),.a(time_snapshot[17:0]),.b(18'd448),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+            .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) progress_mul(
+            .p(product),.a(progress_operand),.b(18'd7),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
             .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-        EG_LOGIC_MULT #(.INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
-            .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
-            .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) high_mul(
-            .p(high_product),.a({3'd0,time_snapshot[32:18]}),.b(18'd448),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
-            .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-        assign progress_numerator={14'd0,low_product[26:0]}+{high_product[22:0],18'd0};
+        always @(posedge clk or posedge rst)begin
+            if(rst)begin low_product<=0;high_product<=0;end
+            else if(!frame_start && work==SETUP && index==0)begin
+                if(which_end)high_product<=product[16:0];else low_product<=product[20:0];
+            end
+        end
+        assign compact_numerator={14'd0,low_product}+{high_product,18'd0};
+        assign progress_numerator={compact_numerator,6'd0};
     end else begin: lut_progress
         assign progress_numerator=({8'd0,time_snapshot}<<9)-({8'd0,time_snapshot}<<6);
     end endgenerate
@@ -63,22 +69,26 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     assign view_index=index;
     assign capture_busy=(work!=IDLE) || (frame_start && enabled);
     // 只读一个几何端口，64 拍完成下一行四轨样式计算，行消隐有 160 拍。
-    reg row_busy,row_wait;reg [4:0] row_index;reg [9:0] row_y;
+    reg row_busy,row_wait;reg [4:0] row_index;reg [8:0] row_y;
     reg [3:0] row_heads,row_bodies,line_heads,line_bodies;
     // 每轨共用六位：头部 {Hold,图案行[4:0]}，长条 {3'd0,尾帽,行[1:0]}。
     // 谱面保证同轨 Hold 不重叠；头部优先时其圆角也覆盖长条尾帽边界。
     // 共用描述避免两份行缓存各保存十二位冗余尾帽信息。
     reg [23:0] row_head_style,line_head_style;
     wire [21:0] row_note;
+    wire [19:0] packed_note;
     wire geo_we=work==STORE && which_end && !frame_start && !rst;
-    wire [21:0] geo_data={view_valid,view_start!=view_end,head_y,converted_y};
+    wire [21:0] geo_data={view_valid,view_start!=view_end,1'b0,head_y,converted_y};
+    // 转换坐标始终在 64..408，省去两个恒为零的第九位；读端恢复原格式。
+    wire [19:0] packed_geometry={geo_data[21:20],geo_data[18:10],geo_data[8:0]};
+    assign row_note={packed_note[19:18],1'b0,packed_note[17:9],1'b0,packed_note[8:0]};
     generate if(BLOCK_GEOMETRY)begin: block_geometry
-        rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(22)) ram(.write_clk(clk),.write_enable(geo_we),.write_address({!front_bank,index}),.write_data(geo_data),
-            .read_clk(clk),.read_address({front_bank,row_index}),.read_data(row_note));
+        rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(20)) ram(.write_clk(clk),.write_enable(geo_we),.write_address({!front_bank,index}),.write_data(packed_geometry),
+            .read_clk(clk),.read_address({front_bank,row_index}),.read_data(packed_note));
     end else begin: distributed_geometry
-        reg [21:0] geometry[0:63];
-        always @(posedge clk)if(geo_we)geometry[{!front_bank,index}]<=geo_data;
-        assign row_note=geometry[{front_bank,row_index}];
+        reg [19:0] geometry[0:63];
+        always @(posedge clk)if(geo_we)geometry[{!front_bank,index}]<=packed_geometry;
+        assign packed_note=geometry[{front_bank,row_index}];
     end endgenerate
     // 头部底边沿用原采样时间对应的 y，图案向上展开 32 行，不改变判定时刻。
     wire [9:0] row_head_top=row_note[19:10]-10'd31;
@@ -169,7 +179,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     assign pixel_rgb=cached_text ? 24'hffffff : base_pixel_rgb;
     rhythm_hud #(.STREAM_METADATA(STREAM_METADATA),.BLOCK_CHARACTERS(BLOCK_HUD)) hud(.metadata_valid(metadata_valid),.metadata_data(metadata_data),.metadata_address(metadata_address),.clk(clk),.rst(rst),.frame_start(frame_start && enabled),.state(state),.error_code(error_code),.auto_mode(auto_mode),
         .score(score),.combo(combo),.max_combo(max_combo),.perfect_count(perfect_count),.good_count(good_count),.bad_count(bad_count),.miss_count(miss_count),
-        .title(title),.difficulty(difficulty),.x(px),.y(y),.text_area(text_area),.rel_x(rel_x),.rel_y(rel_y),.character(character));
+        .title(title),.difficulty(difficulty),.x(px),.y({1'b0,y}),.text_area(text_area),.rel_x(rel_x),.rel_y(rel_y),.character(character));
     rhythm_font #(.CLOCKED_ROM(BLOCK_HUD)) font(.clk(clk),.character(character),.row(glyph_row),.bits(glyph_bits));
     always @*begin
         overlay=0;color=24'hffffff;
@@ -197,7 +207,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             vs_d<=vs;de_d<=de;
             if(!vs)vs_seen_low<=1'b1;
             if(line_start)x<=1;else if(de)x<=x+10'd1;
-            if(line_end && y<479)y<=y+10'd1;
+            if(line_end && y<9'd479)y<=y+9'd1;
             base_pixel_on<=frame_enabled && de && overlay;base_pixel_rgb<=color;
             text_area_d<=frame_enabled && de && text_area;glyph_col_d<=rel_x[3:1];glyph_row_d<=rel_y[3:1];
             if(frame_start)begin
@@ -230,7 +240,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                     end
                     default:work<=IDLE;
                 endcase
-                if(line_end)begin row_busy<=1;row_wait<=1;row_index<=0;row_y<=y+10'd1;row_heads<=0;row_bodies<=0;row_head_style<=0;end
+                if(line_end)begin row_busy<=1;row_wait<=1;row_index<=0;row_y<=y+9'd1;row_heads<=0;row_bodies<=0;row_head_style<=0;end
                 else if(row_busy && row_wait)row_wait<=0;
                 else if(row_busy)begin
                     row_wait<=1;row_heads<=next_heads;row_bodies<=next_bodies;row_head_style<=next_head_style;

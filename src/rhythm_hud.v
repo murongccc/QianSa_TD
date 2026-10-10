@@ -197,20 +197,28 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
     wire [7:0] character_write=phase==1 ? initial_char : 8'h30+{4'd0,(field==0 ? bcd[27:24] : bcd[19:16])};
     reg [7:0] read_address;
     reg [7:0] text_base;wire [9:0] read_x=rel_x+(BLOCK_CHARACTERS ? 10'd2 : 10'd0);
+    reg [9:0] area_x;
+    reg [3:0] area_y;
+    wire top_row=y>=10'd12 && y<10'd28;
+    wire bottom_row=y>=10'd448 && y<10'd464;
     always @*begin
         text_area=0;rel_x=0;rel_y=0;read_address=0;text_base=0;
-        if(y>=12 && y<28 && x>=(512-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;rel_x=x-512;rel_y=y-12;text_base=0;end
-        else if(y>=12 && y<28 && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;rel_x=x-280;rel_y=y-12;text_base=16;end
-        else if(y>=32 && y<48 && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;rel_x=x-280;rel_y=y-32;text_base=32;end
-        else if(y>=48 && y<64 && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<88)begin text_area=1;rel_x=x-24;rel_y=y-48;text_base=48;end
-        else if(y>=448 && y<464 && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<408)begin text_area=1;rel_x=x-24;rel_y=y-448;text_base=64;end
-        else if(y>=448 && y<464 && x>=(416-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;rel_x=x-416;rel_y=y-448;text_base=96;end
-        else if(saved_state!=6 && saved_state!=9 && y>=176 && y<192 && x>=(192-(BLOCK_CHARACTERS ? 2 : 0)) && x<448)begin text_area=1;rel_x=x-192;rel_y=y-176;text_base=112;end
-        else if(saved_state==11 && y>=208 && y<224 && x>=(296-(BLOCK_CHARACTERS ? 2 : 0)) && x<344)begin text_area=1;rel_x=x-296;rel_y=y-208;text_base=128;end
+        area_x=0;area_y=0;
+        if(top_row && x>=(512-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;area_x=512;area_y=12;text_base=0;end
+        else if(top_row && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;area_x=280;area_y=12;text_base=16;end
+        else if(y>=32 && y<48 && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;area_x=280;text_base=32;end
+        else if(y>=48 && y<64 && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<88)begin text_area=1;area_x=24;text_base=48;end
+        else if(bottom_row && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<408)begin text_area=1;area_x=24;text_base=64;end
+        else if(bottom_row && x>=(416-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;area_x=416;text_base=96;end
+        else if(saved_state!=6 && saved_state!=9 && y>=176 && y<192 && x>=(192-(BLOCK_CHARACTERS ? 2 : 0)) && x<448)begin text_area=1;area_x=192;text_base=112;end
+        else if(saved_state==11 && y>=208 && y<224 && x>=(296-(BLOCK_CHARACTERS ? 2 : 0)) && x<344)begin text_area=1;area_x=296;text_base=128;end
         else if(saved_state==10 && y>=208 && y<288 && x>=(224-(BLOCK_CHARACTERS ? 2 : 0)) && x<368)begin
-            text_area=1;rel_x=x-224;rel_y={6'd0,y[3:0]};text_base=8'd144+{y[6:4]-3'd5,4'd0};
+            text_area=1;area_x=224;text_base=8'd144+{y[6:4]-3'd5,4'd0};
         end
-        read_address=text_base+{3'd0,read_x[8:4]};
+        // 互斥文本区域共享坐标减法；纵向各区域只有十六行。
+        if(text_area)begin rel_x=x-area_x;rel_y={6'd0,y[3:0]-area_y};end
+        // 基址按 16 对齐，字符索引的最高位只影响基址高四位。
+        read_address={text_base[7:4]+{3'd0,read_x[8]},read_x[7:4]};
     end
     // 字符缓存单写口；块 RAM 同步读与渲染器第一拍坐标寄存对齐。
     generate if(BLOCK_CHARACTERS)begin: block_characters
