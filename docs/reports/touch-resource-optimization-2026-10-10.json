@@ -1,0 +1,196 @@
+{
+  "builds": [
+    {
+      "name": "touch_priority5_baseline_syn_20261010",
+      "total": {
+        "lut": 18168,
+        "reg": 10418,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 28
+      },
+      "touch": {
+        "lut": 1235,
+        "seq": 638,
+        "ram": 5,
+        "dsp": 5
+      },
+      "modules": {
+        "top/u_touch_input": {
+          "lut": 533,
+          "seq": 368,
+          "ram": 0,
+          "dsp": 4
+        },
+        "top/u_touch_monitor": {
+          "lut": 481,
+          "seq": 162,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      }
+    },
+    {
+      "name": "touch_priority5_balanced_syn_20261010",
+      "total": {
+        "lut": 18113,
+        "reg": 10439,
+        "bram": 57,
+        "bram9k": 41,
+        "fifo9k": 16,
+        "bram32k": 11,
+        "dsp": 25
+      },
+      "touch": {
+        "lut": 1225,
+        "seq": 659,
+        "ram": 5,
+        "dsp": 2
+      },
+      "modules": {
+        "top/u_touch_input": {
+          "lut": 558,
+          "seq": 394,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_monitor": {
+          "lut": 446,
+          "seq": 157,
+          "ram": 5,
+          "dsp": 0
+        },
+        "top/u_touch_mapper": {
+          "lut": 135,
+          "seq": 59,
+          "ram": 0,
+          "dsp": 1
+        },
+        "top/u_touch_frame_snapshot": {
+          "lut": 6,
+          "seq": 49,
+          "ram": 0,
+          "dsp": 0
+        },
+        "top/u_video_presentation/g_touch_markers$u_marker": {
+          "lut": 80,
+          "seq": 0,
+          "ram": 0,
+          "dsp": 0
+        }
+      },
+      "warnings": {
+        "HDL-5007": 10,
+        "HDL-5323": 1,
+        "HDL-5317": 3,
+        "HDL-5314": 7,
+        "HDL-5001": 3,
+        "HDL-5106": 10,
+        "SYN-5013": 3,
+        "SYN-5025": 3,
+        "SYN-5011": 20,
+        "SYN-6577": 1,
+        "SYN-6562": 10
+      }
+    }
+  ],
+  "preserved_files": 85,
+  "unexpected_changes": [],
+  "delta": {
+    "lut": -55,
+    "reg": 21,
+    "bram": 0,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": -3
+  },
+  "touch_delta": {
+    "lut": -10,
+    "seq": 21,
+    "ram": 0,
+    "dsp": -3
+  },
+  "method5_note": "Atomic snapshot optional branch was already pruned by synthesis; mapper utilization unchanged.",
+  "physical": {
+    "baseline": {
+      "resource": {
+        "lut": 18284,
+        "reg": 10531,
+        "bram": 57,
+        "bram32k": 11,
+        "dsp": 28
+      },
+      "timing": "SWNS: -3.552ns, STNS: -100.937ns.\nHWNS: -0.006ns, HTNS: -0.036ns.",
+      "route_complete": true
+    },
+    "candidate": {
+      "resource": {
+        "lut": 18245,
+        "reg": 10557,
+        "bram": 57,
+        "bram32k": 11,
+        "dsp": 25
+      },
+      "timing": "SWNS: -1.272ns, STNS: -77.598ns.\nHWNS: -0.025ns, HTNS: -0.182ns.",
+      "route_complete": true
+    }
+  },
+  "regression": {
+    "equivalence_cycles": 946644,
+    "reports": 7280,
+    "captured_frames": 1260,
+    "counter_inputs": 65536,
+    "mapper_vectors": 65551,
+    "marker_pixels": 1536010,
+    "video_pixels": 1536000,
+    "existing_and_equivalence_cases": 13,
+    "final_affected_cases": 6,
+    "errors": 0,
+    "warnings": 0
+  },
+  "rejected_candidate": {
+    "directory": "touch_priority5_final_phy_20261010",
+    "reason": "四DSP释放候选布线失败，改为保留gap统计DSP后重新验证。"
+  },
+  "source_sha256": {
+    "src/ch9350_touch_parser.v": "ecc44d93d684cc503e4331978b7e7fe7a601bc52d646759a2a644f8a85ade87a",
+    "src/touch_serial_monitor.v": "dcc7df2a6ce740d7fd758e913ef045840495734e54bdb23f7b9a4b63088b7240",
+    "src/touch_pixel_mapper.v": "6d03101528933a8f21c31dfe0e4f16ec2c04c6146747c16c9a434680696859fc",
+    "src/touch_counter_increment.v": "cb6251b6c0093bb5ce72a9ef882c428a65b7a320327f9b5c0ec29d018dfb155d"
+  },
+  "timing_closed": false
+}

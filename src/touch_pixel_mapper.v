@@ -32,10 +32,17 @@ reg [1:0] down_stage;
 reg [9:0] a_x_stage,b_x_stage;
 reg [8:0] a_y_stage;
 reg [8:0] b_y_stage;
-reg [39:0] atomic_packet;
+wire [8:0] y_pixel;
 assign busy=state!=IDLE;
 generate if(ATOMIC_OUTPUT)begin : g_atomic_packet
+    reg [39:0] atomic_packet;
     assign pixel_packet=atomic_packet;
+    // 只有原子发布配置需要第二份快照；请求/应答配置不建立该可选寄存器。
+    always @(posedge clk or posedge rst) begin
+        if(rst)atomic_packet<=40'd0;
+        else if(!update_valid && state==STORE && axis==2'd3)
+            atomic_packet<={down_stage,a_x_stage,a_y_stage,b_x_stage,y_pixel};
+    end
 end else begin : g_qualified_packet
     // 消隐期请求模式只在pixel_valid后使用；保持到下一次请求，省去重复40位快照。
     assign pixel_packet={down_stage,a_x_stage,a_y_stage,b_x_stage,b_y_stage};
@@ -47,7 +54,7 @@ wire [15:0] clamped_delta=raw_coordinate<lower_bound ? 16'd0 :
     raw_coordinate>upper_bound ? upper_bound-lower_bound : raw_coordinate-lower_bound;
 wire [35:0] product;
 wire [9:0] x_pixel=rounded>12'd639 ? 10'd639 : rounded[9:0];
-wire [8:0] y_pixel=rounded>12'd479 ? 9'd479 : rounded[8:0];
+assign y_pixel=rounded>12'd479 ? 9'd479 : rounded[8:0];
 always @* begin
     case(axis)
         2'd0: raw_coordinate=a_x;
@@ -65,7 +72,7 @@ always @(posedge clk or posedge rst) begin
     if(rst) begin
         state<=IDLE;axis<=2'd0;operand<={DELTA_BITS{1'b0}};y_coefficient<=1'b0;rounded<={ROUND_BITS{1'b0}};
         down_stage<=2'd0;a_x_stage<=10'd0;a_y_stage<=9'd0;b_x_stage<=10'd0;b_y_stage<=9'd0;
-        atomic_packet<=40'd0;pixel_valid<=1'b0;
+        pixel_valid<=1'b0;
     end else begin
         pixel_valid<=1'b0;
         if(update_valid) begin
@@ -85,7 +92,6 @@ always @(posedge clk or posedge rst) begin
                     2'd2: b_x_stage<=x_pixel;
                     default: begin
                         b_y_stage<=y_pixel;
-                        atomic_packet<={down_stage,a_x_stage,a_y_stage,b_x_stage,y_pixel};
                         pixel_valid<=1'b1;
                     end
                 endcase
