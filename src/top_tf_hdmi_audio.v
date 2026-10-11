@@ -265,6 +265,26 @@ wire [7:0] touch_sequence;
 wire [15:0] touch_good, touch_checksum_error, touch_format_error, touch_sequence_gap;
 wire [15:0] touch_timeout, touch_uart_error, touch_ack;
 wire [39:0] touch_pixel_packet,touch_frame_packet;
+wire touch_lane_valid,touch_lane_armed,touch_game_enable,touch_game_overflow,touch_game_fault;
+wire [3:0] touch_lane_press,touch_lane_release,touch_lane_down;
+wire touch_game_valid,touch_game_ready;
+wire signed [32:0] touch_game_time;
+wire [3:0] touch_game_press,touch_game_release,touch_game_down;
+wire touch_lane_monitor_overflow;
+// 会话运行的暂停/BUFFER/退场清空输入；渲染 capture 只反压事件，不清空。
+touch_lane_input u_touch_lane_input(
+    .clk(clk),.rst(rst_clk),.enable(touch_game_enable),.update_valid(touch_update),
+    .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
+    .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
+    .event_valid(touch_lane_valid),.press_mask(touch_lane_press),.release_mask(touch_lane_release),
+    .down_mask(touch_lane_down),.armed(touch_lane_armed));
+touch_game_event_bridge u_touch_game_bridge(
+    .src_clk(clk),.src_rst(rst_clk),.dst_clk(video_clk),.dst_rst(rst_video),
+    .enable(engine_run && !engine_reset && !game_auto),.src_enable(touch_game_enable),
+    .src_valid(touch_lane_valid),.src_press(touch_lane_press),.src_release(touch_lane_release),.src_down(touch_lane_down),
+    .game_time(game_time),.event_valid(touch_game_valid),.event_ready(touch_game_ready),.event_time(touch_game_time),
+    .press_mask(touch_game_press),.release_mask(touch_game_release),.down_mask(touch_game_down),
+    .overflow(touch_game_overflow),.fault(touch_game_fault));
 wire touch_map_request,touch_pixel_valid,touch_mapper_busy;
 ch9350_touch_input u_touch_input (
     .clk(clk),.rst(rst_clk),.touch_rxd(touch_rxd),.touch_txd(touch_txd),.update_valid(touch_update),
@@ -275,6 +295,8 @@ ch9350_touch_input u_touch_input (
     .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack)
 );
 touch_serial_monitor u_touch_monitor (
+    .lane_valid(touch_lane_valid),.lane_down(touch_lane_down),.lane_press(touch_lane_press),.lane_release(touch_lane_release),
+    .lane_fault(touch_game_overflow),.lane_monitor_overflow(touch_lane_monitor_overflow),
     .clk(clk),.rst(rst_clk),.update_valid(touch_update),
     .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
     .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
@@ -713,7 +735,7 @@ rhythm_session_controller u_game_session(
     .audio_eof_async(game_audio_eof),.chart_eof_async(game_chart_eof),.error_async(game_error),
     .frames_async(resource_frames),.fifo_level_async(game_fifo_level),.notes_async(resource_notes),.offset_async(resource_offset),
     .sample_emitted(sample_emitted),.sample_missing(sample_missing),.prefetch_ready(prefetch_ready),.sample_index(sample_index),.emitted_count(emitted_count),
-    .judge_done(judge_done),.queue_overflow(queue_overflow),.freeze_media(game_freeze),.active_game(game_active),.auto_mode(game_auto),
+    .judge_done(judge_done),.queue_overflow(queue_overflow || touch_game_fault),.freeze_media(game_freeze),.active_game(game_active),.auto_mode(game_auto),
     .resource_reset(game_clear),.resource_enable(game_enable),.resource_cancel(game_cancel),.engine_reset(engine_reset),.engine_run(engine_run),.engine_load(engine_load),
     .player_mode(session_player_mode),.song_time(game_time),.song_frames(song_frames),.total_notes(total_notes),.chart_offset(chart_offset),
     .chart_eof(session_chart_eof),.state(game_state),.error_code(session_error));
@@ -724,10 +746,11 @@ assign audio_reader_reset_sd=1'b0;
 
 rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) u_game_engine(
     .view_capture(game_capture),
-    .input_mode(game_auto ? 2'd0 : 2'd1),.clk(video_clk),.rst_n(!engine_reset),.run(engine_run && !game_capture),
+    .input_mode(game_auto ? 2'd0 : 2'd2),.clk(video_clk),.rst_n(!engine_reset),.run(engine_run && !game_capture),
     .song_time(game_time),.chart_offset(chart_offset),.total_notes(total_notes),.chart_eof(session_chart_eof),
     .note_valid(game_note_valid && engine_load && !game_capture),.note_data(game_note_data),.note_ready(game_note_ready),
-    .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
+    .event_valid(touch_game_valid),.event_ready(touch_game_ready),.event_time(touch_game_time),
+    .press_mask(touch_game_press),.release_mask(touch_game_release),.down_mask(touch_game_down),
     .head_valid(),.head_time(),.holding_mask(game_holding),.view_index(game_view_index),.view_valid(game_view_valid),.view_start(game_view_start),.view_end(game_view_end),
     .result_valid(),.result_lane(),.result_grade(),.perfect_count(game_p),.good_count(game_g),.bad_count(game_b),.miss_count(game_m),
     .combo(game_combo),.max_combo(game_max_combo),.score(game_score),.done(judge_done),.queue_overflow(queue_overflow));

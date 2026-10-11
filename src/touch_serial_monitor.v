@@ -15,6 +15,8 @@ module touch_serial_monitor #(
     input wire [15:0] good_count, input wire [15:0] checksum_error_count,
     input wire [15:0] format_error_count, input wire [15:0] sequence_gap_count,
     input wire [15:0] timeout_count, input wire [15:0] uart_error_count, input wire [15:0] ack_count,
+    input wire lane_valid, input wire [3:0] lane_down,lane_press,lane_release,
+    input wire lane_fault, output reg lane_monitor_overflow,
     input wire echo_valid, input wire [7:0] echo_data,
     output wire uart_txd, output reg [15:0] monitor_drop_count, output reg [15:0] echo_drop_count
 );
@@ -41,7 +43,9 @@ reg event_read_ready;
 reg [7:0] echo_mem [0:15];
 reg [3:0] echo_wr, echo_rd;
 reg [4:0] echo_count;
-reg line_busy, stats_line;
+reg line_busy, stats_line, lane_line, lane_pending;
+reg [11:0] lane_record;
+reg lane_fault_seen;
 reg [2:0] stats_state;
 reg [3:0] stats_field;
 reg [1:0] stats_digit;
@@ -58,8 +62,9 @@ wire [85:0] queued_event;
 wire tx_ready;
 wire ms_tick = ms_ticks==MS_LIMIT;
 wire push_event = update_valid && (snapshot_due || press_mask!=2'd0 || release_mask!=2'd0);
-wire start_event = !line_busy && echo_count==5'd0 && !stats_due && event_count!=3'd0 && event_read_ready;
-wire pop_event = line_busy && !stats_line && line_index==6'd45 && tx_ready;
+wire start_event = !line_busy && echo_count==5'd0 && !stats_due && !lane_pending && event_count!=3'd0 && event_read_ready;
+wire pop_event = line_busy && !stats_line && !lane_line && line_index==6'd45 && tx_ready;
+wire lane_pop = line_busy && lane_line && line_index==6'd22 && tx_ready;
 wire accept_event = push_event && (event_count<3'd5 || pop_event);
 wire pop_echo = !line_busy && echo_count!=5'd0 && tx_ready;
 wire accept_echo = echo_valid && (echo_count<5'd16 || pop_echo);
@@ -115,7 +120,18 @@ function [19:0] counter_name;
 endfunction
 always @* begin
     line_token=8'h20;
-    if (!stats_line) begin
+    if(lane_line)begin
+        case(line_index)
+            0:line_token="L";2:line_token="D";3,7,11,15,19:line_token=":";
+            4:line_token=hex_char(lane_record[3:0]);6:line_token="P";
+            8:line_token=hex_char(lane_record[11:8]);10:line_token="R";
+            12:line_token=hex_char(lane_record[7:4]);14:line_token="Q";
+            16:line_token=hex_char({3'd0,lane_fault_seen});18:line_token="O";
+            20:line_token=hex_char({3'd0,lane_monitor_overflow});
+            21:line_token=8'h0d;22:line_token=8'h0a;
+            default:line_token=8'h20;
+        endcase
+    end else if (!stats_line) begin
         if(point_field)begin
             case(line_index[3:0])
                 4'd4:line_token=8'h20;
@@ -150,7 +166,7 @@ end
 // T包在发送完成前占据队列，全部字段来自同一快照；S各计数器分别原子取样。
 always @* begin
     field_load=1'b0;field_value=16'd0;
-    if(!stats_line)begin
+    if(!stats_line && !lane_line)begin
         if(point_field)begin
             case(line_index[3:0])
                 4'd6:begin field_load=1'b1;field_value={point_data[36:33],12'd0};end
@@ -190,11 +206,20 @@ always @(posedge clk or posedge rst) begin
         event_wr<=3'd0; event_rd<=3'd0; event_count<=3'd0;
         event_read_ready<=1'b0;
         echo_wr<=4'd0; echo_rd<=4'd0; echo_count<=5'd0;
+        lane_line<=0;lane_pending<=0;lane_record<=0;lane_fault_seen<=0;lane_monitor_overflow<=0;
         line_busy<=1'b0;stats_line<=1'b0;line_index<=6'd0;
         stats_state<=S_HEAD;stats_field<=4'd0;stats_digit<=2'd0;stats_name<=20'd0;
         digit_word<=16'd0;
         monitor_drop_count<=16'd0; echo_drop_count<=16'd0;
     end else begin
+        if(lane_fault)lane_fault_seen<=1;
+        if(lane_pop)lane_pending<=0;
+        if(lane_valid || (lane_fault && !lane_fault_seen))begin
+            if(!lane_pending || lane_pop)begin
+                lane_pending<=1;lane_record<=lane_valid ? {lane_press,lane_release,lane_down} : {8'd0,lane_down};
+            end
+            else lane_monitor_overflow<=1;
+        end
         if (ms_tick) begin
             ms_ticks<={MS_BITS{1'b0}};
             if (snapshot_ticks==SNAPSHOT_LIMIT) begin snapshot_ticks<={SNAPSHOT_BITS{1'b0}}; snapshot_due<=1'b1; end
@@ -230,16 +255,22 @@ always @(posedge clk or posedge rst) begin
 
         if (!line_busy && echo_count==5'd0) begin
             if (stats_due) begin
-                line_busy<=1'b1;stats_line<=1'b1;line_index<=6'd0;
+                lane_line<=0;line_busy<=1'b1;stats_line<=1'b1;line_index<=6'd0;
                 stats_state<=S_HEAD;stats_field<=4'd0;stats_name<=counter_name(4'd0);
                 stats_due<=ms_tick && stats_ticks==10'd999;
+            end else if(lane_pending)begin
+                line_busy<=1;stats_line<=0;lane_line<=1;line_index<=0;
             end else if (start_event) begin
+                lane_line<=0;
                 line_busy<=1'b1; stats_line<=1'b0; line_index<=6'd0;
             end
         end else if (line_busy && tx_ready) begin
             if(field_load)digit_word<=field_value;
             else if(line_token==8'hff)digit_word<={digit_word[11:0],4'd0};
-            if(!stats_line)begin
+            if(lane_line)begin
+                if(line_index==6'd22)begin line_busy<=0;lane_line<=0;end
+                else line_index<=line_index+6'd1;
+            end else if(!stats_line)begin
                 if(line_index==6'd45)line_busy<=1'b0;
                 else line_index<=line_index+6'd1;
             end else case(stats_state)

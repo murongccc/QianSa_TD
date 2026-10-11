@@ -32,6 +32,7 @@ uart_command_control #(.CLK_HZ(CLK_HZ)) commands(
     .clk(clk),.rst(rst),.uart_rxd(pc_drive),.brightness_level(brightness),.volume_level(volume),
     .playback_command(playback),.playback_command_toggle(playback_toggle),.echo_valid(echo_valid),.echo_data(echo_data));
 touch_serial_monitor #(.CLK_HZ(CLK_HZ)) monitor(
+    .lane_valid(1'b0),.lane_down(4'd0),.lane_press(4'd0),.lane_release(4'd0),.lane_fault(1'b0),.lane_monitor_overflow(),
     .clk(clk),.rst(rst),.update_valid(update_valid),
     .a_id(a_id),.a_down(a_down),.a_x(a_x),.a_y(a_y),.b_id(b_id),.b_down(b_down),.b_x(b_x),.b_y(b_y),
     .press_mask(press_mask),.release_mask(release_mask),.frame_seq(frame_seq),

@@ -32,7 +32,7 @@ wire [32:0] monitor_actual,monitor_expected;
     .sequence_gap_count(counters-16'd31),.timeout_count(counters^16'hff00),.uart_error_count(~counters), \
     .ack_count(counters+16'd257),.echo_valid(echo_valid),.echo_data(echo_data), \
     .uart_txd(bus[32]),.monitor_drop_count(bus[31:16]),.echo_drop_count(bus[15:0])
-touch_serial_monitor #(.CLK_HZ(100000),.BAUD(10000),.SNAPSHOT_MS(7)) monitor_dut(`MONITOR_PORTS(monitor_actual));
+touch_serial_monitor #(.CLK_HZ(100000),.BAUD(10000),.SNAPSHOT_MS(7)) monitor_dut(.lane_valid(1'b0),.lane_down(4'd0),.lane_press(4'd0),.lane_release(4'd0),.lane_fault(1'b0),.lane_monitor_overflow(),`MONITOR_PORTS(monitor_actual));
 baseline_touch_serial_monitor #(.CLK_HZ(100000),.BAUD(10000),.SNAPSHOT_MS(7)) monitor_ref(`MONITOR_PORTS(monitor_expected));
 `undef MONITOR_PORTS
 

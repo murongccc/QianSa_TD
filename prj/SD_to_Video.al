@@ -652,6 +652,22 @@
                     <Attr Name="CompileOrder" Val="100"/>
                 </FileInfo>
             </File>
+            <File Path="../src/touch_lane_input.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="101"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/touch_game_event_bridge.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="102"/>
+                </FileInfo>
+            </File>
         </Verilog>
         <ADC_FILE>
             <File Path="pin.adc">

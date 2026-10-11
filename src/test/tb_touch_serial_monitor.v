@@ -9,6 +9,7 @@ reg [15:0] a_x=16'd0;
 wire uart_txd;
 wire [15:0] monitor_drop_count,echo_drop_count;
 touch_serial_monitor #(.CLK_HZ(3686400)) dut(
+    .lane_valid(1'b0),.lane_down(4'd0),.lane_press(4'd0),.lane_release(4'd0),.lane_fault(1'b0),.lane_monitor_overflow(),
     .clk(clk),.rst(rst),.update_valid(update_valid),
     .a_id(4'd1),.a_down(1'b1),.a_x(a_x),.a_y(16'h2222),
     .b_id(4'd0),.b_down(1'b0),.b_x(16'd0),.b_y(16'd0),

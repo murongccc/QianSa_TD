@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-11",
+  "baseline_commit": "b96bb93",
+  "baseline_synthesis": "prj/log/fft_priority_shared_syn_20261011",
+  "synthesis": "prj/log/touch_lane_syn_20261011",
+  "baseline": {
+    "lut": 18070,
+    "reg": 10468,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "current": {
+    "lut": 18511,
+    "reg": 10623,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "delta": {
+    "lut": 441,
+    "reg": 155,
+    "bram": 0,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": 0,
+    "pll": 0
+  },
+  "warning_codes_before": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 3,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "warning_codes_after": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 3,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "same_warning_code_counts": true,
+  "synthesis_timing": {
+    "setup_wns_ns": -0.937,
+    "setup_tns_ns": -6.203,
+    "hold_wns_ns": 0.471,
+    "hold_tns_ns": 0.0,
+    "confidence": "Synthesized",
+    "critical_clock": "sd_card_clk",
+    "critical_fmax_mhz": 91.433
+  },
+  "bridge_empty_latency_ns": [
+    114,
+    120,
+    150,
+    92
+  ],
+  "raw_thresholds": {
+    "x": [
+      2494,
+      5307,
+      8119,
+      10931,
+      13744
+    ],
+    "y_min": 7584
+  },
+  "exhaustive_threshold_checks": 131072,
+  "queue_capacity": {
+    "source_waiting": 2,
+    "transport": 1,
+    "destination_pending": 1
+  },
+  "route_run": false,
+  "bitstream_generated": false,
+  "user_project_changes_preserved_byte_for_byte": true
+}
