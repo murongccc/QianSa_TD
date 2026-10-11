@@ -1,7 +1,10 @@
 // BMP scanner and streaming 24-bit BI_RGB reader.
 // Pixels are emitted in file order as RGB. Positive-height BMPs are therefore
 // bottom-up; the SDRAM writer applies the corresponding vertical flip.
-module bmp_read(
+module bmp_read #(
+    // 默认保留旧裸扇区扫描；FAT32 板级目录由独立目录器负责。
+    parameter integer ENABLE_RAW_SCAN = 1
+)(
     input clk, input rst, output ready,
     input scan_start, input [31:0] scan_start_sector, input [31:0] scan_max_sector,
     input [2:0] scan_target_count, output reg scan_done,
@@ -33,7 +36,7 @@ localparam ST_IDLE=4'd0, ST_SCAN=4'd1, ST_LOAD_HDR=4'd2, ST_LOAD_WAIT=4'd3,
            ST_LOAD_FIRST_ADDR=4'd13, ST_LOAD_FAT_CAPTURE=4'd14, ST_LOAD_DATA_END=4'd15;
 reg [3:0] state;
 reg [9:0] rd_cnt;
-reg [7:0] header_0, header_1;
+reg header_b_ok, header_m_ok;
 reg [31:0] file_len, pixel_offset;
 reg [15:0] width, height;
 reg width_high_bad, height_high_zero, height_high_ones;
@@ -62,7 +65,7 @@ reg [31:0] file_size_latched, fat_start_sector_latched, first_data_sector_latche
 reg [7:0] sectors_per_cluster_latched, fat_shift_spc;
 
 wire [15:0] abs_height = top_down ? (~height + 16'd1) : height;
-wire header_match = (header_0 == "B") && (header_1 == "M") &&
+wire header_match = header_b_ok && header_m_ok &&
                     (file_len >= 32'd54) && (pixel_offset >= 32'd54) &&
                     (pixel_offset < file_len) && (width != 0) && (abs_height != 0) &&
                     !width_high_bad && (width <= 16'd1920) &&
@@ -72,7 +75,8 @@ wire header_match = (header_0 == "B") && (header_1 == "M") &&
 reg [31:0] file_sector_count;
 always @(posedge clk or posedge rst)begin
     if(rst)file_sector_count<=32'd1;
-    else file_sector_count<=(file_len==32'd0)?32'd1:((file_len+32'd511)>>9);
+    else if (ENABLE_RAW_SCAN)
+        file_sector_count<=(file_len==32'd0)?32'd1:((file_len+32'd511)>>9);
 end
 wire [31:0] next_scan_sector_if_match = scan_sector + file_sector_count;
 wire [31:0] next_scan_sector_if_miss = scan_sector + 1'b1;
@@ -96,7 +100,7 @@ assign ready = (state == ST_IDLE);
 
 always @(posedge clk or posedge rst) begin
     if (rst) rd_cnt <= 0;
-    else if ((state == ST_SCAN) || (state == ST_LOAD_HDR)) begin
+    else if ((ENABLE_RAW_SCAN && (state == ST_SCAN)) || (state == ST_LOAD_HDR)) begin
         if (sd_sec_read_data_valid) rd_cnt <= rd_cnt + 1'b1;
         else if (sd_sec_read_end) rd_cnt <= 0;
     end else rd_cnt <= 0;
@@ -104,13 +108,13 @@ end
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        header_0<=0; header_1<=0; file_len<=0; pixel_offset<=54; width<=0;
+        header_b_ok<=0; header_m_ok<=0; file_len<=0; pixel_offset<=54; width<=0;
         height<=0; compression_bad<=0; bit_count_ok<=0; top_down<=0; header_valid<=0;
         width_high_bad<=0;height_high_zero<=0;height_high_ones<=0;
-    end else if (((state == ST_SCAN) || (state == ST_LOAD_HDR)) && sd_sec_read_data_valid) begin
+    end else if (((ENABLE_RAW_SCAN && (state == ST_SCAN)) || (state == ST_LOAD_HDR)) && sd_sec_read_data_valid) begin
         case (rd_cnt)
-            0: begin header_0 <= sd_sec_read_data; header_valid <= 1'b0; end
-            1: header_1 <= sd_sec_read_data;
+            0: begin header_b_ok <= sd_sec_read_data == "B"; header_valid <= 1'b0; end
+            1: header_m_ok <= sd_sec_read_data == "M";
             2: file_len[7:0] <= sd_sec_read_data;
             3: file_len[15:8] <= sd_sec_read_data;
             4: file_len[23:16] <= sd_sec_read_data;
@@ -181,7 +185,7 @@ always @(posedge clk or posedge rst) begin
         case (state)
             ST_IDLE: begin
                 state_code<=1; sd_sec_read<=0; write_req<=0;
-                if (scan_start) begin
+                if (ENABLE_RAW_SCAN && scan_start) begin
                     scan_done<=0; scan_found_total<=0; scan_sector<=scan_start_sector;
                     sd_sec_read_addr<=scan_start_sector; state<=ST_SCAN;
                 end else if (load_start) begin
@@ -207,7 +211,7 @@ always @(posedge clk or posedge rst) begin
                     end
                 end
             end
-            ST_SCAN: begin
+            ST_SCAN: if (ENABLE_RAW_SCAN) begin
                 state_code<=2; sd_sec_read<=1;
                 if (sd_sec_read_end) begin
                     sd_sec_read<=0;
@@ -228,6 +232,9 @@ always @(posedge clk or posedge rst) begin
                         sd_sec_read_addr<=next_scan_sector_if_miss;
                     end
                 end
+            end else begin
+                // 禁用配置不建立扫描地址运算及专用计数器。
+                sd_sec_read<=0; state<=ST_IDLE;
             end
             ST_LOAD_HDR: begin
                 state_code<=2; sd_sec_read<=1;

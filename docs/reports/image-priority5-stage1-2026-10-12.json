@@ -1,0 +1,1155 @@
+{
+  "baseline_syn": {
+    "area": {
+      "lut": 18165,
+      "reg": 10650,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6497,
+          "seq": 4118,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 73,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 844,
+          "seq": 754,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 1070,
+          "seq": 646,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1162,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.417,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 33.484,
+        "swns": 10.135,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 99.91,
+        "swns": -0.009,
+        "stns": -0.009,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 77.435,
+        "swns": 7.086,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": []
+  },
+  "candidate_syn": {
+    "area": {
+      "lut": 18080,
+      "reg": 10556,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6362,
+          "seq": 4025,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 71,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 799,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 958,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1139,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 217,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.222,
+      "STNS": -4.239,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 34.745,
+        "swns": 11.219,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 97.828,
+        "swns": -0.222,
+        "stns": -0.831,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 72.108,
+        "swns": 6.132,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": []
+  },
+  "baseline_phy": {
+    "area": {
+      "lut": 18325,
+      "reg": 10766,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -1.413,
+      "STNS": -87.787,
+      "HWNS": -0.068,
+      "HTNS": -0.196,
+      "clk0": {
+        "fmax": 25.128,
+        "swns": 0.203,
+        "stns": 0.0,
+        "hwns": -0.068,
+        "htns": -0.17
+      },
+      "clk1": {
+        "fmax": 87.619,
+        "swns": -1.413,
+        "stns": -87.787,
+        "hwns": -0.005,
+        "htns": -0.005
+      },
+      "clk2": {
+        "fmax": 81.793,
+        "swns": 7.774,
+        "stns": 0.0,
+        "hwns": -0.005,
+        "htns": -0.01
+      },
+      "clk3": {
+        "fmax": 101.02,
+        "swns": 0.101,
+        "stns": 0.0,
+        "hwns": -0.011,
+        "htns": -0.011
+      },
+      "clk4": {
+        "fmax": 312.11,
+        "swns": 4.796,
+        "stns": 0.0,
+        "hwns": 0.235,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "errors": [],
+    "packing": {
+      "mslice": 4852,
+      "lslice": 4856
+    }
+  },
+  "candidate_phy": {
+    "area": {
+      "lut": 18342,
+      "reg": 10692,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -0.926,
+      "STNS": -53.596,
+      "HWNS": -0.052,
+      "HTNS": -0.124,
+      "clk0": {
+        "fmax": 25.254,
+        "swns": 0.403,
+        "stns": 0.0,
+        "hwns": -0.012,
+        "htns": -0.044
+      },
+      "clk1": {
+        "fmax": 91.525,
+        "swns": -0.926,
+        "stns": -53.596,
+        "hwns": -0.052,
+        "htns": -0.061
+      },
+      "clk2": {
+        "fmax": 74.123,
+        "swns": 6.509,
+        "stns": 0.0,
+        "hwns": -0.008,
+        "htns": -0.008
+      },
+      "clk3": {
+        "fmax": 113.276,
+        "swns": 1.172,
+        "stns": 0.0,
+        "hwns": -0.011,
+        "htns": -0.011
+      },
+      "clk4": {
+        "fmax": 397.773,
+        "swns": 5.486,
+        "stns": 0.0,
+        "hwns": 0.132,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "errors": [],
+    "packing": {
+      "mslice": 4833,
+      "lslice": 4833
+    }
+  },
+  "zero_syn": {
+    "area": {
+      "lut": 18072,
+      "reg": 10556,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6363,
+          "seq": 4025,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 71,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 799,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 959,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1139,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 217,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.456,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 34.734,
+        "swns": 11.21,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 99.761,
+        "swns": -0.024,
+        "stns": -0.048,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 72.108,
+        "swns": 6.132,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": []
+  },
+  "zero_phy": {
+    "area": {
+      "lut": 18357,
+      "reg": 10683,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -3.713,
+      "STNS": -639.334,
+      "HWNS": -0.02,
+      "HTNS": -0.078,
+      "clk0": {
+        "fmax": 24.71,
+        "swns": -0.47,
+        "stns": -0.94,
+        "hwns": -0.02,
+        "htns": -0.04
+      },
+      "clk1": {
+        "fmax": 72.924,
+        "swns": -3.713,
+        "stns": -638.394,
+        "hwns": -0.012,
+        "htns": -0.034
+      },
+      "clk2": {
+        "fmax": 60.846,
+        "swns": 3.565,
+        "stns": 0.0,
+        "hwns": 0.011,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.148,
+        "swns": 1.003,
+        "stns": 0.0,
+        "hwns": -0.004,
+        "htns": -0.004
+      },
+      "clk4": {
+        "fmax": 290.192,
+        "swns": 4.554,
+        "stns": 0.0,
+        "hwns": 0.068,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "errors": [],
+    "packing": {
+      "mslice": 4871,
+      "lslice": 4871
+    }
+  },
+  "local_syn": {
+    "area": {
+      "lut": 18132,
+      "reg": 10550,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6386,
+          "seq": 4019,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 70,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 814,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 958,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1141,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 217,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.582,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 33.744,
+        "swns": 10.365,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 99.423,
+        "swns": -0.058,
+        "stns": -0.174,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 72.108,
+        "swns": 6.132,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "errors": []
+  },
+  "local_phy": {
+    "area": {
+      "lut": 18382,
+      "reg": 10659,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -2.796,
+      "STNS": -131.75,
+      "HWNS": -0.052,
+      "HTNS": -0.122,
+      "clk0": {
+        "fmax": 25.945,
+        "swns": 1.457,
+        "stns": 0.0,
+        "hwns": -0.052,
+        "htns": -0.066
+      },
+      "clk1": {
+        "fmax": 78.149,
+        "swns": -2.796,
+        "stns": -130.177,
+        "hwns": -0.02,
+        "htns": -0.056
+      },
+      "clk2": {
+        "fmax": 68.89,
+        "swns": 5.484,
+        "stns": 0.0,
+        "hwns": 0.011,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 93.136,
+        "swns": -0.737,
+        "stns": -1.573,
+        "hwns": 0.012,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 369.413,
+        "swns": 5.293,
+        "stns": 0.0,
+        "hwns": 0.049,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "errors": [],
+    "packing": {
+      "mslice": 4864,
+      "lslice": 4864
+    }
+  },
+  "candidate_registers": {
+    "u_bmp_read": {
+      "b_byte_reg": 8,
+      "bit_count_ok_reg": 1,
+      "bmp_byte_idx_reg": 3,
+      "bmp_len_cnt_reg": 32,
+      "compression_bad_reg": 1,
+      "fat_byte_cnt_reg": 9,
+      "fat_cluster_offset_reg": 32,
+      "fat_entry_reg": 32,
+      "fat_offset_reg": 7,
+      "fat_shift_spc_reg": 8,
+      "fat_start_sector_latched_reg": 32,
+      "file_cluster_last_sector_reg": 7,
+      "file_cluster_reg": 32,
+      "file_len_reg": 32,
+      "file_mode_latched_reg": 1,
+      "file_sector_in_cluster_reg": 8,
+      "file_size_latched_reg": 32,
+      "first_data_sector_latched_reg": 32,
+      "frame_seen_reg": 1,
+      "g_byte_reg": 8,
+      "header_b_ok_reg": 1,
+      "header_m_ok_reg": 1,
+      "header_valid_reg": 1,
+      "height_high_ones_reg": 1,
+      "height_high_zero_reg": 1,
+      "height_reg": 16,
+      "load_failed_reg": 1,
+      "load_sector_latched_reg": 32,
+      "parsed_height_reg": 16,
+      "parsed_top_down_reg": 1,
+      "parsed_width_reg": 16,
+      "payload_ended_reg": 1,
+      "payload_started_reg": 1,
+      "pixel_data_reg": 24,
+      "pixel_last_reg": 1,
+      "pixel_offset_reg": 32,
+      "pixel_valid_reg": 1,
+      "rd_cnt_reg": 10,
+      "row_byte_cnt_reg": 13,
+      "row_stride_reg": 11,
+      "sd_sec_read_addr_reg": 32,
+      "sd_sec_read_reg": 1,
+      "sectors_per_cluster_latched_reg": 8,
+      "src_col_reg": 11,
+      "src_row_reg": 11,
+      "state_code_reg": 4,
+      "state_reg": 4,
+      "top_down_reg": 1,
+      "width_high_bad_reg": 1,
+      "width_reg": 16,
+      "write_req_reg": 1
+    },
+    "u_bmp_catalog": {
+      "cache_accept_q_reg": 1,
+      "cache_read_word_reg": 2,
+      "cache_write_busy_reg": 1,
+      "cache_write_shift_reg": 64,
+      "cache_write_slot_reg": 3,
+      "cache_write_word_reg": 2,
+      "candidate_count_reg": 3,
+      "candidate_file_size_reg": 32,
+      "candidate_first_cluster_reg": 32,
+      "candidate_output_index_reg": 3,
+      "candidate_valid_reg": 1,
+      "dir_cluster_offset_reg": 32,
+      "dir_cluster_reg": 32,
+      "dir_end_pending_reg": 1,
+      "dir_fat_sector_offset_reg": 25,
+      "dir_sector_in_cluster_reg": 8,
+      "dir_sector_reg": 32,
+      "dir_shift_spc_reg": 8,
+      "entry_attr_excluded_reg": 1,
+      "entry_cluster_reg": 32,
+      "entry_deleted_reg": 1,
+      "entry_end_reg": 1,
+      "entry_ext_ok_reg": 3,
+      "entry_size_low_reg": 24,
+      "fat_count_reg": 8,
+      "fat_entry_shift_reg": 32,
+      "fat_next_cluster_reg_reg": 28,
+      "fat_offset_reg": 7,
+      "fat_start_sector_reg": 32,
+      "first_data_sector_reg": 32,
+      "mbr_entry_is_fat_reg": 1,
+      "mbr_found_partition_reg": 1,
+      "mbr_partition_lba_reg": 32,
+      "mbr_writing_lba_reg": 1,
+      "pos_reg": 10,
+      "reserved_sector_count_reg": 16,
+      "root_cluster_reg": 32,
+      "scan_done_reg": 1,
+      "sd_sec_read_addr_reg": 32,
+      "sd_sec_read_reg": 1,
+      "sector_high_ok_reg": 1,
+      "sector_low_ok_reg": 1,
+      "sectors_per_cluster_reg": 8,
+      "sectors_per_fat_reg": 32,
+      "state_reg": 20,
+      "validate_from_mbr_reg": 1,
+      "volume_base_reg": 32,
+      "volume_valid_reg": 1
+    }
+  },
+  "preservation": {
+    "files": 99,
+    "changed": []
+  },
+  "baseline_gate_matches_original": true,
+  "regression": {
+    "first": {
+      "test_runs": 34,
+      "passed": {
+        "bmp_disabled_boundaries": [
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1920 x 1080 valid=1",
+          "# PASS size 1919 x 2 valid=1",
+          "# PASS size 1 x -1080 valid=1",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x 3 valid=1",
+          "# PASS size 4 x 3 valid=1",
+          "# PASS size 1921 x 1 valid=0",
+          "# PASS size 1 x 1081 valid=0",
+          "# PASS size 1 x -1081 valid=0",
+          "# PASS size 67456 x 1 valid=0",
+          "# PASS size 1 x 66616 valid=0",
+          "# PASS size 16777217 x 1 valid=0",
+          "# PASS size 1 x 16777217 valid=0",
+          "# PASS size 1 x -65535 valid=0",
+          "# PASS size 1 x -16711681 valid=0",
+          "# PASS size 1 x -2147483648 valid=0",
+          "# PASS size 1 x -65536 valid=0",
+          "# PASS size 0 x 1 valid=0",
+          "# PASS size 1 x 0 valid=0",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS truncated payload rejected after 5 of 6 pixels",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS truncated payload rejected after 5 of 6 pixels",
+          "# PASS BMP resource optimization boundaries"
+        ],
+        "bmp_disabled_offset_1024": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=1024 same-cycle=1"
+        ],
+        "bmp_disabled_offset_488": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=488 same-cycle=1"
+        ],
+        "bmp_disabled_offset_512": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=512 same-cycle=1"
+        ],
+        "bmp_disabled_offset_513": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=513 same-cycle=1"
+        ],
+        "bmp_disabled_offset_54": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=54 same-cycle=1"
+        ],
+        "bmp_disabled_offset_65536": [
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x -3 valid=1",
+          "# PASS size 1 x 1 valid=1",
+          "# PASS BMP pixel offset=65536 same-cycle=1"
+        ],
+        "bmp_equivalence_0": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=0 cases=512 compared_cycles=285512"
+        ],
+        "bmp_equivalence_1": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=1 cases=512 compared_cycles=284415"
+        ],
+        "catalog_count_0": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_1": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_2": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_3": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_4": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_5": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_equivalence_0": [
+          "# PASS catalog stage1 equivalence MBR=0 cases=1792 compared_cycles=1701969"
+        ],
+        "catalog_equivalence_1": [
+          "# PASS catalog stage1 equivalence MBR=1 cases=1792 compared_cycles=2683089"
+        ],
+        "catalog_fat_same_cycle": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "catalog_reset_write": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "media_audio_start": [
+          "# PASS deferred audio start"
+        ],
+        "media_rhythm_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "media_scaler_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "tb_bmp_catalog_fat_capture": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "tb_bmp_data_window": [
+          "# PASS BMP full-width window: high offset, EOF, trailing bytes and 32-bit wrap"
+        ],
+        "tb_bmp_read_fat_chain": [
+          "# PASS BMP reader: fragmented FAT32 file crosses cluster 5 to 7"
+        ],
+        "tb_bmp_read_fat_chain_disabled": [
+          "# PASS BMP reader: fragmented FAT32 file crosses cluster 5 to 7"
+        ],
+        "tb_bmp_read_resource_opt": [
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1 x 1 valid=0",
+          "# PASS size 1920 x 1080 valid=1",
+          "# PASS size 1919 x 2 valid=1",
+          "# PASS size 1 x -1080 valid=1",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS size 3 x 3 valid=1",
+          "# PASS size 4 x 3 valid=1",
+          "# PASS size 1921 x 1 valid=0",
+          "# PASS size 1 x 1081 valid=0",
+          "# PASS size 1 x -1081 valid=0",
+          "# PASS size 67456 x 1 valid=0",
+          "# PASS size 1 x 66616 valid=0",
+          "# PASS size 16777217 x 1 valid=0",
+          "# PASS size 1 x 16777217 valid=0",
+          "# PASS size 1 x -65535 valid=0",
+          "# PASS size 1 x -16711681 valid=0",
+          "# PASS size 1 x -2147483648 valid=0",
+          "# PASS size 1 x -65536 valid=0",
+          "# PASS size 0 x 1 valid=0",
+          "# PASS size 1 x 0 valid=0",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS truncated payload rejected after 5 of 6 pixels",
+          "# PASS size 2 x 3 valid=1",
+          "# PASS truncated payload rejected after 5 of 6 pixels",
+          "# PASS BMP resource optimization boundaries"
+        ],
+        "tb_bmp_read_v5_header": [
+          "# PASS BMP reader: 800x600 BITMAPV5 header and 64-sector FAT32 clusters"
+        ],
+        "tb_bmp_read_v5_header_disabled": [
+          "# PASS BMP reader: 800x600 BITMAPV5 header and 64-sector FAT32 clusters"
+        ],
+        "tb_bmp_sector_timing": [
+          "# PASS BMP sector timing SPC=1 FAT_EDGE=1 requests=4 pixel=1"
+        ],
+        "tb_bmp_sector_timing_disabled": [
+          "# PASS BMP sector timing SPC=1 FAT_EDGE=1 requests=4 pixel=1"
+        ],
+        "tb_fat32_bmp_catalog": [
+          "# PASS FAT32 BMP catalog: MBR/direct volumes and root FAT chain"
+        ],
+        "tb_fat32_bmp_catalog_five": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "tb_media_session_controller": [
+          "# PASS: five-slot preload, frame-boundary display queue, UART mode, and period commands"
+        ]
+      }
+    },
+    "zero": {
+      "test_runs": 18,
+      "passed": {
+        "bmp_equivalence_0": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=0 cases=512 compared_cycles=285512"
+        ],
+        "bmp_equivalence_1": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=1 cases=512 compared_cycles=284415"
+        ],
+        "catalog_count_0": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_1": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_2": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_3": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_4": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_5": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_equivalence_0": [
+          "# PASS catalog stage1 equivalence MBR=0 cases=1792 compared_cycles=1701969"
+        ],
+        "catalog_equivalence_1": [
+          "# PASS catalog stage1 equivalence MBR=1 cases=1792 compared_cycles=2683089"
+        ],
+        "catalog_fat_same_cycle": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "catalog_reset_write": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "media_audio_start": [
+          "# PASS deferred audio start"
+        ],
+        "media_rhythm_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "media_scaler_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "tb_bmp_catalog_fat_capture": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "tb_fat32_bmp_catalog": [
+          "# PASS FAT32 BMP catalog: MBR/direct volumes and root FAT chain"
+        ],
+        "tb_fat32_bmp_catalog_five": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ]
+      }
+    },
+    "local": {
+      "test_runs": 18,
+      "passed": {
+        "bmp_equivalence_0": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=0 cases=512 compared_cycles=285512"
+        ],
+        "bmp_equivalence_1": [
+          "# PASS BMP stage1 equivalence RAW_SCAN=1 cases=512 compared_cycles=284415"
+        ],
+        "catalog_count_0": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_1": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_2": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_3": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_4": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_count_5": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "catalog_equivalence_0": [
+          "# PASS catalog stage1 equivalence MBR=0 cases=1792 compared_cycles=1701969"
+        ],
+        "catalog_equivalence_1": [
+          "# PASS catalog stage1 equivalence MBR=1 cases=1792 compared_cycles=2683089"
+        ],
+        "catalog_fat_same_cycle": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "catalog_reset_write": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ],
+        "media_audio_start": [
+          "# PASS deferred audio start"
+        ],
+        "media_rhythm_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "media_scaler_commit": [
+          "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+        ],
+        "tb_bmp_catalog_fat_capture": [
+          "# PASS FAT capture offset=0 entry=a1234567",
+          "# PASS FAT capture offset=8 entry=00000003",
+          "# PASS FAT capture offset=508 entry=ffffffff",
+          "# PASS FAT capture offset=508 entry=00000000",
+          "# PASS FAT capture offset=508 entry=00000003",
+          "# PASS shared-enable FAT capture"
+        ],
+        "tb_fat32_bmp_catalog": [
+          "# PASS FAT32 BMP catalog: MBR/direct volumes and root FAT chain"
+        ],
+        "tb_fat32_bmp_catalog_five": [
+          "# PASS FAT32 BMP catalog: five root entries emitted in physical order"
+        ]
+      }
+    }
+  },
+  "selected_candidate": "candidate_syn / candidate_phy (first variant)",
+  "selection_reason": "First variant reduces synthesis LUT/REG and physical slice demand, with better routed setup/hold than the baseline. Physical LUT increases by 17. Zero-reset and state-local BPB variants were rejected after worse physical results."
+}

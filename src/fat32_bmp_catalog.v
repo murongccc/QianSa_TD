@@ -29,10 +29,13 @@ localparam ST_DIR_END=5'd16, ST_FAT_CAPTURE=5'd17,
            ST_CACHE_PREFETCH=5'd18, ST_CACHE_READ=5'd19;
 reg [4:0] state;
 reg [9:0] pos;
-reg [7:0] entry_first,entry_attr;
-reg [23:0] entry_ext,entry_size_low;
+// 仅用于过滤的字节在原捕获拍转为标志，完整簇号/文件长度继续保存。
+reg entry_end,entry_deleted,entry_attr_excluded;
+reg [2:0] entry_ext_ok;
+reg [23:0] entry_size_low;
 reg [31:0] entry_cluster;
-reg [15:0] bytes_per_sector, reserved_sector_count;
+reg sector_low_ok,sector_high_ok;
+reg [15:0] reserved_sector_count;
 reg [7:0] fat_count;
 reg [31:0] sectors_per_fat, root_cluster, volume_base;
 // 卷信息在初始化后保持稳定，供同一 SD 域的 WAV 读取器复用。
@@ -91,14 +94,12 @@ reg [31:0] fat_next_cluster_reg;
 // 被打包到同一 slice 后争用局部控制布线；最后得到小端 32 位簇号。
 wire fat_entry_byte_valid = (pos[9:2] == {1'b0,fat_offset[8:2]});
 
-wire bpb_looks_valid = (bytes_per_sector == 16'd512) &&
+wire bpb_looks_valid = sector_low_ok && sector_high_ok &&
                        (sectors_per_cluster != 8'd0) &&
                        (fat_count != 8'd0) && (sectors_per_fat != 32'd0) &&
                        (root_cluster >= 32'd2);
-assign dir_entry_is_bmp = (entry_first != 8'h00) && (entry_first != 8'he5) &&
-                        (entry_attr != 8'h0f) && (entry_attr != 8'h10) &&
-                        (entry_attr != 8'h08) &&
-                        (entry_ext[7:0] == "B") && (entry_ext[15:8] == "M") && (entry_ext[23:16] == "P") &&
+assign dir_entry_is_bmp = !entry_end && !entry_deleted && !entry_attr_excluded &&
+                        (&entry_ext_ok) &&
                         (entry_cluster >= 32'd2) &&
                         ({sd_sec_read_data,entry_size_low} != 32'd0);
 
@@ -126,7 +127,8 @@ always @(posedge clk or posedge rst) begin
         candidate_valid<=0; candidate_first_cluster<=0; candidate_file_size<=0;
         fat_start_sector<=0; first_data_sector<=0; sectors_per_cluster<=0;
         candidate_count<=0;
-        scan_done<=0; volume_valid<=0; bytes_per_sector<=0; reserved_sector_count<=0;
+        // 原 bytes_per_sector 复位为 0000：低字节匹配，高字节不匹配。
+        scan_done<=0; volume_valid<=0; sector_low_ok<=1; sector_high_ok<=0; reserved_sector_count<=0;
         fat_count<=0; sectors_per_fat<=0; root_cluster<=0; volume_base<=0;
         mbr_partition_lba<=0; mbr_entry_is_fat<=0; mbr_found_partition<=0; mbr_writing_lba<=0;
         validate_from_mbr<=1'b0;
@@ -135,10 +137,31 @@ always @(posedge clk or posedge rst) begin
         dir_sector_in_cluster<=0; candidate_output_index<=0; dir_end_pending<=0;
         fat_offset<=0; fat_entry_shift<=0;
         fat_next_cluster_reg<=0;
-        entry_first<=0;entry_attr<=0;entry_ext<=0;entry_size_low<=0;entry_cluster<=0;
+        entry_end<=1;entry_deleted<=0;entry_attr_excluded<=0;entry_ext_ok<=0;entry_size_low<=0;entry_cluster<=0;
         cache_read_word<=0;
     end else begin
         if(cache_accept_q)candidate_count<=candidate_count+3'd1;
+        // LBA0 与分区 BPB 使用同一捕获路径，MBR 分区项解析保持独立。
+        // 固定字节写入保持小端组装，末字节与 done 同拍仍先捕获后校验。
+        if ((state==ST_MBR || state==ST_BPB) && sd_sec_read_data_valid) begin
+            case(pos)
+                10'd11: sector_low_ok<=sd_sec_read_data==8'd0;
+                10'd12: sector_high_ok<=sd_sec_read_data==8'd2;
+                10'd13: sectors_per_cluster<=sd_sec_read_data;
+                10'd14: reserved_sector_count[7:0]<=sd_sec_read_data;
+                10'd15: reserved_sector_count[15:8]<=sd_sec_read_data;
+                10'd16: fat_count<=sd_sec_read_data;
+                10'd36: sectors_per_fat[7:0]<=sd_sec_read_data;
+                10'd37: sectors_per_fat[15:8]<=sd_sec_read_data;
+                10'd38: sectors_per_fat[23:16]<=sd_sec_read_data;
+                10'd39: sectors_per_fat[31:24]<=sd_sec_read_data;
+                10'd44: root_cluster[7:0]<=sd_sec_read_data;
+                10'd45: root_cluster[15:8]<=sd_sec_read_data;
+                10'd46: root_cluster[23:16]<=sd_sec_read_data;
+                10'd47: root_cluster[31:24]<=sd_sec_read_data;
+                default: ;
+            endcase
+        end
         case (state)
             ST_IDLE: if (sd_init_done) begin
                 scan_done<=0; volume_valid<=0; candidate_valid<=0;
@@ -149,14 +172,6 @@ always @(posedge clk or posedge rst) begin
             // LBA0 同时检查为直接 FAT32 引导扇区或 MBR。
             ST_MBR: begin
                 if (sd_sec_read_data_valid) begin
-                    if (pos==10'd11) bytes_per_sector[7:0]<=sd_sec_read_data;
-                    if (pos==10'd12) bytes_per_sector[15:8]<=sd_sec_read_data;
-                    if (pos==10'd13) sectors_per_cluster<=sd_sec_read_data;
-                    if (pos==10'd14) reserved_sector_count[7:0]<=sd_sec_read_data;
-                    if (pos==10'd15) reserved_sector_count[15:8]<=sd_sec_read_data;
-                    if (pos==10'd16) fat_count<=sd_sec_read_data;
-                    if (pos>=10'd36 && pos<=10'd39) sectors_per_fat[(pos-10'd36)*8 +: 8]<=sd_sec_read_data;
-                    if (pos>=10'd44 && pos<=10'd47) root_cluster[(pos-10'd44)*8 +: 8]<=sd_sec_read_data;
                     // 扫描四个主分区，选择第一个 FAT32 (0x0b/0x0c) 分区。
                     if (pos==10'd450 || pos==10'd466 || pos==10'd482 || pos==10'd498)
                         mbr_entry_is_fat <= (sd_sec_read_data==8'h0b || sd_sec_read_data==8'h0c);
@@ -186,14 +201,6 @@ always @(posedge clk or posedge rst) begin
             end
             ST_BPB: begin
                 if (sd_sec_read_data_valid) begin
-                    if (pos==10'd11) bytes_per_sector[7:0]<=sd_sec_read_data;
-                    if (pos==10'd12) bytes_per_sector[15:8]<=sd_sec_read_data;
-                    if (pos==10'd13) sectors_per_cluster<=sd_sec_read_data;
-                    if (pos==10'd14) reserved_sector_count[7:0]<=sd_sec_read_data;
-                    if (pos==10'd15) reserved_sector_count[15:8]<=sd_sec_read_data;
-                    if (pos==10'd16) fat_count<=sd_sec_read_data;
-                    if (pos>=10'd36 && pos<=10'd39) sectors_per_fat[(pos-10'd36)*8 +: 8]<=sd_sec_read_data;
-                    if (pos>=10'd44 && pos<=10'd47) root_cluster[(pos-10'd44)*8 +: 8]<=sd_sec_read_data;
                     pos<=pos+1'b1;
                 end
                 if (sd_sec_read_end) begin
@@ -259,11 +266,11 @@ always @(posedge clk or posedge rst) begin
                 if (sd_sec_read_data_valid) begin
                     // 每个目录项的必要字段都有固定写入位置，非连续字节也不会错位。
                     case(pos[4:0])
-                        5'd0: entry_first<=sd_sec_read_data;
-                        5'd8: entry_ext[7:0]<=sd_sec_read_data;
-                        5'd9: entry_ext[15:8]<=sd_sec_read_data;
-                        5'd10: entry_ext[23:16]<=sd_sec_read_data;
-                        5'd11: entry_attr<=sd_sec_read_data;
+                        5'd0: begin entry_end<=sd_sec_read_data==8'h00;entry_deleted<=sd_sec_read_data==8'he5;end
+                        5'd8: entry_ext_ok[0]<=sd_sec_read_data=="B";
+                        5'd9: entry_ext_ok[1]<=sd_sec_read_data=="M";
+                        5'd10: entry_ext_ok[2]<=sd_sec_read_data=="P";
+                        5'd11: entry_attr_excluded<=sd_sec_read_data==8'h0f || sd_sec_read_data==8'h10 || sd_sec_read_data==8'h08;
                         5'd20: entry_cluster[23:16]<=sd_sec_read_data;
                         5'd21: entry_cluster[31:24]<=sd_sec_read_data;
                         5'd26: entry_cluster[7:0]<=sd_sec_read_data;
@@ -274,7 +281,7 @@ always @(posedge clk or posedge rst) begin
                         default: ;
                     endcase
                     if (pos[4:0] == 5'd31) begin
-                        if (entry_first == 8'h00) begin
+                        if (entry_end) begin
                             dir_end_pending <= 1'b1;
                         end else if (cache_accept) begin
                             // 收满五项无需继续读取根目录其余扇区。

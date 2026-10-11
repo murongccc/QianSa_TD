@@ -284,7 +284,7 @@ media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3),.EN
     .display_valid(display_valid),.auto_play_enabled(auto_play_enabled),.load_inflight(load_inflight)
 );
 
-bmp_read u_bmp_read(
+bmp_read #(.ENABLE_RAW_SCAN(0)) u_bmp_read(
     .clk(clk),.rst(rst_local),.ready(bmp_ready),.scan_start(1'b0),.scan_start_sector(SCAN_START_SECTOR),
     .scan_max_sector(SCAN_MAX_SECTOR),.scan_target_count(SCAN_TARGET_COUNT),.scan_done(),
     .scan_found_valid(),.scan_found_sector(),.scan_found_total(),
