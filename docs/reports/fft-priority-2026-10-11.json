@@ -1,0 +1,163 @@
+{
+  "baseline_commit": "df39cf4a39197240697b87ee3067f7c4cf651531",
+  "synthesis_before": {
+    "lut": 18113,
+    "reg": 10439,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 25,
+    "chain": {
+      "u_audio_fft_spectrum": {
+        "lut": 2111,
+        "seq": 557,
+        "ram": 8,
+        "dsp": 5
+      },
+      "u_ring_spectrum_renderer": {
+        "lut": 668,
+        "seq": 64,
+        "ram": 0,
+        "dsp": 8
+      }
+    },
+    "timing": "SWNS: -0.213ns, STNS: -3.463ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    }
+  },
+  "synthesis_after": {
+    "lut": 18070,
+    "reg": 10468,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "chain": {
+      "u_audio_fft_spectrum": {
+        "lut": 2078,
+        "seq": 594,
+        "ram": 8,
+        "dsp": 2
+      },
+      "u_ring_spectrum_renderer": {
+        "lut": 682,
+        "seq": 64,
+        "ram": 0,
+        "dsp": 8
+      }
+    },
+    "timing": "SWNS: -0.213ns, STNS: -4.015ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    }
+  },
+  "physical_before": {
+    "lut": 18245,
+    "reg": 10557,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 25,
+    "timing": "SWNS: -1.272ns, STNS: -77.598ns.\nHWNS: -0.025ns, HTNS: -0.182ns."
+  },
+  "physical_after": {
+    "lut": 18199,
+    "reg": 10578,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "timing": "SWNS: -1.796ns, STNS: -131.211ns.\nHWNS: -0.020ns, HTNS: -0.064ns."
+  },
+  "fft_dsp_cells": [
+    {
+      "name": "u_audio_fft_spectrum/g_reference$u_reference/mult0_syn_2",
+      "source": "../../../src/audio_fft_spectrum.v(964)"
+    },
+    {
+      "name": "u_audio_fft_spectrum/g_reference$u_reference/mult1_syn_1",
+      "source": "../../../src/audio_fft_spectrum.v(981)"
+    }
+  ],
+  "source_hashes": {
+    "src/audio_fft_spectrum.v": "36a2896d61ba210df3a0c1bae6a880d60fdbf89c8427108b06d1ace9525159fb",
+    "src/ring_spectrum_renderer.v": "ae564413082f6c9348cb94938b03dac5b06e02075731372fd2cf1fb70d6f27c4",
+    "src/test/generate_ring_visual_tables.py": "de2368ad8ffa04a9a7b889cf15eeddffb5d8ceb54b2766c620138387e1eae686"
+  },
+  "original_preserved_files": 206,
+  "changed_original_files": [
+    "src/audio_fft_spectrum.v",
+    "src/ring_spectrum_renderer.v",
+    "src/test/tb_fft_display_pixels.v"
+  ],
+  "validated_logs": [
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "tb_fft_priority_arithmetic"
+    ],
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "tb_fft_display_cache"
+    ],
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "tb_reference_dynamics"
+    ],
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "tb_reference_ring"
+    ],
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "tb_fft_bank_32k"
+    ],
+    [
+      "prj/log/fft_priority_regression_20261011",
+      "legacy_fft"
+    ],
+    [
+      "prj/log/fft_priority_fft_20261011",
+      "fft_512"
+    ],
+    [
+      "prj/log/fft_priority_fft_20261011",
+      "fft_1024"
+    ],
+    [
+      "prj/log/fft_priority_fft_20261011",
+      "fft_2048"
+    ],
+    [
+      "prj/log/fft_priority_pixels_20261011",
+      "pixels_21_frames"
+    ]
+  ],
+  "keep_preserved": true,
+  "hann_preserved": true,
+  "bitstream_generated": false
+}

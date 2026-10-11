@@ -75,6 +75,7 @@ initial begin
             de=0;repeat(2)@(negedge clk);
         end
         repeat(3)@(negedge clk);
+        $display("MATCH pixel frame radius=%0d",r);
     end
     $display("PASS pixel equivalence: ring and video 21 full frames, RGB/flags/latency, bank/radius publication");$finish;
 end

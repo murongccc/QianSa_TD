@@ -24,7 +24,7 @@ def mapping(index):
 
 def shifts(value):
     terms = [f"(major_wide << {bit})" for bit in range(9) if value & (1 << bit)]
-    return ' + '.join(terms) if terms else "18'd0"
+    return ' + '.join(terms) if terms else "16'd0"
 
 
 def lookup_function(name, width, words):
@@ -41,13 +41,13 @@ def generate_tables():
     centers = [round(256 * math.tan(math.pi * i / 40)) for i in range(11)]
     lines = ['// 此区由 src/test/generate_ring_visual_tables.py 生成；角度为 Q8 正切。']
     def multiply(name, coefficient):
-        return [f'EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),',
+        return [f'EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),',
                 '    .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),',
                 f'    .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) {name}_mul(',
                 f"    .p({name}),.a({{1'b0,major}}),.b({coefficient}),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),",
                 '    .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));']
     for i in range(10):
-        lines.append(f'wire [17:0] bound{i};')
+        lines.append(f'wire [15:0] bound{i};')
     lines.append('generate if(DSP_GEOMETRY)begin: dsp_bounds')
     for i, value in enumerate(bounds):
         lines += multiply(f'bound{i}', f"9'd{value}")
@@ -58,14 +58,14 @@ def generate_tables():
     lines.append('wire [3:0] octant_position =')
     for i in range(10):
         lines.append(f"    (minor256 < bound{i}) ? 4'd{i} :")
-    lines += ["    4'd10;", 'wire [17:0] axis_product;',
+    lines += ["    4'd10;", 'wire [15:0] axis_product;',
               'generate if(DSP_GEOMETRY)begin: dsp_axis', 'reg [8:0] coefficient;',
               'always @* case(octant_position)']
     for i, value in enumerate(centers):
         lines.append(f"    4'd{i}: coefficient=9'd{value};")
     lines += ["    default: coefficient=9'd256;", 'endcase']
     lines += multiply('axis_product', 'coefficient')
-    lines += ['end else begin: lut_axis', 'reg [17:0] product;',
+    lines += ['end else begin: lut_axis', 'reg [15:0] product;',
               'assign axis_product=product;', 'always @* begin', '    case (octant_position)']
     for i, value in enumerate(centers):
         lines.append(f"        4'd{i}: product = {shifts(value)};")

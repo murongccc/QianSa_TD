@@ -22,9 +22,9 @@ module ring_spectrum_renderer #(
 );
 localparam [9:0] CENTER_X = ACTIVE_WIDTH / 2;
 localparam [9:0] CENTER_Y = ACTIVE_HEIGHT / 2;
-wire [10:0] abs_x = (pixel_x >= CENTER_X) ?
+wire [9:0] abs_x = (pixel_x >= CENTER_X) ?
     ({1'b0,pixel_x} - {1'b0,CENTER_X}) : ({1'b0,CENTER_X} - {1'b0,pixel_x});
-wire [10:0] abs_y = (pixel_y >= CENTER_Y) ?
+wire [9:0] abs_y = (pixel_y >= CENTER_Y) ?
     ({1'b0,pixel_y} - {1'b0,CENTER_Y}) : ({1'b0,CENTER_Y} - {1'b0,pixel_y});
 wire x_right = pixel_x >= CENTER_X;
 wire y_down = pixel_y >= CENTER_Y;
@@ -32,7 +32,7 @@ wire in_circle_bounds = (abs_x <= 11'd176) && (abs_y <= 11'd176);
 // 半径已由 FFT 原始峰值按参考算法计算，与音柱在同一视频帧发布。
 wire [7:0] base_radius = REFERENCE_MODE ? breath_radius : 8'd90;
 wire [16:0] base_radius_sq;
-    reg [16:0] radius_square;
+    reg [13:0] radius_square;
     always @* begin
         case(base_radius)
             8'd91: radius_square=17'd8281;
@@ -62,70 +62,72 @@ wire [16:0] base_radius_sq;
 wire [7:0] local_x = abs_x[7:0];
 wire [7:0] local_y = abs_y[7:0];
 wire [16:0] distance_sq = (local_x * local_x) + (local_y * local_y);
-wire [7:0] major = (local_x >= local_y) ? local_x : local_y;
-wire [7:0] minor = (local_x >= local_y) ? local_y : local_x;
-wire [17:0] major_wide = {10'd0,major};
-wire [17:0] minor256 = {2'd0,minor,8'd0};
+wire x_is_major = local_x >= local_y;
+wire [7:0] major = x_is_major ? local_x : local_y;
+wire [7:0] minor = x_is_major ? local_y : local_x;
+// 最大为 255*256=65280，几何乘积与横向误差均保留完整十六位。
+wire [15:0] major_wide = {8'd0,major};
+wire [15:0] minor256 = {minor,8'd0};
 // 每个八分圆分为 10 根柱，以常数乘法选择最近中心线，无浮点或除法。
 // BEGIN GENERATED TABLES
 // 此区由 src/test/generate_ring_visual_tables.py 生成；角度为 Q8 正切。
-wire [17:0] bound0;
-wire [17:0] bound1;
-wire [17:0] bound2;
-wire [17:0] bound3;
-wire [17:0] bound4;
-wire [17:0] bound5;
-wire [17:0] bound6;
-wire [17:0] bound7;
-wire [17:0] bound8;
-wire [17:0] bound9;
+wire [15:0] bound0;
+wire [15:0] bound1;
+wire [15:0] bound2;
+wire [15:0] bound3;
+wire [15:0] bound4;
+wire [15:0] bound5;
+wire [15:0] bound6;
+wire [15:0] bound7;
+wire [15:0] bound8;
+wire [15:0] bound9;
 generate if(DSP_GEOMETRY)begin: dsp_bounds
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound0_mul(
     .p(bound0),.a({1'b0,major}),.b(9'd10),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound1_mul(
     .p(bound1),.a({1'b0,major}),.b(9'd30),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound2_mul(
     .p(bound2),.a({1'b0,major}),.b(9'd51),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound3_mul(
     .p(bound3),.a({1'b0,major}),.b(9'd72),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound4_mul(
     .p(bound4),.a({1'b0,major}),.b(9'd94),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound5_mul(
     .p(bound5),.a({1'b0,major}),.b(9'd118),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound6_mul(
     .p(bound6),.a({1'b0,major}),.b(9'd143),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound7_mul(
     .p(bound7),.a({1'b0,major}),.b(9'd171),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound8_mul(
     .p(bound8),.a({1'b0,major}),.b(9'd202),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) bound9_mul(
     .p(bound9),.a({1'b0,major}),.b(9'd237),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
@@ -154,7 +156,7 @@ wire [3:0] octant_position =
     (minor256 < bound8) ? 4'd8 :
     (minor256 < bound9) ? 4'd9 :
     4'd10;
-wire [17:0] axis_product;
+wire [15:0] axis_product;
 generate if(DSP_GEOMETRY)begin: dsp_axis
 reg [8:0] coefficient;
 always @* case(octant_position)
@@ -171,17 +173,17 @@ always @* case(octant_position)
     4'd10: coefficient=9'd256;
     default: coefficient=9'd256;
 endcase
-EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(18),
+EG_LOGIC_MULT #(.INPUT_WIDTH_A(9),.INPUT_WIDTH_B(9),.OUTPUT_WIDTH(16),
     .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
     .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) axis_product_mul(
     .p(axis_product),.a({1'b0,major}),.b(coefficient),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
     .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
 end else begin: lut_axis
-reg [17:0] product;
+reg [15:0] product;
 assign axis_product=product;
 always @* begin
     case (octant_position)
-        4'd0: product = 18'd0;
+        4'd0: product = 16'd0;
         4'd1: product = (major_wide << 2) + (major_wide << 4);
         4'd2: product = (major_wide << 0) + (major_wide << 3) + (major_wide << 5);
         4'd3: product = (major_wide << 0) + (major_wide << 2) + (major_wide << 3) + (major_wide << 4) + (major_wide << 5);
@@ -290,7 +292,7 @@ end
 // 不增加整个视频通路的两拍延迟，避免频段选择与半径平方串成超长路径。
 assign bars_read_address=display_index;
 wire spectrum_active = REFERENCE_MODE ? (BLOCK_BARS ? bars_active : (|bars)) : (|bands);
-wire [17:0] cross_error = (minor256 >= axis_product) ?
+wire [15:0] cross_error = (minor256 >= axis_product) ?
     minor256 - axis_product : axis_product - minor256;
 wire [8:0] side_limit = (octant_position >= 4'd8) ? 9'd480 :
                        ((octant_position >= 4'd5) ? 9'd416 : 9'd384);

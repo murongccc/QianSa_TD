@@ -903,11 +903,13 @@ wire [31:0] twiddle_word;
 wire [31:0] read_data,bank0_q,bank1_q;
 reg [31:0] square_sum,sqrt_remainder;
 reg [15:0] sqrt_root;
-reg [4:0] sqrt_count;
+reg [3:0] sqrt_count;
 reg [23:0] history_q;
 reg [6:0] bar_index;
 reg [18:0] magnitude_a,magnitude_b;
-reg [27:0] interpolated_product;
+reg [26:0] interpolated_product;
+reg signed [4:0] blend_high;
+reg [22:0] blend_low_product;
 reg [18:0] raw_peak,peak_envelope;
 reg [7:0] radius_build;
 reg [7:0] bar_level;
@@ -927,8 +929,12 @@ wire [4:0] fall_speed=history_q[23:19];
 wire immediate_rise=raw_m_q8>held_m_q8;
 wire [18:0] fall_step={6'd0,fall_speed,8'd0};
 // 精确保留参考的分支：能减速度则减速度，否则每次减 1；零附近截断。
-wire [18:0] falling_m_q8=(held_m_q8>fall_step)?held_m_q8-fall_step:
-    (held_m_q8>19'd256)?held_m_q8-19'd256:19'd0;
+wire fall_by_speed=held_m_q8>fall_step;
+wire [10:0] fall_delta=fall_by_speed?{6'd0,fall_speed}:11'd1;
+wire [10:0] fallen_integer=held_m_q8[18:8]-fall_delta;
+// 两个扣减分支低八位均不变，共享高十一位减法；归零判断保持原顺序。
+wire [18:0] falling_m_q8=(fall_by_speed || held_m_q8>19'd256)?
+    {fallen_integer,held_m_q8[7:0]}:19'd0;
 wire [18:0] smooth_magnitude=immediate_rise?raw_m_q8:falling_m_q8;
 wire [4:0] next_fall_speed=immediate_rise?5'd0:
     (fall_speed<5'd20)?fall_speed+5'd1:5'd20;
@@ -944,7 +950,7 @@ wire capture_we=sample_valid && state!=ST_INIT;
 wire process_we=(state==ST_WR_A)||(state==ST_WR_B);
 wire read_en=(state==ST_RD_A)||(state==ST_RD_B)||(state==ST_SCAN_RD);
 wire [ADDR_W-1:0] a_addr=group_base+pair_index;
-wire [ADDR_W-1:0] b_addr=group_base+pair_index+step;
+wire [ADDR_W-1:0] b_addr=a_addr+step;
 wire [ADDR_W-1:0] read_addr=(state==ST_RD_A)?a_addr:(state==ST_RD_B)?b_addr:scan_bin;
 wire [ADDR_W-1:0] write_addr=(state==ST_WR_A)?a_addr:b_addr;
 wire [31:0] write_data=(state==ST_WR_A)?result_a:result_b;
@@ -959,14 +965,24 @@ wire signed [25:0] window_product=pcm16*$signed({1'b0,window_gain});
 wire signed [25:0] window_shifted=window_product>>>8;
 wire [15:0] windowed_pcm=window_shifted[15:0];
 wire [9:0] twiddle_index=pair_index<<(10-stage);
-// 同一乘法器复用蝶形和幅度平方，避免增加 DSP。
-wire signed [15:0] mul_a=(state==ST_SCAN_EVAL)?read_data[31:16]:
+// 插值差值分为有符号高五位和非负低十五位，两拍复用蝶形乘法器。
+// ST_BAR_B 的 B 来自刚完成同步读取的 history_q，不能使用尚未锁存的新 B。
+wire signed [19:0] blend_difference=$signed({1'b0,history_q[18:0]})-
+    $signed({1'b0,magnitude_a});
+wire signed [15:0] mul_a=(state==ST_BAR_B)?{1'b0,blend_difference[14:0]}:
+    (state==ST_BLEND)?{{11{blend_high[4]}},blend_high}:
+    (state==ST_SCAN_EVAL)?read_data[31:16]:
     (state==ST_SQUARE_I)?b_data[15:0]:
     ((state==ST_M0)||(state==ST_M2))?b_data[31:16]:b_data[15:0];
-wire signed [15:0] mul_b=(state==ST_SCAN_EVAL)?read_data[31:16]:
+wire signed [15:0] mul_b=((state==ST_BAR_B)||(state==ST_BLEND))?{8'd0,fraction}:
+    (state==ST_SCAN_EVAL)?read_data[31:16]:
     (state==ST_SQUARE_I)?b_data[15:0]:
     ((state==ST_M0)||(state==ST_M3))?twiddle_word[31:16]:twiddle_word[15:0];
 wire signed [31:0] product=mul_a*mul_b;
+// 中间值保留符号与保护位，重建完整非负加权和后才取原来的 [26:8]。
+wire signed [28:0] blend_reconstructed=$signed({2'd0,magnitude_a,8'd0})+
+    ($signed({{16{product[12]}},product[12:0]})<<<15)+
+    $signed({6'd0,blend_low_product});
 wire signed [32:0] real_product=$signed({p0[31],p0})-$signed({p1[31],p1});
 wire signed [32:0] imag_product=$signed({p2[31],p2})+$signed({p3[31],p3});
 wire signed [17:0] rotated_real=real_product>>>15;
@@ -981,7 +997,8 @@ wire sqrt_accept=sqrt_shift>=sqrt_trial;
 // M 的 Q8 值约为原始 magnitude*6.8985，取 7；误差约 1.5%。
 // 已在入历史 RAM 前换算，插值后无需再次乘 7。
 wire [18:0] reference_m_q8=interpolated_product[26:8];
-wire [23:0] log_argument=24'd256+(({5'd0,reference_m_q8}+24'd5)/10);
+// 任意十九位幅度下的最大对数输入为 52685，十六位足够且不改变取整。
+wire [15:0] log_argument=16'd256+(({1'b0,reference_m_q8}+20'd5)/20'd10);
 // 参考呼吸先在原始幅度域做 0.8/0.2 平滑，再做 3*log2(M+1)。
 wire [21:0] envelope_sum={3'd0,peak_envelope}+{1'b0,raw_peak,2'd0}+22'd2;
 wire [18:0] next_envelope=envelope_sum/22'd5;
@@ -1021,18 +1038,28 @@ function [4:0] radius_offset;
     end
 endfunction
 function [7:0] reference_level;
-    input [23:0] argument;
+    input [15:0] argument;
     integer bit_index;
-    reg [4:0] msb;
-    reg [23:0] normalized;
-    reg [11:0] result;
+    reg [3:0] msb;
+    reg [15:0] normalized;
+    reg [9:0] result;
     begin
         msb=0;
-        for(bit_index=0;bit_index<24;bit_index=bit_index+1)
+        for(bit_index=0;bit_index<16;bit_index=bit_index+1)
             if(argument[bit_index]) msb=bit_index;
         normalized=argument>>(msb-6);
-        // 69.3125 近似 100*ln(2)，保留四位小数后再取整。
-        result=((msb-8)*12'd1109+12'd8)>>4;
+        // 输入范围 256..52685：原常数乘加含加8舍入的八个精确结果。
+        case(msb)
+            4'd8: result=10'd0;
+            4'd9: result=10'd69;
+            4'd10: result=10'd139;
+            4'd11: result=10'd208;
+            4'd12: result=10'd277;
+            4'd13: result=10'd347;
+            4'd14: result=10'd416;
+            4'd15: result=10'd485;
+            default: result=10'd0;
+        endcase
         result=result+reference_log_fraction(normalized[5:0]);
         reference_level=(result>240)?8'd240:result[7:0];
     end
@@ -1832,7 +1859,7 @@ always @(posedge clk or posedge rst) begin
         bar_index<=0;sqrt_count<=0;sqrt_root<=0;sqrt_remainder<=0;square_sum<=0;
         a_data<=0;b_data<=0;p0<=0;p1<=0;p2<=0;p3<=0;
         result_a<=0;result_b<=0;magnitude_a<=0;magnitude_b<=0;
-        interpolated_product<=0;bar_level<=0;
+        interpolated_product<=0;blend_high<=0;blend_low_product<=0;bar_level<=0;
     end else begin
         frame_start_d<=frame_start;
         // build 只在完整生成 80 柱后有效；开始下一次构建时撤销有效标志。
@@ -1899,10 +1926,14 @@ always @(posedge clk or posedge rst) begin
             ST_BAR_RD_A: state<=ST_BAR_A;
             ST_BAR_A: begin magnitude_a<=history_q[18:0];state<=ST_BAR_RD_B;end
             ST_BAR_RD_B: state<=ST_BAR_B;
-            ST_BAR_B: begin magnitude_b<=history_q[18:0];state<=ST_BLEND;end
+            ST_BAR_B: begin
+                magnitude_b<=history_q[18:0];
+                blend_high<=blend_difference[19:15];blend_low_product<=product[22:0];
+                state<=ST_BLEND;
+            end
             ST_BLEND: begin
                 // 幅度先线性插值，再对数压缩，避免先压缩后插值产生错误轮廓。
-                interpolated_product<=magnitude_a*(9'd256-{1'b0,fraction})+magnitude_b*fraction;
+                interpolated_product<=blend_reconstructed[26:0];
                 state<=ST_LOG;
             end
             ST_LOG: begin bar_level<=reference_level(log_argument);state<=ST_BAR_WRITE;end
