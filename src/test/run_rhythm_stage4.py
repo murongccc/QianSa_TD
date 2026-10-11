@@ -28,7 +28,7 @@ def main():
 
     if not (Path(library) / '_info').exists():
         run('library', [binaries['vlib'], library])
-    tests = ['tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_note_style', 'tb_rhythm_renderer_session_reset', 'tb_rhythm_background_mode',
+    tests = ['tb_rhythm_debounce_bank', 'tb_rhythm_session', 'tb_rhythm_renderer', 'tb_rhythm_note_style', 'tb_rhythm_renderer_session_reset', 'tb_rhythm_background_mode',
              'tb_rhythm_playback', 'tb_rhythm_media_freeze', 'tb_rhythm_image_guard']
     sources = ['rhythm_block_ram', 'rhythm_judge_core', 'rhythm_auto_input', 'rhythm_game_engine',
                'rhythm_session_controller', 'rhythm_font', 'rhythm_hud', 'rhythm_game_renderer',

@@ -197,26 +197,50 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
     wire [7:0] character_write=phase==1 ? initial_char : 8'h30+{4'd0,(field==0 ? bcd[27:24] : bcd[19:16])};
     reg [7:0] read_address;
     reg [7:0] text_base;wire [9:0] read_x=rel_x+(BLOCK_CHARACTERS ? 10'd2 : 10'd0);
+    reg line_valid0,line_valid1;
+    reg [9:0] line_left0,line_right0,line_left1,line_right1;
+    reg [7:0] line_base0,line_base1;
+    reg [3:0] line_rel_y;
     reg [9:0] area_x;
-    reg [3:0] area_y;
-    wire top_row=y>=10'd12 && y<10'd28;
-    wire bottom_row=y>=10'd448 && y<10'd464;
+    // 每行第零像素装载至多两段文字，后续像素只比较横坐标，避免重复展开页面与纵坐标优先链。
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin
+            line_valid0<=1'b0;line_valid1<=1'b0;line_left0<=10'd0;line_right0<=10'd0;
+            line_left1<=10'd0;line_right1<=10'd0;line_base0<=8'd0;line_base1<=8'd0;line_rel_y<=4'd0;
+        end else if(x==10'd0)begin
+            line_valid0<=1'b0;line_valid1<=1'b0;line_left0<=10'd0;line_right0<=10'd0;
+            line_left1<=10'd0;line_right1<=10'd0;line_base0<=8'd0;line_base1<=8'd0;line_rel_y<=y[3:0];
+            if(y>=10'd12 && y<10'd28)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd510 : 10'd512;line_right0<=10'd624;line_base0<=8'd0;
+                line_valid1<=1'b1;line_left1<=BLOCK_CHARACTERS ? 10'd278 : 10'd280;line_right1<=10'd360;line_base1<=8'd16;
+                line_rel_y<=y[3:0]-4'd12;
+            end else if(y>=10'd32 && y<10'd48)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd278 : 10'd280;line_right0<=10'd360;line_base0<=8'd32;
+            end else if(y>=10'd48 && y<10'd64)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd22 : 10'd24;line_right0<=10'd88;line_base0<=8'd48;
+            end else if(y>=10'd448 && y<10'd464)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd22 : 10'd24;line_right0<=10'd408;line_base0<=8'd64;
+                line_valid1<=1'b1;line_left1<=BLOCK_CHARACTERS ? 10'd414 : 10'd416;line_right1<=10'd624;line_base1<=8'd96;
+            end else if(saved_state!=4'd6 && saved_state!=4'd9 && y>=10'd176 && y<10'd192)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd190 : 10'd192;line_right0<=10'd448;line_base0<=8'd112;
+            end else if(saved_state==4'd11 && y>=10'd208 && y<10'd224)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd294 : 10'd296;line_right0<=10'd344;line_base0<=8'd128;
+            end else if(saved_state==4'd10 && y>=10'd208 && y<10'd288)begin
+                line_valid0<=1'b1;line_left0<=BLOCK_CHARACTERS ? 10'd222 : 10'd224;line_right0<=10'd368;
+                line_base0<=8'd144+{y[6:4]-3'd5,4'd0};
+            end
+        end
+    end
     always @*begin
         text_area=0;rel_x=0;rel_y=0;read_address=0;text_base=0;
-        area_x=0;area_y=0;
-        if(top_row && x>=(512-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;area_x=512;area_y=12;text_base=0;end
-        else if(top_row && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;area_x=280;area_y=12;text_base=16;end
-        else if(y>=32 && y<48 && x>=(280-(BLOCK_CHARACTERS ? 2 : 0)) && x<360)begin text_area=1;area_x=280;text_base=32;end
-        else if(y>=48 && y<64 && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<88)begin text_area=1;area_x=24;text_base=48;end
-        else if(bottom_row && x>=(24-(BLOCK_CHARACTERS ? 2 : 0)) && x<408)begin text_area=1;area_x=24;text_base=64;end
-        else if(bottom_row && x>=(416-(BLOCK_CHARACTERS ? 2 : 0)) && x<624)begin text_area=1;area_x=416;text_base=96;end
-        else if(saved_state!=6 && saved_state!=9 && y>=176 && y<192 && x>=(192-(BLOCK_CHARACTERS ? 2 : 0)) && x<448)begin text_area=1;area_x=192;text_base=112;end
-        else if(saved_state==11 && y>=208 && y<224 && x>=(296-(BLOCK_CHARACTERS ? 2 : 0)) && x<344)begin text_area=1;area_x=296;text_base=128;end
-        else if(saved_state==10 && y>=208 && y<288 && x>=(224-(BLOCK_CHARACTERS ? 2 : 0)) && x<368)begin
-            text_area=1;area_x=224;text_base=8'd144+{y[6:4]-3'd5,4'd0};
+        area_x=0;
+        if(line_valid0 && x>=line_left0 && x<line_right0)begin
+            text_area=1'b1;area_x=line_left0+(BLOCK_CHARACTERS ? 10'd2 : 10'd0);text_base=line_base0;
+        end else if(line_valid1 && x>=line_left1 && x<line_right1)begin
+            text_area=1'b1;area_x=line_left1+(BLOCK_CHARACTERS ? 10'd2 : 10'd0);text_base=line_base1;
         end
-        // 互斥文本区域共享坐标减法；纵向各区域只有十六行。
-        if(text_area)begin rel_x=x-area_x;rel_y={6'd0,y[3:0]-area_y};end
+        // 两段描述共享横坐标减法；纵向局部坐标已在行首计算。
+        if(text_area)begin rel_x=x-area_x;rel_y={6'd0,line_rel_y};end
         // 基址按 16 对齐，字符索引的最高位只影响基址高四位。
         read_address={text_base[7:4]+{3'd0,read_x[8]},read_x[7:4]};
     end

@@ -26,13 +26,13 @@ module rhythm_session_controller #(
     localparam RETIRE=4'd0,CLEAR=4'd1,STOP=4'd2,SETTLE=4'd3,LOAD=4'd4,
                PREROLL=4'd5,PLAY=4'd6,PAUSE=4'd7,BUFFER=4'd8,TAIL=4'd9,RESULT=4'd10,ERROR=4'd11;
     wire want_game,want_run,k2_level,k3_level,k4_level,k2,k3,k4;
-    audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS)) gsw(
-        .clk(clk),.rst(rst),.async_in(game_switch),.stable_level(want_game),.fall_pulse());
-    audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS)) rsw(
-        .clk(clk),.rst(rst),.async_in(run_switch),.stable_level(want_run),.fall_pulse());
-    audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS),.RESET_LEVEL(1)) key2(clk,rst,restart_key_n,k2_level,k2);
-    audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS),.RESET_LEVEL(1)) key3(clk,rst,pause_key_n,k3_level,k3);
-    audio_control_debounce #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS),.RESET_LEVEL(1)) key4(clk,rst,mode_key_n,k4_level,k4);
+    wire [4:0] control_level,control_fall;
+    // 五路输入保留独立同步、稳定电平和计数状态，每拍只处理一路计数，复用加法与阈值比较。
+    rhythm_control_debounce_bank #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS)) controls(
+        .clk(clk),.rst(rst),.async_in({mode_key_n,pause_key_n,restart_key_n,run_switch,game_switch}),
+        .stable_level(control_level),.fall_pulse(control_fall));
+    assign {k4_level,k3_level,k2_level,want_run,want_game}=control_level;
+    assign {k4,k3,k2}=control_fall[4:2];
     reg keys_armed;
     reg [4:0] flags_meta,flags_sync;
     reg [3:0] err_meta,err_sync,err_previous;
@@ -125,6 +125,42 @@ module rhythm_session_controller #(
                 ERROR:begin end
                 default:state<=RETIRE;
             endcase
+        end
+    end
+endmodule
+
+// 五路控制输入轮询消抖。每路每五拍访问一次，向上取整访问次数，墙钟延迟误差不超过四拍。
+module rhythm_control_debounce_bank #(
+    parameter integer CLK_FREQ_HZ=25_000_000,
+    parameter integer DEBOUNCE_MS=20
+)(
+    input wire clk,input wire rst,input wire [4:0] async_in,
+    output reg [4:0] stable_level,output reg [4:0] fall_pulse
+);
+    function integer bits_for;
+        input integer count;integer value;
+        begin bits_for=1;for(value=count-1;value>1;value=value>>1)bits_for=bits_for+1;end
+    endfunction
+    localparam integer DEBOUNCE_CYCLES=(CLK_FREQ_HZ/1000)*DEBOUNCE_MS;
+    localparam integer DEBOUNCE_VISITS=(DEBOUNCE_CYCLES+4)/5;
+    localparam integer COUNT_BITS=bits_for(DEBOUNCE_VISITS);
+    localparam [4:0] RESET_LEVELS=5'b11100;
+    reg [4:0] sync0,sync1;
+    reg [2:0] scan_index;
+    reg [COUNT_BITS-1:0] counts[0:4];
+    integer index;
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin
+            sync0<=RESET_LEVELS;sync1<=RESET_LEVELS;stable_level<=RESET_LEVELS;fall_pulse<=5'd0;scan_index<=3'd0;
+            for(index=0;index<5;index=index+1)counts[index]<={COUNT_BITS{1'b0}};
+        end else begin
+            sync0<=async_in;sync1<=sync0;fall_pulse<=5'd0;
+            scan_index<=scan_index==3'd4 ? 3'd0 : scan_index+3'd1;
+            if(sync1[scan_index]==stable_level[scan_index])counts[scan_index]<={COUNT_BITS{1'b0}};
+            else if(counts[scan_index]>=DEBOUNCE_VISITS-1)begin
+                if(stable_level[scan_index]&&!sync1[scan_index])fall_pulse[scan_index]<=1'b1;
+                stable_level[scan_index]<=sync1[scan_index];counts[scan_index]<={COUNT_BITS{1'b0}};
+            end else counts[scan_index]<=counts[scan_index]+1'b1;
         end
     end
 endmodule

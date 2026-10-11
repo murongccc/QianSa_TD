@@ -19,7 +19,7 @@ module tb_rhythm_priority1_hud_coordinates;
     end endgenerate
     integer xx,yy,s,cases=0;
     initial begin
-        #2;clk=1;#2;clk=0;rst=0;
+        x=0;y=0;#2;clk=1;#2;clk=0;rst=0;
         for(s=0;s<4;s=s+1)begin
             case(s)
                 0:begin modes[0].dut.saved_state=6;modes[0].reference.saved_state=6;modes[1].dut.saved_state=6;modes[1].reference.saved_state=6;end
@@ -27,14 +27,18 @@ module tb_rhythm_priority1_hud_coordinates;
                 2:begin modes[0].dut.saved_state=11;modes[0].reference.saved_state=11;modes[1].dut.saved_state=11;modes[1].reference.saved_state=11;end
                 3:begin modes[0].dut.saved_state=2;modes[0].reference.saved_state=2;modes[1].dut.saved_state=2;modes[1].reference.saved_state=2;end
             endcase
-            for(yy=0;yy<1024;yy=yy+1)for(xx=0;xx<1024;xx=xx+1)begin
-                x=xx;y=yy;#1;
-                if({modes[0].dut.text_area,modes[0].dut.rel_x,modes[0].dut.rel_y,modes[0].dut.read_address}!==
-                   {modes[0].reference.text_area,modes[0].reference.rel_x,modes[0].reference.rel_y,modes[0].reference.read_address} ||
-                   {modes[1].dut.text_area,modes[1].dut.rel_x,modes[1].dut.rel_y,modes[1].dut.read_address}!==
-                   {modes[1].reference.text_area,modes[1].reference.rel_x,modes[1].reference.rel_y,modes[1].reference.read_address})
-                    $fatal(1,"HUD coordinate mismatch state_case=%0d x=%0d y=%0d",s,xx,yy);
-                cases=cases+2;
+            for(yy=0;yy<1024;yy=yy+1)begin
+                // 行描述符在 x=0 的时钟沿装载；像素比较仍覆盖完整 10 位坐标域。
+                x=0;y=yy;#1;clk=1;#1;clk=0;#1;
+                for(xx=0;xx<1024;xx=xx+1)begin
+                    x=xx;#1;
+                    if({modes[0].dut.text_area,modes[0].dut.rel_x,modes[0].dut.rel_y,modes[0].dut.read_address}!==
+                       {modes[0].reference.text_area,modes[0].reference.rel_x,modes[0].reference.rel_y,modes[0].reference.read_address} ||
+                       {modes[1].dut.text_area,modes[1].dut.rel_x,modes[1].dut.rel_y,modes[1].dut.read_address}!==
+                       {modes[1].reference.text_area,modes[1].reference.rel_x,modes[1].reference.rel_y,modes[1].reference.read_address})
+                        $fatal(1,"HUD coordinate mismatch state_case=%0d x=%0d y=%0d",s,xx,yy);
+                    cases=cases+2;
+                end
             end
         end
         $display("PASS HUD shared arithmetic: %0d full-domain state/mode coordinate comparisons",cases);$finish;
