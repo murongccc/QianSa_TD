@@ -7,6 +7,18 @@ import subprocess
 root = Path(__file__).resolve().parents[2]
 out = root / 'prj/log/touch_lane_20261011'
 out.mkdir(parents=True, exist_ok=True)
+project = (root/'prj/SD_to_Video.al').read_text(encoding='utf-8')
+source_set = re.search(r'<Verilog>.*?</Verilog>', project, re.S)[0]
+for module in ['touch_lane_input', 'touch_game_event_bridge']:
+    entries = re.findall(r'<File Path="[^"]*/'+module+r'\.v">.*?</File>', source_set, re.S)
+    assert len(entries)==1, f'{module}: board project must contain exactly one source entry; reload TD project after editing .al'
+    assert 'Name="UsedInSyn" Val="true"' in entries[0], f'{module}: synthesis is disabled'
+    assert 'Name="AutoExcluded" Val="true"' not in entries[0], f'{module}: source is excluded'
+    assert (root/'src'/(module+'.v')).is_file(), f'{module}: missing RTL file'
+for entry in re.findall(r'<File Path="[^"]*">.*?</File>', source_set, re.S):
+    if 'src/test/' in entry.replace('\\','/'):
+        assert 'Name="UsedInSyn" Val="false"' in entry, 'testbench must not be enabled for board synthesis'
+print('PASS board project includes both touch lane modules for synthesis', flush=True)
 mapper = (root/'src/touch_pixel_mapper.v').read_text(encoding='utf-8')
 lane = (root/'src/touch_lane_input.v').read_text(encoding='utf-8')
 def constant(text, name):
