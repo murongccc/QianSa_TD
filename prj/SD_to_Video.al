@@ -782,6 +782,9 @@
         </Run>
         <Run Name="phy_1" Type="PhysicalDesign" ConstraintSet="constraint_1" Description="" SynRun="syn_1" Active="true">
             <Strategy Name="Default_PhysicalDesign_Strategy">
+                <PlaceProperty>
+                    <hfn_opt_effort>off</hfn_opt_effort>
+                </PlaceProperty>
             </Strategy>
             <UserParams>
             </UserParams>

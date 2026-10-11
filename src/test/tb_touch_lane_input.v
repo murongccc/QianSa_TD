@@ -11,7 +11,7 @@ input ad,bd;input [3:0] ai,bi;input [15:0] ax,ay,bx,by;
 input [3:0] ed,ep,er;
 begin
     @(negedge clk);a_down=ad;b_down=bd;a_id=ai;b_id=bi;a_x=ax;a_y=ay;b_x=bx;b_y=by;update_valid=1;
-    @(negedge clk);update_valid=0;
+    @(negedge clk);update_valid=0;repeat(12)@(negedge clk);
     if(d!==ed || p!==ep || r!==er || valid!==((ep|er)!=0))
         $fatal(1,"lane got D/P/R %h/%h/%h expected %h/%h/%h x/y %d/%d",d,p,r,ed,ep,er,ax,ay);
 end endtask
@@ -51,7 +51,14 @@ initial begin
     report(1,0,3,2,3000,8000,0,0,0,0,0);
     report(0,0,3,2,0,0,0,0,0,0,0);repeat(3)@(negedge clk);
     report(1,0,3,2,3000,8000,0,0,1,1,0);up;
-    $display("PASS lane boundaries, identity, no slide, chords, same lane, rearm");$finish;
+    // 顺序处理尚未完成时停用，必须丢弃整条报告，不提交半条绑定。
+    @(negedge clk);a_down=1;a_id=5;a_x=6000;a_y=8000;update_valid=1;
+    @(negedge clk);update_valid=0;repeat(4)@(negedge clk);enable=0;
+    repeat(16)@(negedge clk);if(valid || d || armed)$fatal(1,"partial report survived pause");
+    enable=1;repeat(16)@(negedge clk);if(valid || d || armed)$fatal(1,"partial report resumed");
+    report(0,0,5,2,0,0,0,0,0,0,0);repeat(3)@(negedge clk);
+    report(1,0,5,2,6000,8000,0,0,2,2,0);up;
+    $display("PASS lane boundaries, identity, no slide, chords, same lane, rearm, partial report cancellation");$finish;
 end
 initial begin #1000000;$fatal(1,"timeout");end
 endmodule

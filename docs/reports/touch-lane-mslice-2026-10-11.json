@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-11",
+  "baseline_commit": "f9aa991",
+  "retained_changes": [
+    "one shared comparator, 13 source clocks per atomic report",
+    "place hfn_opt_effort=off, no post-change layout run"
+  ],
+  "synthesis_before": {
+    "lut": 18511,
+    "reg": 10623,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_retained": {
+    "lut": 18365,
+    "reg": 10635,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_delta": {
+    "lut": -146,
+    "reg": 12,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": 0,
+    "pll": 0
+  },
+  "lane_hierarchy_before": {
+    "lut": 167,
+    "ripple": 100,
+    "seq": 32
+  },
+  "lane_hierarchy_retained": {
+    "lut": 124,
+    "ripple": 9,
+    "seq": 44
+  },
+  "synthesis_log": "prj/log/touch_lane_serial_compare_syn_20261011",
+  "physical_checks": [
+    {
+      "candidate": "original four-lane input",
+      "mslice": 4930,
+      "limit": 4900,
+      "status": "failed",
+      "log": "prj/SD_to_Video_Runs/phy_1/run.log"
+    },
+    {
+      "candidate": "nibble comparison, abandoned",
+      "mslice": 4984,
+      "status": "failed",
+      "log": "prj/log/touch_lane_lut_compare_place_20261011"
+    },
+    {
+      "candidate": "shared serial comparison, default HFN medium",
+      "mslice": 4922,
+      "status": "failed",
+      "log": "prj/log/touch_lane_serial_compare_place_20261011"
+    }
+  ],
+  "abandoned_echo_bram_synthesis": {
+    "lut": 18483,
+    "reg": 10649,
+    "bram9k": 42,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "new_layout_checks_run": 2,
+  "hfn_medium_register_duplication": {
+    "drivers": 22,
+    "copies": 270
+  },
+  "retained_hfn_off_supported_by_td": true,
+  "retained_hfn_off_packing_verified": false,
+  "last_verified_mslice": 4922,
+  "last_verified_mslice_excess": 22,
+  "user_stopped_further_layout_checks": true,
+  "equivalence": {
+    "coordinate_reports": 131072,
+    "state_reports": 10000,
+    "cycles": 1973910,
+    "errors": 0,
+    "warnings": 0
+  },
+  "route_run": false,
+  "bitstream_generated": false,
+  "status": "MSlice limit not yet verified resolved with retained settings"
+}

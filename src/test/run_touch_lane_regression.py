@@ -47,8 +47,13 @@ lib=str(out/'work')
 if not Path(lib).exists():run('library',[shutil.which('vlib'),lib])
 names=['touch_lane_input','touch_game_event_bridge','rhythm_game_engine','rhythm_judge_core','rhythm_auto_input','rhythm_block_ram','touch_serial_monitor','uart_byte_tx','ch9350_touch_parser','touch_counter_increment']
 cases=['tb_touch_lane_input','tb_touch_game_event_bridge','tb_touch_rhythm_integration','tb_touch_lane_serial','tb_touch_lane_parser']
+reference = subprocess.check_output(['git','show','f9aa991:src/touch_lane_input.v'],cwd=root).decode('utf-8')
+reference = re.sub(r'\btouch_lane_input\b','touch_lane_input_reference',reference)
+reference_path = out/'touch_lane_input_reference.v'
+reference_path.write_text(reference,encoding='utf-8')
+cases.append('tb_touch_lane_resource_equivalence')
 run('compile',[shutil.which('vlog'),'-work',lib,'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','src/test/eg_logic_mult_model.v',
-              *[str(root/'src'/(n+'.v')) for n in names],*[str(root/'src/test'/(n+'.v')) for n in cases]])
+              *[str(root/'src'/(n+'.v')) for n in names],str(reference_path),*[str(root/'src/test'/(n+'.v')) for n in cases]])
 for case in cases:run(case,[shutil.which('vsim'),'-c','-lib',lib,case,'-do','src/test/run_touch_uart_debug.do'],True)
 for phase, half in [(0,20),(31,23),(1,11)]:
     run(f'bridge_phase_{phase}_{half}',[shutil.which('vsim'),'-c','-lib',lib,'tb_touch_game_event_bridge',
