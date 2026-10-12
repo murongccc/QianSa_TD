@@ -7,6 +7,7 @@ module tb_rhythm_note_style;
     wire [4:0] vi;reg vv;reg [31:0] start,finish;
     wire capture,active,on;wire [23:0] color;
     rhythm_game_renderer #(.BLOCK_GEOMETRY(BLOCK_GEOMETRY),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+        .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(rst),.enabled(1'b1),.de(de),.vs(vs),.song_time(33'sd48000),.song_frames(32'd192000),
         .state(4'd6),.error_code(4'd0),.auto_mode(1'b1),.score(20'd123450),.combo(16'd32),.max_combo(16'd32),
@@ -49,7 +50,7 @@ module tb_rhythm_note_style;
     endfunction
     function [23:0] reference_pixel;
         input integer x,y;
-        integer lane,lx,i,slot,head,body,b,hr,tr,padding,distance;
+        integer lane,lx,i,slot,head,body,b,t,hr,tr,padding,distance;
         reg white;
         begin
             reference_pixel=24'h302418;
@@ -58,10 +59,12 @@ module tb_rhythm_note_style;
                 if(lx==0)reference_pixel=24'h303a50;
                 for(i=0;i<8;i=i+1)begin
                     slot=lane*8+i;b=(i==0 && holding[lane]) ? 384 : bottom[slot];
+                    t=is_hold[slot] ? (tail[slot]<95 ? 64 : tail[slot]-31) : tail[slot];
                     if(valid[slot] && head<0 && y>=b-31 && y<=b)begin head=slot;hr=y-(b-31);end
-                    if(valid[slot] && is_hold[slot] && body<0 && y>=tail[slot] && y<b-31)begin body=slot;tr=y-tail[slot];end
+                    if(valid[slot] && is_hold[slot] && body<0 && y>=t && y<b-31)begin body=slot;tr=y-t;end
                 end
-                if(body>=0)begin
+                // 头部所在行使用独立圆角轮廓，底层Hold不得填满头部圆角缺口。
+                if(body>=0 && head<0)begin
                     padding=tr==0 ? 4 : tr==1 ? 2 : tr<4 ? 1 : 0;
                     if(lx>=18+padding && lx<94-padding)reference_pixel=tr<4 ? bright(lane) : dark(lane);
                 end

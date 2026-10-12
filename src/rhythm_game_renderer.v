@@ -11,7 +11,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     input wire [3:0] holding_mask,
     input wire [3:0] input_down,input_press, // 视频域已提交状态与接受按下脉冲
     output wire capture_busy,
-    output reg frame_enabled,output wire pixel_on,output wire [23:0] pixel_rgb
+    output reg frame_enabled,output wire pixel_on,output wire pixel_light,output wire [23:0] pixel_rgb
 );
     reg vs_d,de_d,vs_seen_low;reg [9:0] x;reg [8:0] y;
     // 会话清理不复位板级扫描。VS 持续为高时解除复位不能伪造帧边界；
@@ -85,8 +85,13 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     // 超出有符号 18 位的时间差直接限幅，近处只构造 18 位绝对值。
     wire difference_fits=(difference[33:17]==17'd0) || (difference[33:17]==17'h1ffff);
     wire [17:0] magnitude=difference[17] ? -difference[17:0] : difference[17:0];
-    wire [9:0] converted_y=negative ? (quotient>9'd24 ? 10'd408 : 10'd384+{1'b0,quotient}) :
-        (quotient>9'd320 ? 10'd64 : 10'd384-{1'b0,quotient});
+    // Hold尾端对齐头部上缘；复用已有坐标加减器，不从可见长条扣掉31像素头部。
+    wire hold_tail=which_end && view_start!=view_end;
+    wire [8:0] display_origin=hold_tail ? 9'd353 : 9'd384;
+    wire [8:0] upper_distance=hold_tail ? 9'd289 : 9'd320;
+    wire [8:0] lower_limit=hold_tail ? 9'd377 : 9'd408;
+    wire [9:0] converted_y=negative ? (quotient>9'd24 ? {1'b0,lower_limit} : {1'b0,display_origin}+{1'b0,quotient}) :
+        (quotient>upper_distance ? 10'd64 : {1'b0,display_origin}-{1'b0,quotient});
     reg [8:0] progress;
     assign view_index=index;
     assign capture_busy=(work!=IDLE) || (frame_start && enabled);
@@ -209,46 +214,47 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             default:glow_color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
         endcase
     end
-    reg overlay;reg [23:0] color;
+    reg overlay,light_overlay;reg [23:0] color;
     wire [7:0] character;wire [9:0] rel_x,rel_y;wire text_area;
-    reg base_pixel_on,text_area_d;reg [23:0] base_pixel_rgb;
+    reg base_pixel_on,base_pixel_light,text_area_d;reg [23:0] base_pixel_rgb;
     reg [2:0] glyph_col_d,glyph_row_d;
     wire [2:0] glyph_col=BLOCK_HUD ? glyph_col_d : rel_x[3:1];
     wire [2:0] glyph_row=BLOCK_HUD ? glyph_row_d : rel_y[3:1];wire [4:0] glyph_bits;
     wire cached_text=BLOCK_HUD && text_area_d && glyph_col<5 && glyph_row<7 && glyph_bits[3'd4-glyph_col];
     assign pixel_on=base_pixel_on || cached_text;
+    assign pixel_light=base_pixel_light && !cached_text;
     assign pixel_rgb=cached_text ? 24'hffffff : base_pixel_rgb;
     rhythm_hud #(.STREAM_METADATA(STREAM_METADATA),.BLOCK_CHARACTERS(BLOCK_HUD)) hud(.metadata_valid(metadata_valid),.metadata_data(metadata_data),.metadata_address(metadata_address),.clk(clk),.rst(rst),.frame_start(frame_start && enabled),.state(state),.error_code(error_code),.auto_mode(auto_mode),
         .score(score),.combo(combo),.max_combo(max_combo),.perfect_count(perfect_count),.good_count(good_count),.bad_count(bad_count),.miss_count(miss_count),
         .title(title),.difficulty(difficulty),.x(px),.y({1'b0,y}),.text_area(text_area),.rel_x(rel_x),.rel_y(rel_y),.character(character));
     rhythm_font #(.CLOCKED_ROM(BLOCK_HUD)) font(.clk(clk),.character(character),.row(glyph_row),.bits(glyph_bits));
     always @*begin
-        overlay=0;color=24'hffffff;
+        overlay=0;light_overlay=0;color=24'hffffff;
         // 光晕先绘制，音符、判定线及HUD随后覆盖，保持判定画面清楚。
         if(in_track && glow_level!=2'd0 && y>=9'd64)begin
             if(y[8:5]>=4'd11 && local_x>=7'd4 && local_x<7'd108)begin
-                overlay=1;color=glow_color;
+                overlay=1;light_overlay=1;color=glow_color;
                 if(y[8:2]==7'd97 && glow_level==2'd3)color=note_color;
             end else if(local_x<7'd4 || local_x>=7'd108)begin
-                overlay=1;color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
+                overlay=1;light_overlay=1;color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
             end
         end
         // 顶部进度条、左上暂停标记，固定判定线与弱轨道边界。
-        if(y<10'd3 && px>=96 && px<10'd96+progress)overlay=1;
-        if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))overlay=1;
+        if(y<10'd3 && px>=96 && px<10'd96+progress)begin overlay=1;light_overlay=0;end
+        if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))begin overlay=1;light_overlay=0;end
         if(in_track && y>=64 && y<409)begin
-            if(local_x==0)begin overlay=1;color=24'h303a50;end
+            if(local_x==0 && glow_level==0)begin overlay=1;light_overlay=0;color=24'h303a50;end
             if(line_bodies[track] && !line_heads[track] && body_fill)begin
-                overlay=1;color=active_head_style[2] ? note_color : body_color;
+                overlay=1;light_overlay=0;color=active_head_style[2] ? note_color : body_color;
             end
-            if(line_heads[track] && head_fill)begin overlay=1;color=head_white ? 24'hffffff : note_color;end
-            if(y==384 || y==385)begin overlay=1;color=24'hffffff;end
+            if(line_heads[track] && head_fill)begin overlay=1;light_overlay=0;color=head_white ? 24'hffffff : note_color;end
+            if(y==384 || y==385)begin overlay=1;light_overlay=0;color=24'hffffff;end
         end
-        if(!BLOCK_HUD && text_area && glyph_col<5 && glyph_row<7 && glyph_bits[3'd4-glyph_col])begin overlay=1;color=24'hffffff;end
+        if(!BLOCK_HUD && text_area && glyph_col<5 && glyph_row<7 && glyph_bits[3'd4-glyph_col])begin overlay=1;light_overlay=0;color=24'hffffff;end
     end
     always @(posedge clk or posedge rst)begin
         if(rst)begin
-            vs_d<=0;de_d<=0;vs_seen_low<=0;x<=0;y<=0;frame_enabled<=0;base_pixel_on<=0;base_pixel_rgb<=0;text_area_d<=0;glyph_col_d<=0;glyph_row_d<=0;
+            vs_d<=0;de_d<=0;vs_seen_low<=0;x<=0;y<=0;frame_enabled<=0;base_pixel_on<=0;base_pixel_light<=0;base_pixel_rgb<=0;text_area_d<=0;glyph_col_d<=0;glyph_row_d<=0;
             work<=IDLE;index<=0;copy_wait<=0;hold_snapshot<=0;time_snapshot<=0;frames_snapshot<=0;
             which_end<=0;negative<=0;head_y<=0;front_bank<=0;dividend<=0;quotient<=0;remainder<=0;progress_remaining<=0;left<=0;progress<=0;
             row_busy<=0;row_wait<=0;row_index<=0;row_y<=0;row_heads<=0;row_bodies<=0;line_heads<=0;line_bodies<=0;
@@ -259,6 +265,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             if(line_start)x<=1;else if(de)x<=x+10'd1;
             if(line_end && y<9'd479)y<=y+9'd1;
             base_pixel_on<=frame_enabled && de && overlay;base_pixel_rgb<=color;
+            base_pixel_light<=frame_enabled && de && light_overlay;
             text_area_d<=frame_enabled && de && text_area;glyph_col_d<=rel_x[3:1];glyph_row_d<=rel_y[3:1];
             if(frame_start)begin
                 y<=0;frame_enabled<=enabled;line_heads<=0;line_bodies<=0;line_head_style<=0;row_busy<=0;

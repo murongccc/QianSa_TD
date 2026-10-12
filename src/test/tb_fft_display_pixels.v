@@ -35,6 +35,7 @@ baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1)) golden(
     .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bars(bars),.bands(256'd0),
     .pixel_on(on_old),.pixel_rgb(ring_old));
 video_presentation #(.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.INITIAL_WARMUP_FRAMES(0)) video(
+        .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(display_new),.brightness_level_async(3'd4),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd0),

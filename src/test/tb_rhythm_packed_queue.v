@@ -28,6 +28,7 @@ module tb_rhythm_packed_queue;
         .result_valid(),.result_lane(),.result_grade(),.perfect_count(),.good_count(),.bad_count(),.miss_count(misses),
         .combo(),.max_combo(),.score(),.done(done),.queue_overflow(overflow));
     rhythm_game_renderer #(.BLOCK_GEOMETRY(1)) renderer(
+        .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(!rst_n),.enabled(1'b1),.de(1'b0),.vs(vs),.song_time(song_time),.song_frames(32'd0),
         .state(4'd6),.error_code(4'd0),.auto_mode(1'b0),.score(20'd0),.combo(16'd0),.max_combo(16'd0),

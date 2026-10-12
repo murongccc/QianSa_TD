@@ -37,7 +37,8 @@ video_presentation #(
     .REFERENCE_SPECTRUM(REFERENCE_SPECTRUM),
     .ACTIVE_WIDTH(64), .ACTIVE_HEIGHT(480), .OSD_DISPLAY_CYCLES(5000),
     .INITIAL_WARMUP_FRAMES(0)
-) dut (.spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
+) dut (
+        .game_pixel_light(1'b0),.spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),
     .touch_frame_packet(40'd0),
     .clk(clk), .rst(rst), .display_valid(display_valid),

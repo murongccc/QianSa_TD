@@ -27,7 +27,7 @@ module video_presentation #(
     output wire [6:0] spectrum_read_address,
     input wire [7:0] spectrum_read_data,
     input wire spectrum_read_valid, input wire spectrum_active,
-    input wire game_active,game_pixel_on,input wire [23:0] game_pixel_rgb,
+    input wire game_active,game_pixel_on,game_pixel_light,input wire [23:0] game_pixel_rgb,
     input wire [39:0] touch_frame_packet,
     input wire de, input wire vs, input wire [23:0] rgb_in,
     output reg [23:0] rgb_out
@@ -298,6 +298,11 @@ end endgenerate
 // 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
 reg game_frame_mode;
 wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
+// 位或式提亮：各通道不低于原背景；无加法溢出或透明度乘法，避免深色矩形覆盖。
+// 共用三通道背景使能，避免每个颜色位重复展开on/light/base_valid选择。
+wire game_background_enable=base_valid_stage && (!game_pixel_on || game_pixel_light);
+wire [23:0] game_layer_rgb=(game_pixel_rgb & {24{game_pixel_on}}) |
+    (dimmed_rgb & {24{game_background_enable}});
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -399,7 +404,7 @@ always @(posedge clk or posedge rst) begin
         // 第二级：参数 OSD/频谱优先于处理后的底图。
         // A青色、B品红色、重合白色；同样经过两拍，优先于 OSD/频谱/游戏。
         if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
-        else if(game_stage)rgb_out<=game_pixel_on ? game_pixel_rgb : (base_valid_stage ? dimmed_rgb : 24'd0);
+        else if(game_stage)rgb_out<=game_layer_rgb;
         else if (!base_valid_stage) rgb_out <= 24'd0;
         else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;

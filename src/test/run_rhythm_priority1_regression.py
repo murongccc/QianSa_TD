@@ -37,6 +37,11 @@ def main():
     references = []
     for name in names:
         text = subprocess.check_output([binaries['git'], 'show', f'{BASELINE}:src/{name}.v'], cwd=root).decode('utf-8')
+        if name=='rhythm_game_renderer':
+            # 参考也采用本轮有意修改的Hold显示原点，仅比较资源优化的等价性。
+            current=(root/'src/rhythm_game_renderer.v').read_text(encoding='utf-8')
+            display=re.search(r'    wire hold_tail=.*?wire \[9:0\] converted_y=.*?;',current,re.S)[0]
+            text=re.sub(r'    wire \[9:0\] converted_y=.*?;',lambda _:display,text,count=1,flags=re.S)
         # 同时重命名父模块和被修改的子模块，形成独立的原版功能链。
         for original in names:
             text = re.sub(r'\b'+original+r'\b', original+'_baseline', text)
@@ -55,6 +60,7 @@ def main():
         if module=='rhythm_game_renderer':
             # 旧渲染器没有本轮新增反馈端口；当前测试把反馈置零以验证旧画面等价。
             reference=re.sub(r'\.input_(?:down|press)\([^)]*\),\s*','',reference)
+            reference=re.sub(r'\.pixel_light\([^)]*\),\s*','',reference)
         reference = re.sub(r'\b'+instance+r'\s*\(', 'baseline_dut(', reference, count=1)
         declarations, checks = [], []
         for port, width in widths.items():

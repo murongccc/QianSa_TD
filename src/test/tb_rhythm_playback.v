@@ -62,6 +62,7 @@ module tb_rhythm_playback;
         .result_valid(),.result_lane(),.result_grade(),.perfect_count(p),.good_count(g),.bad_count(b),.miss_count(m),
         .combo(combo),.max_combo(max_combo),.score(score),.done(judge_done),.queue_overflow(overflow));
     rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+        .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(nclk),.rst(rst || clear),.enabled(active),.de(1'b0),.vs(vs),.song_time(time_now),.song_frames(total_frames),
         .state(state),.error_code(error_code),.auto_mode(auto_mode),.score(score),.combo(combo),.max_combo(max_combo),

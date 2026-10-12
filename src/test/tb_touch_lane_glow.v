@@ -6,6 +6,7 @@ reg [3:0] state=6,down=0,press=0;
 wire capture,on,frame_enabled;wire [23:0] color;
 wire [7:0] observed_levels=dut.glow_levels;
 rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) dut(
+        .pixel_light(),
     .clk(clk),.rst(rst),.enabled(enabled),.de(de),.vs(vs),.song_time(33'sd0),.song_frames(32'd480000),
     .state(state),.error_code(4'd0),.auto_mode(auto_mode),.score(20'd0),.combo(16'd0),.max_combo(16'd0),
     .perfect_count(16'd0),.good_count(16'd0),.bad_count(16'd0),.miss_count(16'd0),

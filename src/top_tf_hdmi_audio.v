@@ -232,7 +232,7 @@ wire sample_emitted,sample_missing,prefetch_ready;wire [31:0] sample_index,emitt
 wire judge_done,queue_overflow,session_chart_eof;wire [19:0] game_score;
 wire [15:0] game_combo,game_max_combo,game_p,game_g,game_b,game_m;
 wire [4:0] game_view_index;wire game_view_valid;wire [31:0] game_view_start,game_view_end;
-wire [3:0] game_holding;wire game_frame_active,game_pixel_on;wire [23:0] game_pixel_rgb;
+wire [3:0] game_holding;wire game_frame_active,game_pixel_on,game_pixel_light;wire [23:0] game_pixel_rgb;
 wire        rst_audio_fifo;
 wire [2:0]  uart_brightness_level;
 wire [2:0]  uart_volume_level;
@@ -761,7 +761,7 @@ rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) u_g
     .state(game_state),.error_code(session_error),.auto_mode(game_auto),.score(game_score),.combo(game_combo),.max_combo(game_max_combo),
     .perfect_count(game_p),.good_count(game_g),.bad_count(game_b),.miss_count(game_m),.title(192'd0),.difficulty(128'd0),
     .view_index(game_view_index),.view_valid(game_view_valid),.view_start(game_view_start),.view_end(game_view_end),.holding_mask(game_holding),
-    .capture_busy(game_capture),.frame_enabled(game_frame_active),.pixel_on(game_pixel_on),.pixel_rgb(game_pixel_rgb));
+    .capture_busy(game_capture),.frame_enabled(game_frame_active),.pixel_on(game_pixel_on),.pixel_light(game_pixel_light),.pixel_rgb(game_pixel_rgb));
 
 audio_fifo_32x4096 u_audio_fifo (
     .rst(rst_audio_fifo), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
@@ -823,7 +823,7 @@ video_presentation #(
     .ACTIVE_HEIGHT (480)
 ) u_video_presentation (
     // 会话清理只关闭 UI；背景压暗由稳定的游戏会话状态控制。
-    .game_active(game_active),.game_pixel_on(game_pixel_on),.game_pixel_rgb(game_pixel_rgb),
+    .game_active(game_active),.game_pixel_on(game_pixel_on),.game_pixel_light(game_pixel_light),.game_pixel_rgb(game_pixel_rgb),
     .touch_frame_packet(touch_frame_packet),
     .clk                (video_clk),
     .rst                (rst_video),

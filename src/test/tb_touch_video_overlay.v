@@ -9,6 +9,7 @@ reg [9:0] driver_x=0,driver_y=0;
 wire [23:0] rgb_marked,rgb_disabled,rgb_baseline;
 wire display_marked,display_baseline;
 video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(1)) marked(
+        .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(display_marked),.brightness_level_async(3'd4),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),.image_selected_async(2'd0),
@@ -18,6 +19,7 @@ video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_M
     .game_active(game_active),.game_pixel_on(1'b1),.game_pixel_rgb(24'h123456),.touch_frame_packet(packet),
     .de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_marked));
 video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(0)) disabled(
+        .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),.image_selected_async(2'd0),

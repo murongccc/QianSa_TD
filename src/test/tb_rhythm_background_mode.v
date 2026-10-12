@@ -4,6 +4,7 @@ module tb_rhythm_background_mode;
     reg clk=0,rst=1,de=0,vs=0,game=0;always #20 clk=~clk;
     wire [23:0] rgb;
     video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0),.ACTIVE_WIDTH(64),.ACTIVE_HEIGHT(32)) dut(
+        .game_pixel_light(1'b0),
         .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
         .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
         .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),

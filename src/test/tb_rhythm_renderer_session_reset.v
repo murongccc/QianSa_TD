@@ -8,6 +8,7 @@ module tb_rhythm_renderer_session_reset;
     wire frame_enabled,pixel_on,capture;wire [23:0] pixel_rgb;
     wire [9:0] observed_x=renderer.px,observed_y=renderer.y;
     rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+        .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(hard_reset || session_clear),.enabled(1'b1),.de(de),.vs(vs),
         .song_time(33'sd0),.song_frames(32'd10000),.state(4'd11),.error_code(4'd7),.auto_mode(1'b1),
@@ -33,6 +34,7 @@ module tb_rhythm_renderer_session_reset;
     end
     wire [23:0] composed_rgb;
     video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) presentation(
+        .game_pixel_light(1'b0),
         .clk(clk),.rst(hard_reset),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
         .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
         .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),

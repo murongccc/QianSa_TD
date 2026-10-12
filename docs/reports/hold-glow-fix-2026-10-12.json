@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-12",
+  "baseline_commit": "8c18d63",
+  "changes": {
+    "hold_tail_origin": 353,
+    "tap_and_head_origin": 384,
+    "scroll_frames_per_pixel": 300,
+    "hold_time_judgement_changed": false,
+    "center_stripe_added": false,
+    "glow_composition": "bitwise bright-only overlay; shared background enable",
+    "solid_notes_and_text": true
+  },
+  "synthesis_before": {
+    "lut": 18133,
+    "reg": 10558,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_after": {
+    "lut": 18081,
+    "reg": 10559,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_delta": {
+    "lut": -52,
+    "reg": 1,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": 0,
+    "pll": 0
+  },
+  "placed_resources": {
+    "lut": 18315,
+    "reg": 10715,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "mslice": {
+    "current": 4880,
+    "limit": 4900,
+    "remaining": 20,
+    "passed": true,
+    "first_check_failed": 4903
+  },
+  "build_count": {
+    "synthesis": 2,
+    "placement": 2,
+    "route": 0,
+    "bitstream": 0
+  },
+  "validation": {
+    "compositor_pixels": 10000,
+    "preview_pixels": 307200,
+    "hold_lengths": {
+      "0.5s": 80,
+      "1s": 160
+    },
+    "head_rounding_priority": true,
+    "opaque_head_and_judge_line": true,
+    "no_center_stripe": true,
+    "stage3": "passed",
+    "stage4": "passed",
+    "touch_marker_video_regression": "passed",
+    "glow_hold_tap_fade_auto_reset": "passed"
+  },
+  "placed_timing": {
+    "setup_wns_ns": -5.578,
+    "setup_tns_ns": -66.259,
+    "hold_wns_ns": -0.011,
+    "hold_tns_ns": -1.364,
+    "critical_path": "100 MHz SDRAM wr_x_reg[2] to App_wr_addr_r_reg[12]",
+    "video_setup_wns_ns": 6.879,
+    "routed_timing_verified": false
+  },
+  "logs": {
+    "final_synthesis": "prj/log/hold_glow_shared_syn_20261012",
+    "final_placement": "prj/log/hold_glow_shared_place_20261012",
+    "local": "prj/log/hold_glow_fix_20261012"
+  },
+  "board_verified": false
+}
