@@ -77,6 +77,7 @@ wire catalog_sd_read; wire [31:0] catalog_sd_addr;
 wire bmp_sd_read; wire [31:0] bmp_sd_addr;
 wire catalog_sd_valid, catalog_sd_end, bmp_sd_valid, bmp_sd_end;
 reg source_complete, load_started;
+reg frame_commit;
 reg [2:0] media_count;
 reg [2:0] write_finish_sync;
 reg write_req_ack_meta, write_req_ack_sync;
@@ -91,7 +92,6 @@ wire write_complete = load_inflight && (write_finish_sync[2] != write_toggle_bas
 // arrived first, frame_commit was missed permanently and load_inflight never
 // cleared, which disabled both keys and automatic playback.  Keep the write
 // completion pending until the current BMP source has also returned to ready.
-wire frame_commit = load_inflight && source_complete && write_complete_pending;
 wire [23:0] bmp_data;
 wire bmp_pixel_valid, bmp_pixel_ready, bmp_pixel_last, bmp_frame_last;
 wire [23:0] bmp_pixel_data;
@@ -223,6 +223,7 @@ assign media_quiet=session_ready && !sd_sec_read && !sd_response_busy;
 always @(posedge clk or posedge rst_local) begin
     if (rst_local) begin
         source_complete<=1'b0; load_started<=1'b0;
+        frame_commit<=1'b0;
         write_finish_sync<=3'd0; write_toggle_baseline<=1'b0; write_complete_pending<=1'b0;
         write_req_ack_meta<=1'b0; write_req_ack_sync<=1'b0;
         sd_init_seen<=1'b0;
@@ -235,17 +236,24 @@ always @(posedge clk or posedge rst_local) begin
         write_finish_sync<={write_finish_sync[1:0],write_finish_toggle};
         if (!sd_init_qualified) begin
             media_count<=3'd0; source_complete<=1'b0;
+            frame_commit<=1'b0;
             load_started<=1'b0;
             write_toggle_baseline<=write_finish_sync[2];
             write_complete_pending<=1'b0;
         end
         else begin
+            // 完成条件先收敛为一拍事件，再驱动会话、目录和计数器。
+            if (frame_commit)
+                frame_commit <= 1'b0;
+            else if (load_inflight && !load_abort && source_complete && write_complete_pending)
+                frame_commit <= 1'b1;
             if (frame_commit && media_count < SCAN_TARGET_COUNT)
                 media_count <= media_count + 1'b1;
             if (!load_inflight) begin
                 // Start every request with fresh completion state.  This also
                 // prevents a delayed event from a previous frame being reused.
                 source_complete <= 1'b0;
+                frame_commit <= 1'b0;
                 load_started <= 1'b0;
                 write_complete_pending <= 1'b0;
             end else begin

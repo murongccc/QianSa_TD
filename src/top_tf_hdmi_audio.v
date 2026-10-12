@@ -316,7 +316,7 @@ touch_frame_snapshot u_touch_frame_snapshot(
     .dst_clk(video_clk),.dst_rst(rst_video),.frame_start(vs && !presentation_vs_d1),.frame_packet(touch_frame_packet));
 
 // KEY2 is the manual-next input.  It is synchronized and debounced in
-// sd_card_clk, the domain that consumes the playback commands.
+// the 50 MHz media domain that consumes the playback commands.
 
 // 保持你原来的 TF / SDRAM / video 时钟
 sys_pll sys_pll_m0(
@@ -338,7 +338,7 @@ domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_clk(
     .clk(clk),.async_reset(rst_all),.reset(rst_clk)
 );
 domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_sd(
-    .clk(sd_card_clk),.async_reset(rst_all),.reset(rst_sd)
+    .clk(clk),.async_reset(rst_all),.reset(rst_sd)
 );
 domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_mem(
     .clk(ext_mem_clk),.async_reset(rst_all),.reset(rst_mem)
@@ -347,7 +347,7 @@ domain_reset_sync #(.COUNTER_WIDTH(10),.HOLD_CYCLES(1024)) u_reset_video(
     .clk(video_clk),.async_reset(rst_all),.reset(rst_video)
 );
 
-// mem_clk 域把 write_finish 单拍转成 toggle，供 sd_card_clk 域可靠同步
+// mem_clk 域把 write_finish 单拍转成 toggle，供 50 MHz 媒体域可靠同步
 always @(posedge ext_mem_clk or posedge rst_mem) begin
     if (rst_mem)
         frame_write_toggle_mem <= 1'b0;
@@ -369,7 +369,7 @@ end
 // ===================== TF 多图扫描与缓存（双缓冲） =====================
 sd_media_pipeline #(
     .ENABLE_RHYTHM(1),
-    .CLK_FREQ_HZ       (100_000_000),
+    .CLK_FREQ_HZ       (50_000_000),
     .SCAN_START_SECTOR (32'd0),
     // Keep five discovered images in five independent SDRAM frame slots.
     // A target of one made the startup scan stop after the first BMP,
@@ -383,7 +383,7 @@ sd_media_pipeline #(
     .game_ready(game_ready),.game_cancelled(game_cancelled),.game_audio_eof(game_audio_eof),.game_chart_eof(game_chart_eof),.media_quiet(media_quiet),
     .game_error(game_error),.game_frames(resource_frames),.game_audio_level(game_fifo_level),.game_notes(resource_notes),.game_offset(resource_offset),
     .game_title(),.game_difficulty(),
-    .clk               (sd_card_clk),
+    .clk               (clk),
     .rst               (rst_sd),
     .key_next          (key2),
     .key_auto          (swkey2),
@@ -636,7 +636,7 @@ frame_read_write #(
     .App_wr_din        (App_wr_din),
     .App_wr_dm         (App_wr_dm),
 
-    .write_clk         (sd_card_clk),
+    .write_clk         (clk),
     .write_req         (sd_card_write_req),
     .write_req_ack     (sd_card_write_req_ack),
     .write_ready       (sd_card_write_ready),
@@ -764,7 +764,7 @@ rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) u_g
     .capture_busy(game_capture),.frame_enabled(game_frame_active),.pixel_on(game_pixel_on),.pixel_light(game_pixel_light),.pixel_rgb(game_pixel_rgb));
 
 audio_fifo_32x4096 u_audio_fifo (
-    .rst(rst_audio_fifo), .di(audio_fifo_din), .clkw(sd_card_clk), .we(audio_fifo_we),
+    .rst(rst_audio_fifo), .di(audio_fifo_din), .clkw(clk), .we(audio_fifo_we),
     .do(audio_fifo_dout), .clkr(video_clk), .re(audio_fifo_re),
     .empty_flag(audio_fifo_empty), .full_flag(audio_fifo_full)
 );

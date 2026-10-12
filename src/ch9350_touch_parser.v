@@ -29,7 +29,7 @@ localparam [TIMEOUT_BITS-1:0] TIMEOUT_LIMIT = (CLK_HZ / 1000) * FRAME_TIMEOUT_MS
 reg [2:0] state;
 reg [TIMEOUT_BITS-1:0] idle_ticks;
 reg [6:0] last_body_index, body_index;
-reg [7:0] checksum, frame_sequence;
+reg [7:0] checksum;
 reg identifier_ok, report_id_ok, report_count_ok;
 reg [1:0] report_count;
 // 状态只需编号、保留位非零标志和按住位，保留所有非法状态的拒绝能力。
@@ -109,7 +109,7 @@ end
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         state<=HEAD; idle_ticks<={TIMEOUT_BITS{1'b0}}; last_body_index<=7'd0; body_index<=7'd0;
-        checksum<=8'd0; identifier_ok<=1'b0; report_id_ok<=1'b0; report_count_ok<=1'b1; report_count<=2'd0; frame_sequence<=8'd0;
+        checksum<=8'd0; identifier_ok<=1'b0; report_id_ok<=1'b0; report_count_ok<=1'b1; report_count<=2'd0;
         c0_status<=6'd0; c1_status<=6'd0; c0_x<=16'd0; c0_y<=16'd0; c1_x<=16'd0; c1_y<=16'd0;
         extra_nonzero<=1'b0; sequence_known<=1'b0; last_sequence<=8'd0;
         a_known<=1'b0; b_known<=1'b0; a_id<=4'd0; b_id<=4'd0; a_down<=1'b0; b_down<=1'b0;
@@ -153,7 +153,7 @@ always @(posedge clk or posedge rst) begin
                 LENGTH: begin
                     if (byte_data>=8'd3 && byte_data<=8'd72) begin
                         last_body_index<=byte_data[6:0]-7'd1; body_index<=7'd0; checksum<=8'd0;
-                        identifier_ok<=1'b0; report_id_ok<=1'b0; report_count_ok<=1'b1; report_count<=2'd0; frame_sequence<=8'd0;
+                        identifier_ok<=1'b0; report_id_ok<=1'b0; report_count_ok<=1'b1; report_count<=2'd0;
                         c0_status<=6'd0; c1_status<=6'd0; c0_x<=16'd0; c0_y<=16'd0; c1_x<=16'd0; c1_y<=16'd0;
                         extra_nonzero<=1'b0; state<=BODY;
                     end else begin
@@ -166,9 +166,9 @@ always @(posedge clk or posedge rst) begin
                         state<=HEAD;
                         if (byte_data!=checksum) checksum_error_count<=next_report_count;
                         else begin
-                            if (sequence_known && frame_sequence!=last_sequence+8'd1)
+                            if (sequence_known && frame_seq!=last_sequence+8'd1)
                                 sequence_gap_count<=next_sequence_gap;
-                            last_sequence<=frame_sequence; sequence_known<=1'b1;
+                            last_sequence<=frame_seq; sequence_known<=1'b1;
                             if (!report_ok) format_error_count<=next_report_count;
                             else begin
                                 a_id<=next_a_id; a_down<=next_a_down; a_known<=next_a_known;
@@ -178,13 +178,15 @@ always @(posedge clk or posedge rst) begin
                                 if(b_record!=2'd0)begin b_x<=next_b_x;b_y<=next_b_y;end
                                 press_mask<={next_b_down && (!b_down || next_b_id!=b_id), next_a_down && (!a_down || next_a_id!=a_id)};
                                 release_mask<={b_down && (!next_b_down || next_b_id!=b_id), a_down && (!next_a_down || next_a_id!=a_id)};
-                                frame_seq<=frame_sequence; update_valid<=1'b1; good_count<=next_report_count;
+                                update_valid<=1'b1; good_count<=next_report_count;
                             end
                         end
                     end else begin
                         body_index<=body_next;
                         if (body_index!=7'd0) checksum<=checksum+byte_data;
-                        if (body_next==last_body_index) frame_sequence<=byte_data;
+                        // frame_seq 是带 update_valid 的事件载荷；在校验和前一字节
+                        // 直接暂存序号，错误帧不会产生 update_valid，因此诊断端不会采样。
+                        if (body_next==last_body_index) frame_seq<=byte_data;
                         else case (body_index)
                             7'd0: identifier_ok<=byte_data==8'h40 || byte_data==8'h41;
                             7'd1: report_id_ok<=byte_data==8'h0d;

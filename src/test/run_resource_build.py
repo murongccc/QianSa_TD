@@ -11,6 +11,7 @@ def main():
     parser.add_argument('--rhythm', action='store_true', help='include integrated rhythm RTL source set')
     parser.add_argument('--touch-markers', action='store_true', help='ensure new touch marker sources despite older GUI source cache')
     parser.add_argument('--route', action='store_true')
+    parser.add_argument('--hfn-off', action='store_true', help='disable physical high-fanout register replication')
     parser.add_argument('--parent')
     parser.add_argument('--td', default='E:/AnLuTD/bin/td_commands_prompt.exe')
     args = parser.parse_args()
@@ -43,6 +44,13 @@ def main():
                 source_set = source_set.replace('</Verilog>', entry+'</Verilog>', 1)
     project = project_path.read_text(encoding='utf-8')
     project = re.sub(r'<Verilog>.*?</Verilog>', lambda _: source_set, project, count=1, flags=re.S)
+    if args.hfn_off:
+        if '<hfn_opt_effort>' in project:
+            project = re.sub(r'<hfn_opt_effort>.*?</hfn_opt_effort>',
+                             '<hfn_opt_effort>off</hfn_opt_effort>', project, count=1)
+        else:
+            project = project.replace('<PlaceProperty>',
+                                      '<PlaceProperty>\n            <hfn_opt_effort>off</hfn_opt_effort>', 1)
     project_path.write_text(project, encoding='utf-8')
     if args.rhythm:
         project_path=dest/'SD_to_Video.prj'

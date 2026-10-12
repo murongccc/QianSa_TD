@@ -20,7 +20,7 @@ localparam ST_IDLE=5'd0, ST_DIV_X_INIT=5'd1, ST_DIV_X_RUN=5'd2,
            ST_H0_BASE=5'd9, ST_H0_ACC=5'd10, ST_H1_BASE=5'd11,
            ST_H1_ACC=5'd12, ST_V_BASE=5'd13, ST_V_ACC=5'd14,
            ST_PACK=5'd15, ST_EMIT=5'd16, ST_DONE=5'd17,
-           ST_CHECK=5'd18, ST_CHECK_ROWS=5'd19;
+           ST_CHECK=5'd18, ST_CHECK_ROWS=5'd19, ST_VALIDATE=5'd20;
 
 function integer count_width;
  input integer maximum;
@@ -188,9 +188,18 @@ always @(posedge clk or posedge rst) begin
   end else case(state)
    ST_IDLE: begin
     busy<=0;dst_valid<=0;
-    if(start&&src_width!=0&&src_height!=0&&src_width<=MAX_WIDTH&&src_height<=MAX_HEIGHT) begin
-     sw<=src_width;sh<=src_height;fill_col<=0;next_row<=0;out_x<=0;out_y<=0;x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;busy<=1;
-     if(src_width<=1) state<=ST_DIV_Y_INIT; else state<=ST_DIV_X_INIT;
+    if(start) begin
+     // 先锁存解析尺寸，再在下一拍校验并初始化，切断尺寸总线到全部
+     // 步进寄存器写使能的长组合链。
+     sw<=src_width;sh<=src_height;state<=ST_VALIDATE;
+    end
+   end
+   ST_VALIDATE: begin
+    if(sw!=0&&sh!=0&&sw<=MAX_WIDTH&&sh<=MAX_HEIGHT) begin
+     fill_col<=0;next_row<=0;out_x<=0;out_y<=0;x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;busy<=1;
+     if(sw<=1) state<=ST_DIV_Y_INIT; else state<=ST_DIV_X_INIT;
+    end else begin
+     busy<=0;state<=ST_IDLE;
     end
    end
    ST_DIV_X_INIT: begin

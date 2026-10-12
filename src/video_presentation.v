@@ -52,11 +52,9 @@ reg [26:0] osd_count;
 reg osd_mode_adjust;
 wire frame_start = vs & ~vs_d;
 wire line_start = de & ~de_d;
-// pixel_x is updated on the clock edge.  At the first active pixel of every
-// line it still contains the previous line's terminal value (640), so use an
-// explicit zero coordinate for that cycle.  Otherwise the reveal mask treats
-// the leftmost column as out of range after a slide transition.
-wire [9:0] render_x = line_start ? 10'd0 : pixel_x;
+// 消隐开始时已把横坐标清零，下一行首个有效像素直接使用寄存值 0。
+// 避免 de 经首像素选择器进入频谱环的深层几何组合路径。
+wire [9:0] render_x = pixel_x;
 
 localparam [26:0] OSD_DISPLAY_CYCLES_VALUE = OSD_DISPLAY_CYCLES;
 localparam [3:0] INITIAL_WARMUP_FRAMES_VALUE = INITIAL_WARMUP_FRAMES;
@@ -389,12 +387,10 @@ always @(posedge clk or posedge rst) begin
             end
         end
         if (line_start) begin
-            // This edge renders x=0 (render_x above), therefore keep x=1
-            // for the following pixel.  Starting again at zero duplicates
-            // the left edge and drops x=639 at the right edge.
-            pixel_x <= 10'd1;
             if (pixel_y < ACTIVE_HEIGHT - 1) pixel_y <= pixel_y + 10'd1;
-        end else if (de) pixel_x <= pixel_x + 10'd1;
+        end
+        if (de_d && !de) pixel_x <= 10'd0;
+        else if (de) pixel_x <= pixel_x + 10'd1;
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
         base_valid_stage <= display_active && de && (render_x < reveal_x);

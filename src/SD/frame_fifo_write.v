@@ -51,8 +51,7 @@ localparam ZERO                      = 256'd0;                   //256 bit '0'
 // Input stream order remains unchanged; only SDRAM write addresses are remapped:
 // stream row 0 -> memory row FRAME_HEIGHT-1, stream row 1 -> memory row FRAME_HEIGHT-2, ...
 localparam [ADDR_BITS - 1:0] VFLIP_FIRST_ADDR_OFFSET = (FRAME_HEIGHT - 1) * FRAME_WIDTH;
-localparam [ADDR_BITS - 1:0] VFLIP_LINE_JUMP         = (FRAME_WIDTH * 2) - 1;
-localparam [15:0]            VFLIP_LINE_LAST_X       = FRAME_WIDTH - 1;
+localparam [ADDR_BITS - 1:0] VFLIP_NEXT_ADDR_OFFSET  = (FRAME_HEIGHT - 2) * FRAME_WIDTH;
 
 function integer bits_required;
     input integer value;
@@ -91,10 +90,11 @@ reg[2:0]                            write_addr_index_d0;
 reg[2:0]                            write_addr_index_d1;
 reg[3:0]                            state;                       //state machine
 reg [ADDR_BITS - 1:0]	 App_wr_addr_r;
+reg [ADDR_BITS - 1:0]                next_line_addr;
 reg [X_BITS - 1:0]                   wr_x;                       // current x position in one input row
+reg                                  wr_line_last;               // 当前写入是否为本行最后一个像素
 reg [ADDR_BITS - 1:0]                selected_write_addr;
 reg                                  selected_write_addr_valid;
-wire [ADDR_BITS - 1:0]               write_addr_step;
 reg                                    write_v_flip_latch;
 
 reg [BURST_BITS - 1:0]				burst_cnt;
@@ -108,8 +108,6 @@ reg  into_burst_d;
 wire [BURST_BITS:0] burst_progress;
 assign write_word_count = write_burst_cnt * BURST_SIZE;
 assign burst_progress = {1'b0, burst_cnt} + App_wr_en;
-assign write_addr_step = (write_v_flip_latch && wr_x == VFLIP_LINE_LAST_X) ?
-                         -VFLIP_LINE_JUMP : {{(ADDR_BITS-1){1'b0}}, 1'b1};
 assign into_burst = (((write_len_latch <= (rdusedw + write_word_count)) || (rdusedw >= BURST_SIZE)) && ~App_rd_busy);//当rd在突发时不会进入burst
 
 always @* begin
@@ -172,8 +170,10 @@ begin
 	begin
 		burst_cnt <= ZERO[BURST_BITS - 1:0];
 		App_wr_addr_r <= ZERO[ADDR_BITS - 1:0];
+		next_line_addr <= ZERO[ADDR_BITS - 1:0];
 		App_wr_en_d0 <= 1'b0;
 		wr_x <= {X_BITS{1'b0}};
+		wr_line_last <= (FRAME_WIDTH == 1);
 	end
 	else begin
 	
@@ -187,24 +187,34 @@ begin
 		if(state == S_ACK)
 			begin
 				wr_x <= {X_BITS{1'b0}};
+				wr_line_last <= (FRAME_WIDTH == 1);
 				if (selected_write_addr_valid)
-					App_wr_addr_r <= selected_write_addr +
-					                 (write_v_flip_latch ? VFLIP_FIRST_ADDR_OFFSET : {ADDR_BITS{1'b0}});
+					begin
+						App_wr_addr_r <= selected_write_addr +
+						                 (write_v_flip_latch ? VFLIP_FIRST_ADDR_OFFSET : {ADDR_BITS{1'b0}});
+						next_line_addr <= selected_write_addr + VFLIP_NEXT_ADDR_OFFSET;
+					end
 			end
 		else if(App_wr_en)
 			begin
 				if(write_v_flip_latch)
 				begin
-					if(wr_x == VFLIP_LINE_LAST_X)
+					if(wr_line_last)
 					begin
 						wr_x <= {X_BITS{1'b0}};
+						wr_line_last <= (FRAME_WIDTH == 1);
+						App_wr_addr_r <= next_line_addr;
+						next_line_addr <= next_line_addr - FRAME_WIDTH;
 					end
 					else
 					begin
 						wr_x <= wr_x + 1'b1;
+						wr_line_last <= (wr_x == FRAME_WIDTH - 2);
+						App_wr_addr_r <= App_wr_addr_r + 1'b1;
 					end
 				end
-				App_wr_addr_r <= App_wr_addr_r + write_addr_step;
+			else
+				App_wr_addr_r <= App_wr_addr_r + 1'b1;
 			end
 		else
 			App_wr_addr_r <= App_wr_addr_r;
