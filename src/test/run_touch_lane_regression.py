@@ -28,13 +28,14 @@ def mapped(v, axis):
     return min(639 if axis=='X' else 479, ((min(high,max(low,v))-low)*scale+32768)>>16)
 xs = [constant(lane, 'X'+str(i)) for i in range(5)]
 y0 = constant(lane, 'Y0')
+pixel_y_min = constant(lane, 'PIXEL_Y_MIN')
 for x in range(65536):
     px = mapped(x, 'X')
     actual = 0 if x<xs[0] or x>=xs[4] else 1<<sum(x>=edge for edge in xs[1:4])
     expected = 0 if px<96 or px>=544 else 1<<((px-96)//112)
     assert actual==expected, (x,px,actual,expected)
 for y in range(65536):
-    assert (y>=y0)==(mapped(y,'Y')>=384), (y,mapped(y,'Y'))
+    assert (y>=y0)==(mapped(y,'Y')>=pixel_y_min), (y,mapped(y,'Y'))
 print('PASS exhaustive 65536 X + 65536 Y values match current mapper constants', flush=True)
 def run(label, command, passed=False):
     with (out/(label+'.log')).open('wb') as f:
@@ -48,6 +49,7 @@ if not Path(lib).exists():run('library',[shutil.which('vlib'),lib])
 names=['touch_lane_input','touch_game_event_bridge','rhythm_game_engine','rhythm_judge_core','rhythm_auto_input','rhythm_block_ram','touch_serial_monitor','uart_byte_tx','ch9350_touch_parser','touch_counter_increment']
 cases=['tb_touch_lane_input','tb_touch_game_event_bridge','tb_touch_rhythm_integration','tb_touch_lane_serial','tb_touch_lane_parser']
 reference = subprocess.check_output(['git','show','f9aa991:src/touch_lane_input.v'],cwd=root).decode('utf-8')
+reference = re.sub(r"\bY0=16'd\d+",f"Y0=16'd{y0}",reference) # 仅对齐本轮有意修改的区域
 reference = re.sub(r'\btouch_lane_input\b','touch_lane_input_reference',reference)
 reference_path = out/'touch_lane_input_reference.v'
 reference_path.write_text(reference,encoding='utf-8')

@@ -52,6 +52,9 @@ def main():
         if not match:
             raise RuntimeError('cannot locate named instance '+test)
         reference = re.sub(r'\b'+module+r'\b', module+'_baseline', match.group())
+        if module=='rhythm_game_renderer':
+            # 旧渲染器没有本轮新增反馈端口；当前测试把反馈置零以验证旧画面等价。
+            reference=re.sub(r'\.input_(?:down|press)\([^)]*\),\s*','',reference)
         reference = re.sub(r'\b'+instance+r'\s*\(', 'baseline_dut(', reference, count=1)
         declarations, checks = [], []
         for port, width in widths.items():

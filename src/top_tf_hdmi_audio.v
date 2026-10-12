@@ -755,6 +755,7 @@ rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) u_game_engin
     .result_valid(),.result_lane(),.result_grade(),.perfect_count(game_p),.good_count(game_g),.bad_count(game_b),.miss_count(game_m),
     .combo(game_combo),.max_combo(game_max_combo),.score(game_score),.done(judge_done),.queue_overflow(queue_overflow));
 rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) u_game_renderer(
+    .input_down(touch_game_down),.input_press(touch_game_press & {4{touch_game_valid && touch_game_ready}}),
     .metadata_valid(metadata_sync),.metadata_address(game_metadata_address),.metadata_data(game_metadata_data),
     .clk(video_clk),.rst(rst_video | game_clear),.enabled(game_active),.de(de),.vs(vs),.song_time(game_time),.song_frames(song_frames),
     .state(game_state),.error_code(session_error),.auto_mode(game_auto),.score(game_score),.combo(game_combo),.max_combo(game_max_combo),

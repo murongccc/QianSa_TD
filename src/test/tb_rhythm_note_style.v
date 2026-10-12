@@ -7,6 +7,7 @@ module tb_rhythm_note_style;
     wire [4:0] vi;reg vv;reg [31:0] start,finish;
     wire capture,active,on;wire [23:0] color;
     rhythm_game_renderer #(.BLOCK_GEOMETRY(BLOCK_GEOMETRY),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+        .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(rst),.enabled(1'b1),.de(de),.vs(vs),.song_time(33'sd48000),.song_frames(32'd192000),
         .state(4'd6),.error_code(4'd0),.auto_mode(1'b1),.score(20'd123450),.combo(16'd32),.max_combo(16'd32),
         .perfect_count(16'd32),.good_count(16'd0),.bad_count(16'd0),.miss_count(16'd0),

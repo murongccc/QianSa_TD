@@ -5,6 +5,7 @@ module tb_rhythm_priority1_arithmetic;
     reg [31:0] view_value=0;
     reg renderer_done=0,score_done=0;
     rhythm_game_renderer #(.BLOCK_HUD(1)) candidate(
+        .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(rst),.enabled(1'b0),.de(1'b0),.vs(1'b0),.song_time(33'sd0),.song_frames(32'd1),
         .state(4'd0),.error_code(4'd0),.auto_mode(1'b0),.score(20'd0),.combo(16'd0),.max_combo(16'd0),
         .perfect_count(16'd0),.good_count(16'd0),.bad_count(16'd0),.miss_count(16'd0),

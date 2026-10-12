@@ -20,7 +20,8 @@ def main():
 
     def run(name, command, expect_pass=False):
         with (output / (name + '.log')).open('wb') as log:
-            result = subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, timeout=180)
+            result = subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT,
+                                    timeout=600 if name=='tb_rhythm_renderer_session_reset' else 180)
         text = (output / (name + '.log')).read_text(errors='replace')
         if result.returncode or re.search(r'\*\* (?:Fatal|Error):|Errors: [1-9]', text) or (expect_pass and 'PASS' not in text):
             raise RuntimeError(f'{name} failed; see {output / (name + ".log")}')

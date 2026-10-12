@@ -1,5 +1,7 @@
 # 四轨触摸输入交付记录
 
+2026-10-12 更新：触摸区域向上扩展到 Y=352，并增加轨道发光；最新资源与验证结果见 [touch-lane-glow-2026-10-12.md](touch-lane-glow-2026-10-12.md)。下文为首次实现及当时状态的历史记录。
+
 后续 MSlice 处理的当前状态见 [touch-lane-mslice-2026-10-11.md](touch-lane-mslice-2026-10-11.md)。当前绑定层改为 13 拍单比较器处理，工程增加 HFN off；下文保留首次实现的综合记录。最后已验证打包仍超限 22，HFN off 后按用户要求未继续布局，不能视为超限已解决。
 
 2026-10-11，基于 `b96bb93 Optimize FFT interpolation with exact shared arithmetic`。本轮实现手动四轨 Tap/Hold，保留已优化 FFT、SDRAM、触摸解析、十字、双线性缩放、音画、AUTO 和旧签名诊断关闭配置。没有修改判定算法、窗口、厂商 IP、PLL、时钟或管脚。

@@ -8,7 +8,9 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     input wire metadata_valid,input wire [7:0] metadata_data,output wire [5:0] metadata_address,
     input wire [191:0] title,input wire [127:0] difficulty,
     output wire [4:0] view_index,input wire view_valid,input wire [31:0] view_start,view_end,
-    input wire [3:0] holding_mask,output wire capture_busy,
+    input wire [3:0] holding_mask,
+    input wire [3:0] input_down,input_press, // 视频域已提交状态与接受按下脉冲
+    output wire capture_busy,
     output reg frame_enabled,output wire pixel_on,output wire [23:0] pixel_rgb
 );
     reg vs_d,de_d,vs_seen_low;reg [9:0] x;reg [8:0] y;
@@ -17,6 +19,26 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     wire frame_start=vs_seen_low && vs && !vs_d;
     wire line_start=de && !de_d,line_end=!de && de_d;
     wire [9:0] px=line_start ? 10'd0 : x;
+    // 每轨两位亮度、四位短按保持；松开后每两帧衰减一级，约100ms。
+    // 帧间完成的快速Tap也保留到下一帧，不能只采样按住电平。
+    reg [7:0] glow_levels;
+    reg [3:0] glow_pending;
+    reg glow_phase;
+    integer glow_lane;
+    wire glow_enabled=enabled && !auto_mode && (state==4'd5 || state==4'd6 || state==4'd9);
+    always @(posedge clk or posedge rst)begin
+        if(rst)begin glow_levels<=8'd0;glow_pending<=4'd0;glow_phase<=1'b0;end
+        else if(!glow_enabled)begin glow_levels<=8'd0;glow_pending<=4'd0;glow_phase<=1'b0;end
+        else if(frame_start)begin
+            glow_pending<=4'd0;glow_phase<=~glow_phase;
+            for(glow_lane=0;glow_lane<4;glow_lane=glow_lane+1)begin
+                if(input_down[glow_lane] || glow_pending[glow_lane] || input_press[glow_lane])
+                    glow_levels[glow_lane*2+:2]<=2'd3;
+                else if(glow_phase && glow_levels[glow_lane*2+:2]!=2'd0)
+                    glow_levels[glow_lane*2+:2]<=glow_levels[glow_lane*2+:2]-2'd1;
+            end
+        end else glow_pending<=glow_pending | input_press;
+    end
     reg [2:0] work;
     localparam IDLE=3'd0,COPY=3'd1,SETUP=3'd2,DIVIDE=3'd3,STORE=3'd4,PROGRESS=3'd5,PUBLISH=3'd6;
     reg [4:0] index;
@@ -168,6 +190,25 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         (local_x>=7'd45 && local_x<7'd67) :
         ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=7'd44 && local_x<7'd68);
     wire head_white=active_head_style[4:0]>=5'd28 || (active_head_style[5] ? dash_mark : arrow_mark);
+    wire [1:0] glow_level=glow_levels[{track,1'b0}+:2];
+    reg [1:0] glow_band,glow_shade;
+    reg [23:0] glow_color;
+    // 八像素分段光晕，只用固定颜色移位，不使用乘法、透明度缓存或新DSP。
+    always @*begin
+        case(y[8:3])
+            6'd47,6'd48,6'd49:glow_band=2'd2;
+            6'd45,6'd46,6'd50,6'd51:glow_band=2'd1;
+            default:glow_band=2'd0;
+        endcase
+        glow_shade=2'd0;
+        if(glow_level==2'd3)glow_shade=glow_band;
+        else if(glow_level==2'd2 && glow_band==2'd2)glow_shade=2'd1;
+        case(glow_shade)
+            2'd2:glow_color={1'b0,note_color[23:17],1'b0,note_color[15:9],1'b0,note_color[7:1]};
+            2'd1:glow_color={2'd0,note_color[23:18],2'd0,note_color[15:10],2'd0,note_color[7:2]};
+            default:glow_color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
+        endcase
+    end
     reg overlay;reg [23:0] color;
     wire [7:0] character;wire [9:0] rel_x,rel_y;wire text_area;
     reg base_pixel_on,text_area_d;reg [23:0] base_pixel_rgb;
@@ -183,6 +224,15 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     rhythm_font #(.CLOCKED_ROM(BLOCK_HUD)) font(.clk(clk),.character(character),.row(glyph_row),.bits(glyph_bits));
     always @*begin
         overlay=0;color=24'hffffff;
+        // 光晕先绘制，音符、判定线及HUD随后覆盖，保持判定画面清楚。
+        if(in_track && glow_level!=2'd0 && y>=9'd64)begin
+            if(y[8:5]>=4'd11 && local_x>=7'd4 && local_x<7'd108)begin
+                overlay=1;color=glow_color;
+                if(y[8:2]==7'd97 && glow_level==2'd3)color=note_color;
+            end else if(local_x<7'd4 || local_x>=7'd108)begin
+                overlay=1;color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
+            end
+        end
         // 顶部进度条、左上暂停标记，固定判定线与弱轨道边界。
         if(y<10'd3 && px>=96 && px<10'd96+progress)overlay=1;
         if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))overlay=1;

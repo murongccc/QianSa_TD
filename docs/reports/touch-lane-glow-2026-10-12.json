@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-12",
+  "baseline_commit": "42586f9",
+  "operation_region": {
+    "x_min": 96,
+    "x_max_exclusive": 544,
+    "y_min": 352,
+    "y_max_exclusive": 480,
+    "raw_y_min": 6962
+  },
+  "feedback": {
+    "state_bits": 13,
+    "release_fade": "about 100 ms at 60 Hz",
+    "press_source": "video-domain accepted event",
+    "down_source": "video-domain committed down_mask",
+    "raw_coordinate_reclassification": false,
+    "new_dsp": 0,
+    "new_bram": 0
+  },
+  "synthesis_before": {
+    "lut": 18080,
+    "reg": 10556,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_after": {
+    "lut": 18133,
+    "reg": 10558,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "synthesis_delta": {
+    "lut": 53,
+    "reg": 2,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": 0,
+    "pll": 0
+  },
+  "placed_resources": {
+    "lut": 18375,
+    "reg": 10701,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2
+  },
+  "mslice": {
+    "previous_user_build": 4833,
+    "current": 4886,
+    "limit": 4900,
+    "remaining": 14,
+    "passed": true
+  },
+  "lut": {
+    "synthesis": 18133,
+    "placed": 18375,
+    "limit": 19600,
+    "passed": true
+  },
+  "builds_this_turn": {
+    "synthesis": 1,
+    "placement": 1,
+    "route": 0,
+    "bitstream": 0
+  },
+  "placed_timing": {
+    "setup_wns_ns": -2.891,
+    "setup_tns_ns": -10.562,
+    "hold_wns_ns": -0.011,
+    "hold_tns_ns": -1.122,
+    "confidence": "Placed",
+    "final_timing_verified": false,
+    "critical_path": "SD WAV cluster_offset_reg[1] to sector_reg[10]"
+  },
+  "validation": {
+    "threshold_values": 131072,
+    "lane_reference_coordinate_reports": 131072,
+    "lane_reference_state_reports": 10000,
+    "preview_rendered_pixels": 307200,
+    "pixel_checks": "anchor colors, gradient tiers, judge line priority, horizontal exclusion",
+    "fast_tap": true,
+    "frame_edge_press": true,
+    "fade_hold_pause_auto_reset": true,
+    "stage3": "passed; script skips missing GAME.BIN",
+    "stage4": "passed; long renderer reset rerun with 600s limit",
+    "legacy_warnings": [
+      "2 optional touch_frame_packet port warnings in renderer session reset",
+      "3 optional bmp_data/response_busy warnings in playback"
+    ]
+  },
+  "logs": {
+    "synthesis": "prj/log/touch_glow_syn_20261012",
+    "placement": "prj/log/touch_glow_place_20261012",
+    "glow": "prj/log/touch_glow_20261012"
+  },
+  "preview": "docs/touch-lane-glow-2026-10-12.png",
+  "board_verified": false
+}

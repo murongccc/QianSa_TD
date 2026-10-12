@@ -2,7 +2,8 @@
 // 两点及六个边界共用一个比较器，不缓存原始坐标，也不依赖视频帧率。
 module touch_lane_input #(
     parameter [15:0] X0=16'd2494, X1=16'd5307, X2=16'd8119,
-    parameter [15:0] X3=16'd10931, X4=16'd13744, Y0=16'd7584
+    parameter [15:0] X3=16'd10931, X4=16'd13744, Y0=16'd6962,
+    parameter [8:0] PIXEL_Y_MIN=9'd352 // 验证脚本使用的像素边界；硬件仅比较 Y0
 )(
     input wire clk, input wire rst, input wire enable,
     input wire update_valid,
