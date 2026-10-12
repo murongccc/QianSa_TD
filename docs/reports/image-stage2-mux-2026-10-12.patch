@@ -1,0 +1,11 @@
+diff --git a/src/SD/bmp_bilinear_scaler.v b/src/SD/bmp_bilinear_scaler.v
+--- a/src/SD/bmp_bilinear_scaler.v
++++ b/src/SD/bmp_bilinear_scaler.v
+@@ -124,2 +124,5 @@
+-wire [X_FP_BITS-1:0] x_fp_eff=(out_x==OUT_WIDTH-1)?{sw-1'b1,16'h0000}:x_fp;
+-wire [Y_FP_BITS-1:0] y_fp_eff=(out_y==OUT_HEIGHT-1)?{sh-1'b1,16'h0000}:y_fp;
++// 正常输出尺寸在 ST_EMIT 已写入精确端点；单列/单行保留原端点选择。
++wire [X_FP_BITS-1:0] x_fp_eff=(OUT_WIDTH>1)?x_fp:
++    ((out_x==OUT_WIDTH-1)?{sw-1'b1,16'h0000}:x_fp);
++wire [Y_FP_BITS-1:0] y_fp_eff=(OUT_HEIGHT>1)?y_fp:
++    ((out_y==OUT_HEIGHT-1)?{sh-1'b1,16'h0000}:y_fp);

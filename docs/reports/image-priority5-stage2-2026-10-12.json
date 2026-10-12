@@ -1,0 +1,928 @@
+{
+  "baseline_syn": {
+    "directory": "prj\\log\\image_priority5_stage1_candidate_syn_20261011",
+    "area": {
+      "lut": 18080,
+      "reg": 10556,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6362,
+          "seq": 4025,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 71,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 799,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 958,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1139,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 217,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.222,
+      "STNS": -4.239,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 34.745,
+        "swns": 11.219,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 97.828,
+        "swns": -0.222,
+        "stns": -0.831,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 72.108,
+        "swns": 6.132,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "flow_completed": true,
+    "area_stage": "synthesized",
+    "errors": [],
+    "image_chain": {
+      "lut": 3184,
+      "seq": 2123,
+      "ram": 7,
+      "dsp": 5
+    }
+  },
+  "baseline_phy": {
+    "directory": "prj\\log\\image_priority5_stage1_candidate_phy_20261011",
+    "area": {
+      "lut": 18342,
+      "reg": 10692,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -0.926,
+      "STNS": -53.596,
+      "HWNS": -0.052,
+      "HTNS": -0.124,
+      "clk0": {
+        "fmax": 25.254,
+        "swns": 0.403,
+        "stns": 0.0,
+        "hwns": -0.012,
+        "htns": -0.044
+      },
+      "clk1": {
+        "fmax": 91.525,
+        "swns": -0.926,
+        "stns": -53.596,
+        "hwns": -0.052,
+        "htns": -0.061
+      },
+      "clk2": {
+        "fmax": 74.123,
+        "swns": 6.509,
+        "stns": 0.0,
+        "hwns": -0.008,
+        "htns": -0.008
+      },
+      "clk3": {
+        "fmax": 113.276,
+        "swns": 1.172,
+        "stns": 0.0,
+        "hwns": -0.011,
+        "htns": -0.011
+      },
+      "clk4": {
+        "fmax": 397.773,
+        "swns": 5.486,
+        "stns": 0.0,
+        "hwns": 0.132,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "flow_completed": true,
+    "area_stage": "routed",
+    "errors": [],
+    "packing": {
+      "mslice": 4833,
+      "lslice": 4833
+    }
+  },
+  "cached_syn": {
+    "directory": "prj\\log\\image_stage2_cached_syn_20261012",
+    "area": {
+      "lut": 18120,
+      "reg": 10578,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6356,
+          "seq": 4046,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 70,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 800,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 956,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1119,
+          "seq": 668,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 217,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.612,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 34.745,
+        "swns": 11.219,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 99.147,
+        "swns": -0.086,
+        "stns": -0.204,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 77.628,
+        "swns": 7.118,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "flow_completed": true,
+    "area_stage": "synthesized",
+    "errors": [],
+    "image_chain": {
+      "lut": 3162,
+      "seq": 2144,
+      "ram": 7,
+      "dsp": 5
+    }
+  },
+  "endpoint_syn": {
+    "directory": "prj\\log\\image_stage2_endpoint_syn_20261012",
+    "area": {
+      "lut": 17932,
+      "reg": 10544,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6271,
+          "seq": 4013,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 73,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 802,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 943,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1103,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -1.312,
+      "STNS": -7.539,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 35.045,
+        "swns": 11.465,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 88.402,
+        "swns": -1.312,
+        "stns": -4.131,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 74.405,
+        "swns": 6.56,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "flow_completed": true,
+    "area_stage": "synthesized",
+    "errors": [],
+    "image_chain": {
+      "lut": 3133,
+      "seq": 2123,
+      "ram": 7,
+      "dsp": 5
+    }
+  },
+  "endpoint_phy": {
+    "directory": "prj\\log\\image_stage2_endpoint_phy_20261012",
+    "area": {
+      "lut": 18158,
+      "reg": 10695,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -1.976,
+      "STNS": -209.171,
+      "HWNS": -0.044,
+      "HTNS": -0.231,
+      "clk0": {
+        "fmax": 25.12,
+        "swns": 0.191,
+        "stns": 0.0,
+        "hwns": -0.02,
+        "htns": -0.082
+      },
+      "clk1": {
+        "fmax": 83.5,
+        "swns": -1.976,
+        "stns": -209.171,
+        "hwns": -0.044,
+        "htns": -0.149
+      },
+      "clk2": {
+        "fmax": 71.798,
+        "swns": 6.072,
+        "stns": 0.0,
+        "hwns": 0.011,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 106.146,
+        "swns": 0.579,
+        "stns": 0.0,
+        "hwns": 0.182,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 349.284,
+        "swns": 5.137,
+        "stns": 0.0,
+        "hwns": 0.132,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "flow_completed": true,
+    "area_stage": "routed",
+    "errors": [],
+    "packing": {
+      "mslice": 4810,
+      "lslice": 4810
+    }
+  },
+  "mux_syn": {
+    "directory": "prj\\log\\image_stage2_mux_syn_20261012",
+    "area": {
+      "lut": 17938,
+      "reg": 10544,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6291,
+          "seq": 4013,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 802,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 942,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1119,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.411,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 35.034,
+        "swns": 11.456,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 99.97,
+        "swns": -0.003,
+        "stns": -0.003,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 76.988,
+        "swns": 7.011,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "flow_completed": true,
+    "area_stage": "synthesized",
+    "errors": [],
+    "image_chain": {
+      "lut": 3147,
+      "seq": 2123,
+      "ram": 7,
+      "dsp": 5
+    }
+  },
+  "mux_phy": {
+    "directory": "prj\\log\\image_stage2_mux_phy_20261012",
+    "area": {
+      "lut": 18166,
+      "reg": 10664,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "warnings": {},
+    "flow_completed": false,
+    "area_stage": "placement only; routing failed",
+    "errors": [
+      "PHY-8023 ERROR: Location: (x7y32_local6), nets: sd_media_pipeline_m0/rhythm_resources$resources/u_chart/rst_dup_33 u_game_renderer/hud/saved_error[2]",
+      "RUN-8102 ERROR: Incremental route failed. Please check if the resources used in your design exceed the device resource limitations. You can try using 'report_area' in console to check the resource utilization of the device. Or try check gate report and timing constraints. And you can try modifying the design or changing the strategy of syn, place or route, and rerunning it.",
+      "PHY-8023 ERROR: Location: (x7y32_local6), nets: sd_media_pipeline_m0/rhythm_resources$resources/u_chart/rst_dup_33 u_game_renderer/hud/saved_error[2]"
+    ],
+    "packing": {
+      "mslice": 4847,
+      "lslice": 4847
+    }
+  },
+  "xonly_syn": {
+    "directory": "prj\\log\\image_stage2_xonly_syn_20261012",
+    "area": {
+      "lut": 17947,
+      "reg": 10544,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {
+        "sd_media_pipeline_m0": {
+          "lut": 6315,
+          "seq": 4013,
+          "ram": 12,
+          "dsp": 5
+        },
+        "source_pixel_fifo": {
+          "lut": 72,
+          "seq": 84,
+          "ram": 2,
+          "dsp": 0
+        },
+        "u_bmp_catalog": {
+          "lut": 799,
+          "seq": 706,
+          "ram": 1,
+          "dsp": 2
+        },
+        "u_bmp_read": {
+          "lut": 954,
+          "seq": 589,
+          "ram": 0,
+          "dsp": 0
+        },
+        "u_scaler": {
+          "lut": 1140,
+          "seq": 647,
+          "ram": 4,
+          "dsp": 3
+        },
+        "u_session": {
+          "lut": 212,
+          "seq": 97,
+          "ram": 0,
+          "dsp": 0
+        }
+      }
+    },
+    "timing": {
+      "SWNS": -1.259,
+      "STNS": -9.03,
+      "HWNS": 0.471,
+      "HTNS": 0.0,
+      "clk0": {
+        "fmax": 33.3,
+        "swns": 9.97,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk1": {
+        "fmax": 88.818,
+        "swns": -1.259,
+        "stns": -5.622,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 77.435,
+        "swns": 7.086,
+        "stns": 0.0,
+        "hwns": 0.471,
+        "htns": 0.0
+      },
+      "clk3": {
+        "fmax": 111.037,
+        "swns": 0.994,
+        "stns": 0.0,
+        "hwns": 0.659,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 408.497,
+        "swns": 5.552,
+        "stns": 0.0,
+        "hwns": 0.674,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 95.914,
+        "swns": -0.213,
+        "stns": -3.408,
+        "hwns": 8.364,
+        "htns": 0.0
+      }
+    },
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 7,
+      "HDL-5001": 3,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "flow_completed": true,
+    "area_stage": "synthesized",
+    "errors": [],
+    "image_chain": {
+      "lut": 3177,
+      "seq": 2123,
+      "ram": 7,
+      "dsp": 5
+    }
+  },
+  "xonly_phy": {
+    "directory": "prj\\log\\image_stage2_xonly_phy_20261012",
+    "area": {
+      "lut": 18160,
+      "reg": 10678,
+      "bram": 57,
+      "bram9k": 41,
+      "fifo9k": 16,
+      "bram32k": 11,
+      "dsp": 22,
+      "modules": {}
+    },
+    "timing": {
+      "SWNS": -1.797,
+      "STNS": -123.553,
+      "HWNS": -0.025,
+      "HTNS": -0.124,
+      "clk0": {
+        "fmax": 25.551,
+        "swns": 0.863,
+        "stns": 0.0,
+        "hwns": -0.012,
+        "htns": -0.012
+      },
+      "clk1": {
+        "fmax": 84.767,
+        "swns": -1.797,
+        "stns": -123.553,
+        "hwns": 0.003,
+        "htns": 0.0
+      },
+      "clk2": {
+        "fmax": 76.023,
+        "swns": 6.846,
+        "stns": 0.0,
+        "hwns": -0.025,
+        "htns": -0.112
+      },
+      "clk3": {
+        "fmax": 109.051,
+        "swns": 0.83,
+        "stns": 0.0,
+        "hwns": 0.119,
+        "htns": 0.0
+      },
+      "clk4": {
+        "fmax": 262.743,
+        "swns": 4.194,
+        "stns": 0.0,
+        "hwns": 0.033,
+        "htns": 0.0
+      },
+      "clk5": {
+        "fmax": 352.609,
+        "swns": 3.582,
+        "stns": 0.0,
+        "hwns": 4.874,
+        "htns": 0.0
+      }
+    },
+    "warnings": {},
+    "flow_completed": true,
+    "area_stage": "routed",
+    "errors": [],
+    "packing": {
+      "mslice": 4794,
+      "lslice": 4791
+    }
+  },
+  "baseline_commit": "a6679f564ea78a03029bdc208a029d991ababc83",
+  "selected": "baseline_syn/baseline_phy; production RTL restored",
+  "rejection_reasons": {
+    "cached": "Global synthesis LUT +40, REG +22; no physical run",
+    "endpoint": "Routed LUT -184, but setup WNS -1.976 / TNS -209.171 ns",
+    "mux": "PHY-8023 routing resource conflict; no completed routed result",
+    "xonly": "Routed LUT -182, but setup WNS -1.797 / TNS -123.553 ns"
+  },
+  "baseline_settings_identical": true,
+  "baseline_project_identical_except_runtime": true,
+  "source_sha256": "daa40819690681af4b898379189de12a3dd9e5bb6b3edcab3d652bbca2cab18e",
+  "production_matches_original_bytes": true,
+  "candidate_sha256": {
+    "cached": "a35969c3353938b66319d89278a2d59d83a7dc2d734a6fc7e0ac10ee9b9acbdb",
+    "endpoint": "f90afe205fad7bae4c5dd6f1010a8aead6b0183884f1381178b7c93040e04763",
+    "mux": "5c15dfca4da301ecf36d4c3c3d290123dc94599c562b7bad3804dc060d12d081",
+    "xonly": "5722d154537c1633fe3bb0fd40360a40b660c6d561fd2a0f943fd4b96d6d65c5"
+  },
+  "test_harness_repair": "Previous 1x1 abort test waited for a third output; corrected to first output and retested. Candidate logs with Fatal timeout are excluded from passing test set.",
+  "tests": {
+    "image_stage2_xonly_regression_20261012/boundaries": [
+      "# PASS 1920x1080 -> 19x14 pattern=0",
+      "# PASS 1919x1079 -> 19x14 pattern=2",
+      "# PASS 1x1080 -> 19x14 pattern=0",
+      "# PASS 1920x1 -> 19x14 pattern=0",
+      "# PASS 2x2 -> 19x14 pattern=2",
+      "# PASS 640x480 -> 19x14 pattern=0",
+      "# PASS 17x13 -> 19x14 pattern=3",
+      "# PASS 17x13 -> 19x14 pattern=0",
+      "# PASS 1x1 -> 19x14 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_regression_20261012/full_output": [
+      "# PASS 1920x1080 -> 640x480 pattern=0",
+      "# PASS 1919x1079 -> 640x480 pattern=2",
+      "# PASS 1x1080 -> 640x480 pattern=0",
+      "# PASS 1920x1 -> 640x480 pattern=0",
+      "# PASS 2x2 -> 640x480 pattern=2",
+      "# PASS 640x480 -> 640x480 pattern=0",
+      "# PASS 17x13 -> 640x480 pattern=3",
+      "# PASS 17x13 -> 640x480 pattern=0",
+      "# PASS 1x1 -> 640x480 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_regression_20261012/single_column": [
+      "# PASS 640x480 -> 1x5 pattern=0",
+      "# PASS 17x13 -> 1x5 pattern=3",
+      "# PASS 17x13 -> 1x5 pattern=0",
+      "# PASS 1x1 -> 1x5 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_regression_20261012/single_output": [
+      "# PASS 640x480 -> 1x1 pattern=0",
+      "# PASS 17x13 -> 1x1 pattern=3",
+      "# PASS 17x13 -> 1x1 pattern=0",
+      "# PASS 1x1 -> 1x1 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_regression_20261012/single_row": [
+      "# PASS 640x480 -> 7x1 pattern=0",
+      "# PASS 17x13 -> 7x1 pattern=3",
+      "# PASS 17x13 -> 7x1 pattern=0",
+      "# PASS 1x1 -> 7x1 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_regression_20261012/small_output": [
+      "# PASS 640x480 -> 7x5 pattern=0",
+      "# PASS 17x13 -> 7x5 pattern=3",
+      "# PASS 17x13 -> 7x5 pattern=0",
+      "# PASS 1x1 -> 7x5 pattern=1",
+      "# PASS scaler arithmetic, source gaps, backpressure, abort and restart"
+    ],
+    "image_stage2_xonly_integration_20261012/media_audio_start": [
+      "# PASS deferred audio start"
+    ],
+    "image_stage2_xonly_integration_20261012/media_rhythm_commit": [
+      "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+    ],
+    "image_stage2_xonly_integration_20261012/media_scaler_commit": [
+      "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit"
+    ]
+  },
+  "preservation": {
+    "unchanged_non_target_files": 98,
+    "first_batch_image_modules_match_commit": true
+  },
+  "tested_final_candidate": "xonly; compiled before restoring production RTL",
+  "final_candidate_test_summary": {
+    "scaler_configurations_passed": 6,
+    "integration_tests_passed": 3,
+    "full_output_complete_frames": 10,
+    "full_output_complete_pixels": 3072000,
+    "full_output_simulation_ns": 390077780
+  }
+}
