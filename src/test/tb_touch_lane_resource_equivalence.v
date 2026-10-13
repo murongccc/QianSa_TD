@@ -9,7 +9,7 @@ wire [13:0] actual,expected;
 `define PORTS(bus) .clk(clk),.rst(rst),.enable(enable),.update_valid(update), \
     .a_id(ai),.a_down(ad),.a_x(ax),.a_y(ay),.b_id(bi),.b_down(bd),.b_x(bx),.b_y(by), \
     .event_valid(bus[13]),.armed(bus[12]),.press_mask(bus[11:8]),.release_mask(bus[7:4]),.down_mask(bus[3:0])
-touch_lane_input dut(`PORTS(actual));
+touch_lane_input dut(`PORTS(actual),.c_id(4'd0),.c_down(1'b0),.c_x(16'd0),.c_y(16'd0),.all_down(ad|bd));
 touch_lane_input_reference reference(`PORTS(expected));
 `undef PORTS
 integer cycles=0,i;reg [31:0] rng=32'h91471;reg [13:0] snapshot;reg [3:0] old_down;
@@ -18,7 +18,7 @@ task report;begin
     @(negedge clk);update=1;@(negedge clk);update=0;
     snapshot=expected;
     old_down=actual[3:0];
-    repeat(11)begin
+    repeat(17)begin
         @(negedge clk);
         if(actual[13] || actual[3:0]!==old_down)$fatal(1,"partial lane report leaked");
     end

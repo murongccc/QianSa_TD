@@ -7,7 +7,7 @@ reg signed [32:0] song_time=0;
 reg [1:0] mode=2;
 wire se,lv,ev,er,armed,overflow,fault;wire [3:0] lp,lr,ld,p,r,d,holding;
 wire signed [32:0] et;
-touch_lane_input lanes(sc,rst,se,update,ai,ad,ax,ay,bi,bd,bx,by,lv,lp,lr,ld,armed);
+touch_lane_input lanes(sc,rst,se,update,ai,ad,ax,ay,bi,bd,bx,by,lv,lp,lr,ld,armed,4'd0,1'b0,16'd0,16'd0,ad|bd);
 touch_game_event_bridge bridge(sc,rst,dc,rst,enable && mode==2,se,lv,lp,lr,ld,song_time,ev,er && gate,et,p,r,d,overflow,fault);
 reg nv=0,eof=0;reg [63:0] note=0;reg [15:0] total=1;
 wire nr,done,qo;wire [15:0] perfect,miss;wire [19:0] score;
@@ -32,7 +32,7 @@ task report;input a,b;begin
 end endtask
 task settle;begin repeat(100)@(negedge dc);end endtask
 task check;input [15:0] ep,em;begin
-    settle;if(perfect!==ep || miss!==em || overflow || qo || !done)$fatal(1,"chain P/M=%d/%d done %b",perfect,miss,done);
+    settle;repeat(100)@(negedge dc);if(perfect!==ep || miss!==em || overflow || qo || !done)$fatal(1,"chain P/M=%d/%d done %b",perfect,miss,done);
 end endtask
 initial begin
     reset(1);load(0,0);eof=1;song_time=20000;

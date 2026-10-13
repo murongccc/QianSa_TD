@@ -39,7 +39,7 @@ def main():
     test_sources = [str(root / 'src/test' / (tops[case] + '.v')) for case in cases]
     if 'diagnostics' in cases:
         test_sources.append(str(root / 'src/test/tb_frame_read_monitor.v'))
-    run('compile', [binaries['vlog'], '-work', str(library), 'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v', 'src/test/eg_logic_mult_model.v',
+    run('compile', [binaries['vlog'], '-work', str(library), 'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','E:/AnLuTD/sim_release/eg4/eg_logic_dram.v', 'src/test/eg_logic_mult_model.v',
                     *[str(root / 'src' / (name + '.v')) for name in sources],
                     *test_sources])
     for case in cases:

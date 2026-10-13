@@ -5,13 +5,13 @@ reg rst=1,enable=0,update_valid=0,a_down=0,b_down=0;
 reg [3:0] a_id=1,b_id=2;
 reg [15:0] a_x=0,a_y=0,b_x=0,b_y=0;
 wire valid,armed;wire [3:0] p,r,d;
-touch_lane_input dut(clk,rst,enable,update_valid,a_id,a_down,a_x,a_y,b_id,b_down,b_x,b_y,valid,p,r,d,armed);
+touch_lane_input dut(clk,rst,enable,update_valid,a_id,a_down,a_x,a_y,b_id,b_down,b_x,b_y,valid,p,r,d,armed,4'd0,1'b0,16'd0,16'd0,a_down|b_down);
 task report;
 input ad,bd;input [3:0] ai,bi;input [15:0] ax,ay,bx,by;
 input [3:0] ed,ep,er;
 begin
     @(negedge clk);a_down=ad;b_down=bd;a_id=ai;b_id=bi;a_x=ax;a_y=ay;b_x=bx;b_y=by;update_valid=1;
-    @(negedge clk);update_valid=0;repeat(12)@(negedge clk);
+    @(negedge clk);update_valid=0;repeat(18)@(negedge clk);
     if(d!==ed || p!==ep || r!==er || valid!==((ep|er)!=0))
         $fatal(1,"lane got D/P/R %h/%h/%h expected %h/%h/%h x/y %d/%d",d,p,r,ed,ep,er,ax,ay);
 end endtask

@@ -8,6 +8,7 @@ module ch9350_touch_input #(
     output wire update_valid,
     output wire [3:0] a_id, output wire a_down, output wire [15:0] a_x, output wire [15:0] a_y,
     output wire [3:0] b_id, output wire b_down, output wire [15:0] b_x, output wire [15:0] b_y,
+    output wire [3:0] c_id, output wire c_down, output wire [15:0] c_x,c_y, output wire all_down,
     output wire [1:0] press_mask, output wire [1:0] release_mask, output wire [7:0] frame_seq,
     output wire [15:0] good_count, output wire [15:0] checksum_error_count,
     output wire [15:0] format_error_count, output wire [15:0] sequence_gap_count,
@@ -25,6 +26,7 @@ ch9350_touch_parser #(.CLK_HZ(CLK_HZ),.FRAME_TIMEOUT_MS(FRAME_TIMEOUT_MS)) u_par
     .clk(clk),.rst(rst),.byte_valid(rx_valid),.byte_data(rx_data),.byte_error(rx_error),
     .ack_request(ack_request),.update_valid(update_valid),
     .a_id(a_id),.a_down(a_down),.a_x(a_x),.a_y(a_y),.b_id(b_id),.b_down(b_down),.b_x(b_x),.b_y(b_y),
+    .c_id(c_id),.c_down(c_down),.c_x(c_x),.c_y(c_y),.all_down(all_down),
     .press_mask(press_mask),.release_mask(release_mask),.frame_seq(frame_seq),
     .good_count(good_count),.checksum_error_count(checksum_error_count),.format_error_count(format_error_count),
     .sequence_gap_count(sequence_gap_count),.timeout_count(timeout_count),.uart_error_count(uart_error_count));

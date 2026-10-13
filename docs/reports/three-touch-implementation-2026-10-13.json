@@ -1,0 +1,74 @@
+{
+  "baseline_directory": "E:\\AnLuTD_Project\\SD_to_Video\\prj\\log\\game_spectrum_coord_syn_20261013",
+  "baseline_caveat": "Last saved synthesis before area expansion 7719b60; not an exact ce158e1 rerun. No baseline synthesis run this turn.",
+  "baseline": {
+    "lut": 18218,
+    "reg": 10501,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2,
+    "gclk": 2
+  },
+  "current": {
+    "lut": 18379,
+    "reg": 10685,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2,
+    "gclk": 2
+  },
+  "delta_vs_saved_baseline": {
+    "lut": 161,
+    "reg": 184,
+    "bram": 0,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": 0,
+    "pll": 0,
+    "gclk": 0
+  },
+  "warnings_baseline": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 3,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "warnings_current": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 2,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "timing": "SWNS: -0.213ns, STNS: -3.408ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+  "synthesis_runs_this_turn": 1,
+  "place_route_runs_this_turn": 0,
+  "bitstream_generated": false,
+  "head_before": "ce158e14cbc3b85b15a59bd6b0382f029e2a3fd8",
+  "rtl_sha256": {
+    "ch9350_touch_parser.v": "a5526a0915256fad943de6f45a8f00c3df13b9d3444b15d313e21e9ce0e33773",
+    "ch9350_touch_input.v": "a7f8c4919c5e89b656cb94b3198b652d580f3ec0458fe35fb02c5e5b15cc19f8",
+    "touch_lane_input.v": "53bfe64728db85630f17d3e0a8413c0606162d96859d3c11a2efdcc2cb5d2ec0",
+    "top_tf_hdmi_audio.v": "a95c88a9321fa15c072d5a90b635c7a2fa10e2e99924154483c5e8e255cef725"
+  }
+}

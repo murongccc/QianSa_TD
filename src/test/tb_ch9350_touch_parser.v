@@ -72,7 +72,7 @@ task recalc;
 endtask
 task send_work;
     integer i;
-    begin for(i=0;i<61;i=i+1) send_byte(work_frame[i]); end
+    begin for(i=0;i<61;i=i+1) send_byte(work_frame[i]); repeat(20) @(negedge clk); #1; end
 endtask
 task check_contact;
     input [3:0] id;

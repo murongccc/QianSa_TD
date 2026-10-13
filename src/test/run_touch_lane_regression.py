@@ -56,7 +56,7 @@ reference = re.sub(r'\btouch_lane_input\b','touch_lane_input_reference',referenc
 reference_path = out/'touch_lane_input_reference.v'
 reference_path.write_text(reference,encoding='utf-8')
 cases.append('tb_touch_lane_resource_equivalence')
-run('compile',[shutil.which('vlog'),'-work',lib,'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','src/test/eg_logic_mult_model.v',
+run('compile',[shutil.which('vlog'),'-work',lib,'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','E:/AnLuTD/sim_release/eg4/eg_logic_dram.v','src/test/eg_logic_mult_model.v',
               *[str(root/'src'/(n+'.v')) for n in names],str(reference_path),*[str(root/'src/test'/(n+'.v')) for n in cases]])
 for case in cases:run(case,[shutil.which('vsim'),'-c','-lib',lib,case,'-do','src/test/run_touch_uart_debug.do'],True)
 for phase, half in [(0,20),(31,23),(1,11)]:

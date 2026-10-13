@@ -255,10 +255,12 @@ uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_contr
     .echo_valid(uart_echo_valid), .echo_data(uart_echo_data)
 );
 
-// 触摸本阶段只解析与监视；原始坐标尚未标定，不进入四轨判定。
+// 三指游戏使用原始坐标绑定四轨；A/B 坐标另供既有十字与串口诊断。
 wire touch_update;
 wire [3:0] touch_a_id, touch_b_id;
-wire touch_a_down, touch_b_down;
+wire touch_a_down, touch_b_down, touch_c_down, touch_all_down;
+wire [3:0] touch_c_id;
+wire [15:0] touch_c_x,touch_c_y;
 wire [15:0] touch_a_x, touch_a_y, touch_b_x, touch_b_y;
 wire [1:0] touch_press, touch_release;
 wire [7:0] touch_sequence;
@@ -276,6 +278,7 @@ touch_lane_input u_touch_lane_input(
     .clk(clk),.rst(rst_clk),.enable(touch_game_enable),.update_valid(touch_update),
     .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
     .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
+    .c_id(touch_c_id),.c_down(touch_c_down),.c_x(touch_c_x),.c_y(touch_c_y),.all_down(touch_all_down),
     .event_valid(touch_lane_valid),.press_mask(touch_lane_press),.release_mask(touch_lane_release),
     .down_mask(touch_lane_down),.armed(touch_lane_armed));
 touch_game_event_bridge u_touch_game_bridge(
@@ -290,6 +293,7 @@ ch9350_touch_input u_touch_input (
     .clk(clk),.rst(rst_clk),.touch_rxd(touch_rxd),.touch_txd(touch_txd),.update_valid(touch_update),
     .a_id(touch_a_id),.a_down(touch_a_down),.a_x(touch_a_x),.a_y(touch_a_y),
     .b_id(touch_b_id),.b_down(touch_b_down),.b_x(touch_b_x),.b_y(touch_b_y),
+    .c_id(touch_c_id),.c_down(touch_c_down),.c_x(touch_c_x),.c_y(touch_c_y),.all_down(touch_all_down),
     .press_mask(touch_press),.release_mask(touch_release),.frame_seq(touch_sequence),
     .good_count(touch_good),.checksum_error_count(touch_checksum_error),.format_error_count(touch_format_error),
     .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack)

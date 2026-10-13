@@ -1,0 +1,35 @@
+[
+  {
+    "fixture": "touch_01_three_down_release",
+    "frames": 523,
+    "fixture_sha256": "2826e2cac46ee308b4e093018b95e1222c1c42e7bac1be8c460773fcde0aa980",
+    "source": "C:\\Users\\murong\\Desktop\\touch_01_three_down_release.txt",
+    "source_sha256": "40100e0c388cd7fd33efcfac72183cba758c12e6e93e65c60ca0ffe3778e04ad"
+  },
+  {
+    "fixture": "touch_02_third_move",
+    "frames": 699,
+    "fixture_sha256": "46246d868d35d35d1a0dda47f4dc553d98e08e7e9a9a8f908657160faedaed89",
+    "source": "C:\\Users\\murong\\Desktop\\touch_02_third_move.txt",
+    "source_sha256": "6c2497fc1907141289c96e9a36c23401dba6bb59fbdb70666c9abd37f47bfcd5"
+  },
+  {
+    "fixture": "touch_03_contact_replace",
+    "frames": 668,
+    "fixture_sha256": "c97f66d45425d8b0b757ff00e032679d9d1eda65a80e479d6ee16c3765e9bed8",
+    "source": "C:\\Users\\murong\\Desktop\\touch_03_contact_replace.txt",
+    "source_sha256": "6de05284d055ad76792195b73b899aa783c163596bbcac1d7f811391162f5ae2"
+  },
+  {
+    "fixture": "touch_04_four_limit",
+    "frames": 533,
+    "fixture_sha256": "284bfd12601a27f790ebece2834ec796364842651c798af2b9be224b10c7ba43",
+    "source": "C:\\Users\\murong\\Desktop\\touch_04_four_limit.txt",
+    "source_sha256": "376e95b3655dd12db19a3e9ca6eda03b28e59cf8596a1e33cc6431224f72c4a2"
+  },
+  {
+    "fixture": "touch_three_synthetic",
+    "frames": 697,
+    "fixture_sha256": "0f70f793d2f93b35576ba0de95736ea9fc8250d042a335b552d6652a1cf1e634"
+  }
+]

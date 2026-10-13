@@ -9,7 +9,7 @@ ch9350_touch_parser parser(.clk(clk),.rst(rst),.byte_valid(bv),.byte_data(data),
     .ack_request(),.update_valid(update),.a_id(ai),.a_down(ad),.a_x(ax),.a_y(ay),
     .b_id(bi),.b_down(bd),.b_x(bx),.b_y(by),.press_mask(),.release_mask(),.frame_seq(),
     .good_count(),.checksum_error_count(),.format_error_count(),.sequence_gap_count(),.timeout_count(),.uart_error_count());
-touch_lane_input lane(clk,rst,1'b1,update,ai,ad,ax,ay,bi,bd,bx,by,valid,p,r,d,armed);
+touch_lane_input lane(clk,rst,1'b1,update,ai,ad,ax,ay,bi,bd,bx,by,valid,p,r,d,armed,4'd0,1'b0,16'd0,16'd0,ad|bd);
 reg [7:0] frame[0:60];integer seq=0,events=0;
 reg [11:0] last_event=0;
 always @(negedge clk)if(valid)begin events=events+1;last_event={p,r,d};end
@@ -29,7 +29,7 @@ begin
     if(count==2)begin frame[14]=8'h40;frame[15]=8'h1f;end
     frame[58]={6'd0,count};frame[59]=seq;seq=seq+1;
     sum=0;for(i=5;i<60;i=i+1)sum=sum+frame[i];frame[60]=bad ? sum^8'h01 : sum;
-    for(i=0;i<61;i=i+1)byte(frame[i]);repeat(16)@(negedge clk);
+    for(i=0;i<61;i=i+1)byte(frame[i]);repeat(40)@(negedge clk);
     if(d!==ed || events!=before_events+((ep|er)!=0) || ((ep|er)!=0 && last_event!=={ep,er,ed}))
         $fatal(1,"parser to lane event D/P/R %h/%h expected %h/%h/%h",d,last_event,ed,ep,er);
 end endtask
