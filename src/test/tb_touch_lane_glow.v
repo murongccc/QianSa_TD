@@ -24,17 +24,17 @@ reg [23:0] expected;
 always @(posedge clk)begin d1<=de;x1<=input_x;y1<=input_y;end
 always @(negedge clk)if(save && d1)begin
     $fwrite(f,"%c%c%c",on ? color[23:16]:8'h10,on ? color[15:8]:8'h12,on ? color[7:0]:8'h1b);pixels=pixels+1;
-    if(y1==390 && (x1==152 || x1==264 || x1==376 || x1==488))begin
+    if(y1==390 && (x1==56 || x1==136 || x1==216 || x1==296))begin
         case(x1)
-            152:expected=24'hffcf28;264:expected=24'hff7900;376:expected=24'hed2166;default:expected=24'hce3cf0;
+            56:expected=24'hffcf28;136:expected=24'hff7900;216:expected=24'hed2166;default:expected=24'hce3cf0;
         endcase
         if(!on || color!==expected)$fatal(1,"receptor pixel %d/%d %h",x1,y1,color);
     end
-    if(y1==384 && x1==400 && (!on || color!==24'hffffff))$fatal(1,"glow covered judge line");
-    if(y1==432 && (x1==95 || x1==544) && on)$fatal(1,"glow outside tracks");
-    if(y1==370 && x1==152 && color!==24'h3f330a)$fatal(1,"middle glow tier");
-    if(y1==360 && x1==152 && color!==24'h3f330a)$fatal(1,"upper glow tier");
-    if(y1==352 && x1==152 && color!==24'h1f1905)$fatal(1,"expanded area glow tier");
+    if(y1==384 && x1==240 && (!on || color!==24'hffffff))$fatal(1,"glow covered judge line");
+    if(y1==432 && (x1==15 || x1==336) && on)$fatal(1,"glow outside tracks");
+    if(y1==370 && x1==56 && color!==24'h3f330a)$fatal(1,"middle glow tier");
+    if(y1==360 && x1==56 && color!==24'h3f330a)$fatal(1,"upper glow tier");
+    if(y1==352 && x1==56 && color!==24'h1f1905)$fatal(1,"expanded area glow tier");
 end
 initial begin
     repeat(4)@(negedge clk);rst=0;repeat(3)@(negedge clk);frame;levels(0);

@@ -27,7 +27,7 @@ always @(posedge clk)begin
     video_valid<=published && video_address<80;
     if(publish)begin front<=!front;published<=1;bars<=building;nonzero<=|building;end
 end
-ring_spectrum_renderer #(.REFERENCE_MODE(1),.BLOCK_BARS(1)) dut(
+ring_spectrum_renderer #(.REFERENCE_MODE(1),.BLOCK_BARS(1)) dut(.game_layout(1'b0),
     .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bars(640'd0),.bands(256'd0),
     .bars_read_address(ring_address),.bars_read_data(ring_data),.bars_read_valid(ring_valid),.bars_active(nonzero),
     .pixel_on(on_new),.pixel_rgb(ring_new));

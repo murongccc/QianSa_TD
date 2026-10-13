@@ -1,6 +1,7 @@
 // 帧边界取 32 槽快照，串行转换采样时间到像素；行消隐串行形成四轨覆盖掩码。
 // 输出与输入像素对齐，内部仅一级寄存，由 video_presentation 完成第二级。
-module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integer STREAM_METADATA=0,parameter integer BLOCK_HUD=0)(
+module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integer STREAM_METADATA=0,parameter integer BLOCK_HUD=0,
+    parameter integer COMPACT_LAYOUT=1)(
     input wire clk,input wire rst,input wire enabled,input wire de,input wire vs,
     input wire signed [32:0] song_time,input wire [31:0] song_frames,
     input wire [3:0] state,error_code,input wire auto_mode,
@@ -14,6 +15,15 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     output reg frame_enabled,output wire pixel_on,output wire pixel_light,output wire [23:0] pixel_rgb
 );
     reg vs_d,de_d,vs_seen_low;reg [9:0] x;reg [8:0] y;
+    // 游戏四轨移至左侧；只改变横向几何，不改变下落时间和判定线。
+    localparam [9:0] TRACK_START=COMPACT_LAYOUT ? 10'd16 : 10'd96;
+    localparam [9:0] TRACK_END=COMPACT_LAYOUT ? 10'd336 : 10'd544;
+    localparam [9:0] TRACK_WIDTH=COMPACT_LAYOUT ? 10'd80 : 10'd112;
+    localparam [8:0] PROGRESS_WIDTH=COMPACT_LAYOUT ? 9'd320 : 9'd448;
+    localparam [6:0] NOTE_LEFT=COMPACT_LAYOUT ? 7'd12 : 7'd18;
+    localparam [6:0] NOTE_RIGHT=COMPACT_LAYOUT ? 7'd68 : 7'd94;
+    localparam [6:0] NOTE_CENTER=COMPACT_LAYOUT ? 7'd40 : 7'd56;
+    localparam [6:0] GLOW_RIGHT=COMPACT_LAYOUT ? 7'd76 : 7'd108;
     // 会话清理不复位板级扫描。VS 持续为高时解除复位不能伪造帧边界；
     // 先观察一次低电平，再接受真实上升沿，期间保持游戏图层关闭。
     wire frame_start=vs_seen_low && vs && !vs_d;
@@ -66,11 +76,11 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         reg [16:0] high_product;
         wire [34:0] compact_numerator;
         wire [17:0] progress_operand=which_end ? {3'd0,time_snapshot[32:18]} : time_snapshot[17:0];
-        // 448=7×64；头/尾 SETUP 拍复用同一 DSP，不增加快照处理周期。
+        // 320=5×64（旧布局448=7×64）；复用现有DSP，不增加快照处理周期。
         EG_LOGIC_MULT #(.INPUT_WIDTH_A(18),.INPUT_WIDTH_B(18),.OUTPUT_WIDTH(36),
             .INPUTFORMAT("UNSIGNED"),.INPUTREGA("DISABLE"),.INPUTREGB("DISABLE"),
             .OUTPUTREG("DISABLE"),.IMPLEMENT("DSP"),.SRMODE("ASYNC")) progress_mul(
-            .p(product),.a(progress_operand),.b(18'd7),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
+            .p(product),.a(progress_operand),.b(COMPACT_LAYOUT ? 18'd5 : 18'd7),.cea(1'b1),.ceb(1'b1),.cepd(1'b1),
             .clk(clk),.rstan(!rst),.rstbn(!rst),.rstpdn(!rst));
         always @(posedge clk or posedge rst)begin
             if(rst)begin low_product<=0;high_product<=0;end
@@ -81,7 +91,9 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         assign compact_numerator={14'd0,low_product}+{high_product,18'd0};
         assign progress_numerator={compact_numerator,6'd0};
     end else begin: lut_progress
-        assign progress_numerator=({8'd0,time_snapshot}<<9)-({8'd0,time_snapshot}<<6);
+        assign progress_numerator=COMPACT_LAYOUT ?
+            (({8'd0,time_snapshot}<<8)+({8'd0,time_snapshot}<<6)) :
+            (({8'd0,time_snapshot}<<9)-({8'd0,time_snapshot}<<6));
     end endgenerate
 
     wire signed [33:0] difference=$signed({2'd0,(which_end ? view_end : view_start)})-$signed({time_snapshot[32],time_snapshot});
@@ -155,12 +167,12 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg [1:0] track;reg in_track;
     reg [9:0] track_left;
     always @*begin
-        in_track=px>=10'd96 && px<10'd544;track=0;track_left=96;
-        if(px>=10'd432)begin track=3;track_left=432;end
-        else if(px>=10'd320)begin track=2;track_left=320;end
-        else if(px>=10'd208)begin track=1;track_left=208;end
+        in_track=px>=TRACK_START && px<TRACK_END;track=0;track_left=TRACK_START;
+        if(px>=TRACK_START+3*TRACK_WIDTH)begin track=3;track_left=TRACK_START+3*TRACK_WIDTH;end
+        else if(px>=TRACK_START+2*TRACK_WIDTH)begin track=2;track_left=TRACK_START+2*TRACK_WIDTH;end
+        else if(px>=TRACK_START+TRACK_WIDTH)begin track=1;track_left=TRACK_START+TRACK_WIDTH;end
     end
-    // 有效轨道内局部坐标为 0..111，低七位减法保留四条轨道的精确位置。
+    // 局部坐标为0..79（旧布局0..111），低七位减法足够覆盖两种布局。
     wire [6:0] local_x=px[6:0]-track_left[6:0];
     reg [5:0] active_head_style;
     reg [23:0] note_color,body_color;
@@ -173,7 +185,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             3:begin active_head_style=line_head_style[23:18];note_color=24'hce3cf0;body_color=24'h7c2490;end
         endcase
     end
-    // 76 像素宽，四像素阶梯圆角；仅小位宽比较，不添加图案 RAM 或乘法器。
+    // 56像素宽（旧布局76），四像素阶梯圆角；只用小位宽比较。
     reg [2:0] head_inset,tail_inset;
     always @*begin
         head_inset=0;tail_inset=0;
@@ -189,14 +201,14 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
             default:tail_inset=1;
         endcase
     end
-    wire head_fill=local_x>=7'd18+{4'd0,head_inset} && local_x<7'd94-{4'd0,head_inset};
-    wire body_fill=local_x>=7'd18+{4'd0,tail_inset} && local_x<7'd94-{4'd0,tail_inset};
-    wire [6:0] mark_distance=local_x<7'd56 ? 7'd56-local_x : local_x-7'd56;
+    wire head_fill=local_x>=NOTE_LEFT+{4'd0,head_inset} && local_x<NOTE_RIGHT-{4'd0,head_inset};
+    wire body_fill=local_x>=NOTE_LEFT+{4'd0,tail_inset} && local_x<NOTE_RIGHT-{4'd0,tail_inset};
+    wire [6:0] mark_distance=local_x<NOTE_CENTER ? NOTE_CENTER-local_x : local_x-NOTE_CENTER;
     wire [4:0] arrow_top=5'd17-{1'b0,mark_distance[4:1]};
     wire arrow_mark=mark_distance<=7'd12 && active_head_style[4:0]>=arrow_top && active_head_style[4:0]<arrow_top+5'd3;
     wire dash_mark=(active_head_style[4:0]==5'd13 || active_head_style[4:0]==5'd16) ?
-        (local_x>=7'd45 && local_x<7'd67) :
-        ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=7'd44 && local_x<7'd68);
+        (local_x>=NOTE_CENTER-7'd11 && local_x<NOTE_CENTER+7'd11) :
+        ((active_head_style[4:0]==5'd14 || active_head_style[4:0]==5'd15) && local_x>=NOTE_CENTER-7'd12 && local_x<NOTE_CENTER+7'd12);
     wire head_white=active_head_style[4:0]>=5'd28 || (active_head_style[5] ? dash_mark : arrow_mark);
     wire [1:0] glow_level=glow_levels[{track,1'b0}+:2];
     reg [1:0] glow_band,glow_shade;
@@ -235,15 +247,15 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         overlay=0;light_overlay=0;color=24'hffffff;
         // 光晕先绘制，音符、判定线及HUD随后覆盖，保持判定画面清楚。
         if(in_track && glow_level!=2'd0 && y>=9'd64)begin
-            if(y[8:5]>=4'd11 && local_x>=7'd4 && local_x<7'd108)begin
+            if(y[8:5]>=4'd11 && local_x>=7'd4 && local_x<GLOW_RIGHT)begin
                 overlay=1;light_overlay=1;color=glow_color;
                 if(y[8:2]==7'd97 && glow_level==2'd3)color=note_color;
-            end else if(local_x<7'd4 || local_x>=7'd108)begin
+            end else if(local_x<7'd4 || local_x>=GLOW_RIGHT)begin
                 overlay=1;light_overlay=1;color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
             end
         end
         // 顶部进度条、左上暂停标记，固定判定线与弱轨道边界。
-        if(y<10'd3 && px>=96 && px<10'd96+progress)begin overlay=1;light_overlay=0;end
+        if(y<9'd3 && px>=TRACK_START && px<TRACK_START+{1'b0,progress})begin overlay=1;light_overlay=0;end
         if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))begin overlay=1;light_overlay=0;end
         if(in_track && y>=64 && y<409)begin
             if(local_x==0 && glow_level==0)begin overlay=1;light_overlay=0;color=24'h303a50;end
@@ -293,7 +305,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                         progress<=0;work<=PUBLISH;
                     end
                     PUBLISH:begin
-                        if(progress_remaining>={9'd0,frames_snapshot} && progress<9'd448 && frames_snapshot!=0)begin
+                        if(progress_remaining>={9'd0,frames_snapshot} && progress<PROGRESS_WIDTH && frames_snapshot!=0)begin
                             progress_remaining<=progress_remaining-{9'd0,frames_snapshot};progress<=progress+9'd1;
                         end else begin front_bank<=!front_bank;work<=IDLE;
                             row_busy<=1;row_wait<=1;row_index<=0;row_y<=y;row_heads<=0;row_bodies<=0;row_head_style<=0;end

@@ -12,7 +12,7 @@ wire [23:0] pixel_rgb;
 reg [2047:0] output_path;
 integer x,y,out_file,radius_argument;
 always #5 clk=~clk;
-ring_spectrum_renderer #(.REFERENCE_MODE(REFERENCE_MODE)) dut(.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
+ring_spectrum_renderer #(.REFERENCE_MODE(REFERENCE_MODE)) dut(.game_layout(1'b0),.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
     .clk(clk),.rst(rst),.breath_radius(breath_radius),.pixel_x(pixel_x),.pixel_y(pixel_y),
     .bands(bands),.bars(bars),.pixel_on(pixel_on),.pixel_rgb(pixel_rgb));
 initial begin

@@ -2,7 +2,7 @@
 module tb_touch_rhythm_integration;
 reg sc=0,dc=0;always #10 sc=~sc;initial begin #3;forever #20 dc=~dc;end
 reg rst=1,enable=1,capture=0,gate=1,update=0,ad=0,bd=0;
-reg [3:0] ai=1,bi=2;reg [15:0] ax=3000,ay=8000,bx=6000,by=8000;
+reg [3:0] ai=1,bi=2;reg [15:0] ax=1500,ay=8000,bx=3500,by=8000;
 reg signed [32:0] song_time=0;
 reg [1:0] mode=2;
 wire se,lv,ev,er,armed,overflow,fault;wire [3:0] lp,lr,ld,p,r,d,holding;

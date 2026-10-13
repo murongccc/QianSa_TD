@@ -10,7 +10,7 @@ module tb_rhythm_renderer;
     wire [5:0] meta_address;reg [7:0] meta_data=0;reg [7:0] meta_memory[0:63];
     always @(posedge clk)meta_data<=meta_memory[meta_address];
     reg [191:0] title=0;reg [127:0] difficulty=0;
-    rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+    rhythm_game_renderer #(.COMPACT_LAYOUT(0),.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
         .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),.metadata_valid(1'b1),.metadata_data(meta_data),.metadata_address(meta_address),.clk(clk),.rst(rst),.enabled(enabled),.de(de),.vs(vs),.song_time(song_time),.song_frames(song_frames),
         .state(state),.error_code(error_code),.auto_mode(1'b1),.score(20'd1000000),.combo(16'd413),.max_combo(16'd413),

@@ -265,15 +265,22 @@ wire param_osd_pixel = param_osd_area && (param_osd_col < 3'd5) &&
 
 wire spectrum_on;
 wire [23:0] spectrum_rgb;
+// 稳定会话状态仅在帧边界切换频谱位置和背景压暗。
+reg game_frame_mode;
+reg [8:0] touch_y;
+// 游戏使用与轨道一致的行末计数；普通模式沿用原频谱扫描坐标。
+wire [9:0] spectrum_y=game_frame_mode ? {1'b0,touch_y} : pixel_y;
 ring_spectrum_renderer #(
+    .ENABLE_GAME_LAYOUT(ENABLE_RHYTHM),
     .REFERENCE_MODE(REFERENCE_SPECTRUM),
     .BLOCK_BARS(BLOCK_BARS),
     .ACTIVE_WIDTH(ACTIVE_WIDTH), .ACTIVE_HEIGHT(ACTIVE_HEIGHT)
 ) u_ring_spectrum_renderer (
     .clk(clk), .rst(rst), .breath_radius(spectrum_radius),
-    .bars(spectrum_bars), .pixel_x(render_x), .pixel_y(pixel_y), .bands(spectrum_bands),
+    .bars(spectrum_bars), .pixel_x(render_x), .pixel_y(spectrum_y), .bands(spectrum_bands),
     .bars_read_address(spectrum_read_address),.bars_read_data(spectrum_read_data),
     .bars_read_valid(spectrum_read_valid),.bars_active(spectrum_active),
+    .game_layout(game_frame_mode),
     .pixel_on(spectrum_on), .pixel_rgb(spectrum_rgb)
 );
 
@@ -284,7 +291,6 @@ reg base_valid_stage;
 reg param_osd_stage;
 reg game_stage;
 reg touch_a_stage,touch_b_stage;
-reg [8:0] touch_y;
 wire touch_a_hit,touch_b_hit;
 generate if(ENABLE_TOUCH_MARKERS)begin : g_touch_markers
     touch_marker u_marker(.active(de),.pixel_x(render_x),.pixel_y({1'b0,touch_y}),
@@ -294,13 +300,14 @@ end else begin : g_without_touch_markers
     assign touch_b_hit=1'b0;
 end endgenerate
 // 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
-reg game_frame_mode;
 wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
 // 位或式提亮：各通道不低于原背景；无加法溢出或透明度乘法，避免深色矩形覆盖。
 // 共用三通道背景使能，避免每个颜色位重复展开on/light/base_valid选择。
-wire game_background_enable=base_valid_stage && (!game_pixel_on || game_pixel_light);
+// 频谱和游戏像素均已锁存一级，合成保持既有两拍延迟。
+wire [23:0] game_backdrop_rgb=spectrum_on ? spectrum_rgb : (dimmed_rgb & {24{base_valid_stage}});
+wire game_background_enable=!game_pixel_on || game_pixel_light;
 wire [23:0] game_layer_rgb=(game_pixel_rgb & {24{game_pixel_on}}) |
-    (dimmed_rgb & {24{game_background_enable}});
+    (game_backdrop_rgb & {24{game_background_enable}});
 
 always @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -397,7 +404,7 @@ always @(posedge clk or posedge rst) begin
         param_osd_stage <= param_osd_pixel;game_stage<=game_frame_mode;
         touch_a_stage<=touch_a_hit;touch_b_stage<=touch_b_hit;
 
-        // 第二级：参数 OSD/频谱优先于处理后的底图。
+        // 第二级：游戏HUD/音符覆盖频谱，光晕提亮频谱或压暗底图。
         // A青色、B品红色、重合白色；同样经过两拍，优先于 OSD/频谱/游戏。
         if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
         else if(game_stage)rgb_out<=game_layer_rgb;

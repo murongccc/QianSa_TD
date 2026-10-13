@@ -27,7 +27,7 @@ module tb_rhythm_packed_queue;
         .head_valid(heads),.head_time(),.holding_mask(),.view_index(view_index),.view_valid(view_valid),.view_start(view_start),.view_end(view_end),
         .result_valid(),.result_lane(),.result_grade(),.perfect_count(),.good_count(),.bad_count(),.miss_count(misses),
         .combo(),.max_combo(),.score(),.done(done),.queue_overflow(overflow));
-    rhythm_game_renderer #(.BLOCK_GEOMETRY(1)) renderer(
+    rhythm_game_renderer #(.COMPACT_LAYOUT(0),.BLOCK_GEOMETRY(1)) renderer(
         .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(!rst_n),.enabled(1'b1),.de(1'b0),.vs(vs),.song_time(song_time),.song_frames(32'd0),

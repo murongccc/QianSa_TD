@@ -12,7 +12,7 @@ integer frame_file;
 reg [2047:0] frame_path;
 reg [23:0] first_color;
 real angle,dx,dy;
-ring_spectrum_renderer dut (.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
+ring_spectrum_renderer dut (.game_layout(1'b0),.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
     .clk(clk),.rst(rst),.breath_radius(8'd90),
     .pixel_x(pixel_x),.pixel_y(pixel_y),.bands(bands), .bars(640'd0),
     .pixel_on(pixel_on),.pixel_rgb(pixel_rgb)

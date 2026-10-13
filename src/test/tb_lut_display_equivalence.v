@@ -13,9 +13,9 @@ module tb_lut_display_equivalence;
     wire [9:0] rx0,ry0,rx1,ry1;
     integer s,m,i,j,r;
     always #5 clk=~clk;
-    ring_spectrum_renderer #(.REFERENCE_MODE(1),.DSP_GEOMETRY(1)) dsp(.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
+    ring_spectrum_renderer #(.REFERENCE_MODE(1),.DSP_GEOMETRY(1)) dsp(.game_layout(1'b0),.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
         .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bars(bars),.bands(bands),.pixel_on(on_dsp),.pixel_rgb(rgb_dsp));
-    ring_spectrum_renderer #(.REFERENCE_MODE(1),.DSP_GEOMETRY(0)) lut(.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
+    ring_spectrum_renderer #(.REFERENCE_MODE(1),.DSP_GEOMETRY(0)) lut(.game_layout(1'b0),.bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
         .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bars(bars),.bands(bands),.pixel_on(on_lut),.pixel_rgb(rgb_lut));
     rhythm_hud #(.BLOCK_CHARACTERS(1),.TEXT_ROM(1)) rom_hud(
         .clk(clk),.rst(rst),.frame_start(frame_start),.state(state),.error_code(error),.auto_mode(auto_mode),

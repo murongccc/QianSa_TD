@@ -5,7 +5,8 @@ module ring_spectrum_renderer #(
     parameter integer REFERENCE_MODE = 0,
     parameter integer ACTIVE_HEIGHT = 480,
     parameter integer DSP_GEOMETRY = 1,
-    parameter integer BLOCK_BARS = 0
+    parameter integer BLOCK_BARS = 0,
+    parameter integer ENABLE_GAME_LAYOUT = 0
 )(
     input wire clk,
     input wire rst,
@@ -17,24 +18,57 @@ module ring_spectrum_renderer #(
     output wire [6:0] bars_read_address,
     input wire [7:0] bars_read_data,
     input wire bars_read_valid, input wire bars_active,
+    input wire game_layout,
     output wire pixel_on,
     output wire [23:0] pixel_rgb
 );
-localparam [9:0] CENTER_X = ACTIVE_WIDTH / 2;
+// 布局状态由呈现模块在帧边界锁存；同一个频谱端口服务两种布局。
+wire small_layout = ENABLE_GAME_LAYOUT && game_layout;
+localparam [9:0] FULL_CENTER_X = ACTIVE_WIDTH / 2;
+localparam [9:0] GAME_CENTER_X = 10'd488;
+wire [9:0] CENTER_X = small_layout ? GAME_CENTER_X : FULL_CENTER_X;
 localparam [9:0] CENTER_Y = ACTIVE_HEIGHT / 2;
-wire [9:0] abs_x = (pixel_x >= CENTER_X) ?
-    ({1'b0,pixel_x} - {1'b0,CENTER_X}) : ({1'b0,CENTER_X} - {1'b0,pixel_x});
+// 两种固定中心并行算差，再选择结果，避免模式进入比较/减法进位链。
+wire full_x_right = pixel_x >= FULL_CENTER_X;
+wire game_x_right = pixel_x >= GAME_CENTER_X;
+wire [9:0] full_abs_x = full_x_right ? pixel_x-FULL_CENTER_X : FULL_CENTER_X-pixel_x;
+wire [9:0] game_abs_x = game_x_right ? pixel_x-GAME_CENTER_X : GAME_CENTER_X-pixel_x;
+wire [9:0] abs_x = small_layout ? game_abs_x : full_abs_x;
 wire [9:0] abs_y = (pixel_y >= CENTER_Y) ?
     ({1'b0,pixel_y} - {1'b0,CENTER_Y}) : ({1'b0,CENTER_Y} - {1'b0,pixel_y});
-wire x_right = pixel_x >= CENTER_X;
+wire x_right = small_layout ? game_x_right : full_x_right;
 wire y_down = pixel_y >= CENTER_Y;
-wire in_circle_bounds = (abs_x <= 11'd176) && (abs_y <= 11'd176);
+wire in_circle_bounds = small_layout ? ((abs_x <= 10'd120) && (abs_y <= 10'd120)) :
+    ((abs_x <= 10'd176) && (abs_y <= 10'd176));
 // 半径已由 FFT 原始峰值按参考算法计算，与音柱在同一视频帧发布。
-wire [7:0] base_radius = REFERENCE_MODE ? breath_radius : 8'd90;
+wire [7:0] full_radius = REFERENCE_MODE ? breath_radius : 8'd90;
+reg [7:0] small_radius;
+reg [13:0] small_radius_square;
+// 内半径取原半径的2/3；半径及平方同时查表，避免串接缩放和平方运算。
+always @* begin
+    case(full_radius)
+        8'd91:begin small_radius=8'd60;small_radius_square=14'd3600;end
+        8'd92:begin small_radius=8'd61;small_radius_square=14'd3721;end
+        8'd93,8'd94:begin small_radius=8'd62;small_radius_square=14'd3844;end
+        8'd95:begin small_radius=8'd63;small_radius_square=14'd3969;end
+        8'd96,8'd97:begin small_radius=8'd64;small_radius_square=14'd4096;end
+        8'd98:begin small_radius=8'd65;small_radius_square=14'd4225;end
+        8'd99,8'd100:begin small_radius=8'd66;small_radius_square=14'd4356;end
+        8'd101:begin small_radius=8'd67;small_radius_square=14'd4489;end
+        8'd102,8'd103:begin small_radius=8'd68;small_radius_square=14'd4624;end
+        8'd104:begin small_radius=8'd69;small_radius_square=14'd4761;end
+        8'd105,8'd106:begin small_radius=8'd70;small_radius_square=14'd4900;end
+        8'd107:begin small_radius=8'd71;small_radius_square=14'd5041;end
+        8'd108,8'd109:begin small_radius=8'd72;small_radius_square=14'd5184;end
+        8'd110:begin small_radius=8'd73;small_radius_square=14'd5329;end
+        default:begin small_radius=8'd60;small_radius_square=14'd3600;end
+    endcase
+end
+wire [7:0] base_radius = small_layout ? small_radius : full_radius;
 wire [16:0] base_radius_sq;
     reg [13:0] radius_square;
     always @* begin
-        case(base_radius)
+        case(full_radius)
             8'd91: radius_square=17'd8281;
             8'd92: radius_square=17'd8464;
             8'd93: radius_square=17'd8649;
@@ -58,7 +92,7 @@ wire [16:0] base_radius_sq;
             default: radius_square=17'd8100;
         endcase
     end
-    assign base_radius_sq=radius_square;
+    assign base_radius_sq={3'd0,(small_layout ? small_radius_square : radius_square)};
 wire [7:0] local_x = abs_x[7:0];
 wire [7:0] local_y = abs_y[7:0];
 wire [16:0] distance_sq = (local_x * local_x) + (local_y * local_y);
@@ -311,6 +345,7 @@ reg [7:0] base_radius_stage;
 reg [16:0] base_radius_sq_stage;
 reg active_stage, inside_side_stage, narrow_center_stage;
 reg [23:0] color_stage;
+reg small_layout_stage;
 // 数据寄存器每拍覆盖，复位仅清有效标志，减小全局复位网络负担。
 always @(posedge clk) begin
     distance_sq_stage <= distance_sq;
@@ -319,6 +354,7 @@ always @(posedge clk) begin
     inside_side_stage <= cross_error <= {9'd0,side_limit};
     narrow_center_stage <= cross_error <= {9'd0,cap_limit};
     color_stage <= rainbow(display_index);
+    small_layout_stage <= small_layout;
 end
 always @(posedge clk or posedge rst) begin
     if (rst) active_stage <= 1'b0;
@@ -327,7 +363,10 @@ end
 // 最大长度 63 像素；参考模式有声时最低 8 像素，静音整圈消失。
 localparam [5:0] MIN_BAR_LENGTH = REFERENCE_MODE ? 6'd8 : 6'd2;
 wire [5:0] scaled_length = level_stage[7:2];
-wire [5:0] bar_length = (scaled_length < MIN_BAR_LENGTH) ? MIN_BAR_LENGTH : scaled_length;
+wire [5:0] full_length = (scaled_length < MIN_BAR_LENGTH) ? MIN_BAR_LENGTH : scaled_length;
+// 音柱长度取3/4，最大47；73+47=120像素。六位运算不新增乘法器。
+wire [5:0] quarter_ceil={2'd0,full_length[5:2]}+{5'd0,(|full_length[1:0])};
+wire [5:0] bar_length = small_layout_stage ? full_length-quarter_ceil : full_length;
 wire [7:0] outer_radius = base_radius_stage + {2'd0,bar_length};
 wire [16:0] outer_radius_sq = outer_radius * outer_radius;
 // 恒定细线宽度；圆帽中央保留尖端像素，两侧各缩一像素。

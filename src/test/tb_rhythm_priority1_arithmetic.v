@@ -4,7 +4,7 @@ module tb_rhythm_priority1_arithmetic;
     reg clk=0,rst=1;
     reg [31:0] view_value=0;
     reg renderer_done=0,score_done=0;
-    rhythm_game_renderer #(.BLOCK_HUD(1)) candidate(
+    rhythm_game_renderer #(.COMPACT_LAYOUT(0),.BLOCK_HUD(1)) candidate(
         .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(rst),.enabled(1'b0),.de(1'b0),.vs(1'b0),.song_time(33'sd0),.song_frames(32'd1),

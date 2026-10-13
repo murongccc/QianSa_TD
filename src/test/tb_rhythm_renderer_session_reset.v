@@ -7,7 +7,7 @@ module tb_rhythm_renderer_session_reset;
     color_bar timing(.clk(clk),.rst(hard_reset),.hs(hs),.vs(vs),.de(de),.rgb_r(),.rgb_g(),.rgb_b());
     wire frame_enabled,pixel_on,capture;wire [23:0] pixel_rgb;
     wire [9:0] observed_x=renderer.px,observed_y=renderer.y;
-    rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
+    rhythm_game_renderer #(.COMPACT_LAYOUT(0),.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) renderer(
         .pixel_light(),
         .input_down(4'd0),.input_press(4'd0),
         .clk(clk),.rst(hard_reset || session_clear),.enabled(1'b1),.de(de),.vs(vs),

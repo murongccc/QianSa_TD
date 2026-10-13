@@ -35,14 +35,14 @@ begin
 end endtask
 initial begin
     repeat(4)@(negedge clk);rst=0;wait(armed);
-    report(8'h11,8'h21,3000,12000,2,0,9,0,9);
-    report(8'h21,8'h11,3000,12000,2,0,0,0,9); // 记录换位并移动，仍绑定原轨
-    report(8'h21,0,3000,0,1,0,0,1,8); // 压缩报告，编号2仍在原轨
-    report(8'h21,8'h31,3000,6000,2,0,2,0,10); // 槽复用新增编号3
-    report(8'h41,8'h31,9000,12000,2,0,4,8,6); // 同报告编号2消失、编号4按下
+    report(8'h11,8'h21,1500,7500,2,0,9,0,9);
+    report(8'h21,8'h11,1500,7500,2,0,0,0,9); // 记录换位并移动，仍绑定原轨
+    report(8'h21,0,1500,0,1,0,0,1,8); // 压缩报告，编号2仍在原轨
+    report(8'h21,8'h31,1500,3500,2,0,2,0,10); // 槽复用新增编号3
+    report(8'h41,8'h31,5500,7500,2,0,4,8,6); // 同报告编号2消失、编号4按下
     report(8'h41,8'h31,100,100,2,1,0,0,6); // 校验错误不释放
     repeat(100)@(negedge clk);if(d!==6)$fatal(1,"stationary timeout released");
-    report(8'h40,8'h30,9000,12000,2,0,0,6,0);
+    report(8'h40,8'h30,5500,7500,2,0,0,6,0);
     $display("PASS real parser to lanes: reorder, compaction, slot reuse, atomic replacement, bad checksum, stationary hold");$finish;
 end
 initial begin #2000000;$fatal(1,"timeout");end

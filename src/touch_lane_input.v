@@ -1,8 +1,13 @@
 // 解析器输出保持到下一次更新；115200 baud 的字节间隔也远大于本模块 13 拍处理时间。
 // 两点及六个边界共用一个比较器，不缓存原始坐标，也不依赖视频帧率。
 module touch_lane_input #(
-    parameter [15:0] X0=16'd2494, X1=16'd5307, X2=16'd8119,
-    parameter [15:0] X3=16'd10931, X4=16'd13744, Y0=16'd6962,
+    // 使用同一实测标定，将像素边界16/96/176/256/336反算到原始坐标。
+    parameter integer COMPACT_LAYOUT=1,
+    parameter [15:0] X0=COMPACT_LAYOUT ? 16'd486 : 16'd2494,
+    parameter [15:0] X1=COMPACT_LAYOUT ? 16'd2494 : 16'd5307,
+    parameter [15:0] X2=COMPACT_LAYOUT ? 16'd4503 : 16'd8119,
+    parameter [15:0] X3=COMPACT_LAYOUT ? 16'd6512 : 16'd10931,
+    parameter [15:0] X4=COMPACT_LAYOUT ? 16'd8521 : 16'd13744, Y0=16'd6962,
     parameter [8:0] PIXEL_Y_MIN=9'd352 // 验证脚本使用的像素边界；硬件仅比较 Y0
 )(
     input wire clk, input wire rst, input wire enable,

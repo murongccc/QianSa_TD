@@ -22,7 +22,7 @@ print('PASS board project includes both touch lane modules for synthesis', flush
 mapper = (root/'src/touch_pixel_mapper.v').read_text(encoding='utf-8')
 lane = (root/'src/touch_lane_input.v').read_text(encoding='utf-8')
 def constant(text, name):
-    return int(re.search(r'\b'+name+r"\s*=\s*\d+'d(\d+)", text)[1])
+    return int(re.search(r'\b'+name+r"\s*=\s*(?:COMPACT_LAYOUT\s*\?\s*)?\d+'d(\d+)", text)[1])
 def mapped(v, axis):
     low, high, scale = [constant(mapper, axis+n) for n in ['_MIN','_MAX','_SCALE_Q16']]
     return min(639 if axis=='X' else 479, ((min(high,max(low,v))-low)*scale+32768)>>16)
@@ -32,7 +32,7 @@ pixel_y_min = constant(lane, 'PIXEL_Y_MIN')
 for x in range(65536):
     px = mapped(x, 'X')
     actual = 0 if x<xs[0] or x>=xs[4] else 1<<sum(x>=edge for edge in xs[1:4])
-    expected = 0 if px<96 or px>=544 else 1<<((px-96)//112)
+    expected = 0 if px<16 or px>=336 else 1<<((px-16)//80)
     assert actual==expected, (x,px,actual,expected)
 for y in range(65536):
     assert (y>=y0)==(mapped(y,'Y')>=pixel_y_min), (y,mapped(y,'Y'))
@@ -50,6 +50,8 @@ names=['touch_lane_input','touch_game_event_bridge','rhythm_game_engine','rhythm
 cases=['tb_touch_lane_input','tb_touch_game_event_bridge','tb_touch_rhythm_integration','tb_touch_lane_serial','tb_touch_lane_parser']
 reference = subprocess.check_output(['git','show','f9aa991:src/touch_lane_input.v'],cwd=root).decode('utf-8')
 reference = re.sub(r"\bY0=16'd\d+",f"Y0=16'd{y0}",reference) # 仅对齐本轮有意修改的区域
+for i, value in enumerate(xs):
+    reference = re.sub(r"\bX"+str(i)+r"=16'd\d+", "X"+str(i)+"=16'd"+str(value), reference)
 reference = re.sub(r'\btouch_lane_input\b','touch_lane_input_reference',reference)
 reference_path = out/'touch_lane_input_reference.v'
 reference_path.write_text(reference,encoding='utf-8')

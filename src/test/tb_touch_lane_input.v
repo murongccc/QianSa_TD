@@ -19,7 +19,7 @@ task up;begin report(0,0,1,2,0,0,0,0,0,0,d);end endtask
 integer i,j;reg [15:0] edges[0:4];reg [3:0] expected;
 initial begin
     repeat(3)@(negedge clk);rst=0;enable=1;repeat(3)@(negedge clk);
-    edges[0]=2494;edges[1]=5307;edges[2]=8119;edges[3]=10931;edges[4]=13744;
+    edges[0]=486;edges[1]=2494;edges[2]=4503;edges[3]=6512;edges[4]=8521;
     for(i=0;i<5;i=i+1)for(j=-1;j<=1;j=j+1)begin
         if(i==0 && j==-1 || i==4 && j>=0)expected=0;
         else if(j==-1)expected=1<<(i-1);else expected=1<<i;
@@ -31,38 +31,38 @@ initial begin
         report(1,0,1,2,(edges[i]+edges[i+1])/2,6963,0,0,1<<i,1<<i,0);up;
     end
     // 新增的判定线上方区域：区外按下滑入仍忽略，区内向上移出仍绑定。
-    report(1,0,1,2,3000,6961,0,0,0,0,0);
-    report(1,0,1,2,3000,7100,0,0,0,0,0);up;
-    report(1,0,1,2,3000,6962,0,0,1,1,0);
-    report(1,0,1,2,3000,6961,0,0,1,0,0);up;
+    report(1,0,1,2,1500,6961,0,0,0,0,0);
+    report(1,0,1,2,1500,7100,0,0,0,0,0);up;
+    report(1,0,1,2,1500,6962,0,0,1,1,0);
+    report(1,0,1,2,1500,6961,0,0,1,0,0);up;
     report(1,0,1,2,100,8000,0,0,0,0,0);
-    report(1,0,1,2,6000,8000,0,0,0,0,0);up;
-    report(1,0,1,2,3000,65535,0,0,1,1,0);
-    report(1,0,1,2,12000,8000,0,0,1,0,0);
+    report(1,0,1,2,3500,8000,0,0,0,0,0);up;
+    report(1,0,1,2,1500,65535,0,0,1,1,0);
+    report(1,0,1,2,7500,8000,0,0,1,0,0);
     report(1,0,1,2,65535,100,0,0,1,0,0);up;
-    report(1,0,1,2,12000,8000,0,0,8,8,0);up;
-    report(1,1,1,2,3000,8000,12000,8000,9,9,0);
+    report(1,0,1,2,7500,8000,0,0,8,8,0);up;
+    report(1,1,1,2,1500,8000,7500,8000,9,9,0);
     // 槽交换，身份绑定保留；随后一指释放另一指仍保持。
-    report(1,1,2,1,3000,8000,12000,8000,9,0,0);
-    report(1,0,2,1,3000,8000,0,0,8,0,1);up;
-    report(1,0,1,2,6000,8000,0,0,2,2,0);
-    report(1,1,1,2,6000,8000,6100,8000,2,0,0);
-    report(0,1,1,2,6000,8000,6100,8000,2,0,0);up;
-    report(1,0,1,2,3000,8000,0,0,1,1,0);
-    report(1,0,3,2,9000,8000,0,0,4,4,1);up;
-    report(1,0,3,2,9000,8000,0,0,4,4,0);
+    report(1,1,2,1,1500,8000,7500,8000,9,0,0);
+    report(1,0,2,1,1500,8000,0,0,8,0,1);up;
+    report(1,0,1,2,3500,8000,0,0,2,2,0);
+    report(1,1,1,2,3500,8000,3600,8000,2,0,0);
+    report(0,1,1,2,3500,8000,3600,8000,2,0,0);up;
+    report(1,0,1,2,1500,8000,0,0,1,1,0);
+    report(1,0,3,2,5500,8000,0,0,4,4,1);up;
+    report(1,0,3,2,5500,8000,0,0,4,4,0);
     @(negedge clk);enable=0;repeat(3)@(negedge clk);enable=1;
     repeat(4)@(negedge clk);if(armed || d)$fatal(1,"held restart armed");
-    report(1,0,3,2,3000,8000,0,0,0,0,0);
+    report(1,0,3,2,1500,8000,0,0,0,0,0);
     report(0,0,3,2,0,0,0,0,0,0,0);repeat(3)@(negedge clk);
-    report(1,0,3,2,3000,8000,0,0,1,1,0);up;
+    report(1,0,3,2,1500,8000,0,0,1,1,0);up;
     // 顺序处理尚未完成时停用，必须丢弃整条报告，不提交半条绑定。
-    @(negedge clk);a_down=1;a_id=5;a_x=6000;a_y=8000;update_valid=1;
+    @(negedge clk);a_down=1;a_id=5;a_x=3500;a_y=8000;update_valid=1;
     @(negedge clk);update_valid=0;repeat(4)@(negedge clk);enable=0;
     repeat(16)@(negedge clk);if(valid || d || armed)$fatal(1,"partial report survived pause");
     enable=1;repeat(16)@(negedge clk);if(valid || d || armed)$fatal(1,"partial report resumed");
     report(0,0,5,2,0,0,0,0,0,0,0);repeat(3)@(negedge clk);
-    report(1,0,5,2,6000,8000,0,0,2,2,0);up;
+    report(1,0,5,2,3500,8000,0,0,2,2,0);up;
     $display("PASS lane boundaries, identity, no slide, chords, same lane, rearm, partial report cancellation");$finish;
 end
 initial begin #1000000;$fatal(1,"timeout");end

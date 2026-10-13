@@ -42,11 +42,11 @@ integer xx,yy,f,pixels=0;reg save=0;reg [23:0] base;
 always @(posedge clk)begin d1<=de;d2<=d1;x1<=input_x;y1<=input_y;x2<=x1;y2<=y1;end
 always @(negedge clk)if(save && d2)begin
     $fwrite(f,"%c%c%c",rgb[23:16],rgb[15:8],rgb[7:0]);pixels=pixels+1;
-    if(y2==300 && (x2==263 || x2==264 || x2==265) && rgb!==24'h994900)$fatal(1,"orange body/extra center stripe");
-    if(y2==230 && (x2==375 || x2==376 || x2==377) && rgb!==24'h8e143d)$fatal(1,"pink body/extra center stripe");
-    if(y2==366 && x2==264 && rgb!==24'hffffff)$fatal(1,"Hold head glyph not opaque");
-    if(y2==384 && x2==225 && rgb!==24'hffffff)$fatal(1,"judge line not opaque");
-    if(y2==360 && (x2==208 || x2==225))begin
+    if(y2==300 && (x2==135 || x2==136 || x2==137) && rgb!==24'h994900)$fatal(1,"orange body/extra center stripe");
+    if(y2==230 && (x2==215 || x2==216 || x2==217) && rgb!==24'h8e143d)$fatal(1,"pink body/extra center stripe");
+    if(y2==366 && x2==136 && rgb!==24'hffffff)$fatal(1,"Hold head glyph not opaque");
+    if(y2==384 && x2==113 && rgb!==24'hffffff)$fatal(1,"judge line not opaque");
+    if(y2==360 && (x2==96 || x2==107))begin
         base=(x2[5]^y2[5]) ? 24'h202830 : 24'h302018;
         if(rgb[23:16]<base[23:16] || rgb[15:8]<base[15:8] || rgb[7:0]<base[7:0])$fatal(1,"dark glow frame remains");
     end
