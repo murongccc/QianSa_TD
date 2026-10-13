@@ -1,0 +1,66 @@
+{
+  "baseline": {
+    "lut": 18379,
+    "reg": 10685,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 22,
+    "pll": 2,
+    "gclk": 2
+  },
+  "current": {
+    "lut": 18143,
+    "reg": 10575,
+    "bram": 57,
+    "bram9k": 41,
+    "fifo9k": 16,
+    "bram32k": 11,
+    "dsp": 21,
+    "pll": 2,
+    "gclk": 2
+  },
+  "delta": {
+    "lut": -236,
+    "reg": -110,
+    "bram": 0,
+    "bram9k": 0,
+    "fifo9k": 0,
+    "bram32k": 0,
+    "dsp": -1,
+    "pll": 0,
+    "gclk": 0
+  },
+  "baseline_warnings": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 2,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "current_warnings": {
+    "HDL-5007": 10,
+    "HDL-5323": 1,
+    "HDL-5317": 3,
+    "HDL-5314": 7,
+    "HDL-5001": 2,
+    "HDL-5106": 10,
+    "SYN-5013": 3,
+    "SYN-5025": 3,
+    "SYN-5011": 20,
+    "SYN-6577": 1,
+    "SYN-6562": 10
+  },
+  "gate_timing": "SWNS: -0.213ns, STNS: -3.408ns.\nHWNS: 0.471ns, HTNS: 0.000ns.",
+  "synthesis_runs": 1,
+  "place_route_runs": 0,
+  "bitstream": false,
+  "top_sha256": "deb54e59c9545bac30c7eeb81ccca97779f0eaec15a8ff8953a7bf255f024bef"
+}
