@@ -27,7 +27,8 @@ module rhythm_game_engine #(parameter integer SHARED_VIEW=0,parameter integer BL
         if(!rst_n)auto_guard<=0;else if(!run || view_capture)auto_guard<=0;else auto_guard<={auto_guard[0],1'b1};
     end
     wire [1:0] auto_lane;
-    wire [4:0] selected_view=(SHARED_VIEW && !view_capture) ? {auto_lane,3'd0} : view_index;
+    // 手动模式不访问自动扫轨地址，避免残留 AUTO 状态进入渲染视图选择器。
+    wire [4:0] selected_view=(SHARED_VIEW && input_mode==2'd0 && !view_capture) ? {auto_lane,3'd0} : view_index;
     wire use_auto=input_mode==2'd0;
     wire use_external=input_mode==2'd2;
     assign event_ready=use_external && core_ready;

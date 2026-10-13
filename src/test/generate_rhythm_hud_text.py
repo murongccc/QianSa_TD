@@ -6,7 +6,7 @@ from pathlib import Path
 def words():
     result = [32] * 1024
     labels = {32: 'COMBO', 128: 'E', 144: 'P', 160: 'G', 176: 'B', 192: 'M', 208: 'C'}
-    for mode, text in enumerate(['AUTO', 'TEST']):
+    for mode, text in enumerate(['MANUAL']):
         for address, label in {**labels, 48: text}.items():
             result[mode*256+address:mode*256+address+len(label)] = label.encode('ascii')
     statuses = {2: 'STOP - SW1 START', 4: 'LOADING', 5: 'READY', 7: 'PAUSED',

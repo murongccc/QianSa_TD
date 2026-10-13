@@ -14,7 +14,7 @@ module rhythm_session_controller #(
     input wire sample_emitted,sample_missing,prefetch_ready,
     input wire [31:0] sample_index,emitted_count,
     input wire judge_done,queue_overflow,
-    output wire freeze_media,output reg active_game,output reg auto_mode,
+    output wire freeze_media,output reg active_game,output wire auto_mode,
     output wire resource_reset,resource_enable,resource_cancel,
     output wire engine_reset,engine_run,engine_load,
     output wire [1:0] player_mode,
@@ -25,15 +25,17 @@ module rhythm_session_controller #(
 );
     localparam RETIRE=4'd0,CLEAR=4'd1,STOP=4'd2,SETTLE=4'd3,LOAD=4'd4,
                PREROLL=4'd5,PLAY=4'd6,PAUSE=4'd7,BUFFER=4'd8,TAIL=4'd9,RESULT=4'd10,ERROR=4'd11;
-    wire want_game,want_run,k2_level,k3_level,k4_level,k2,k3,k4;
+    wire want_game,want_run,k2_level,k3_level,k2,k3;
     wire [4:0] control_level,control_fall;
     // 五路输入保留独立同步、稳定电平和计数状态，每拍只处理一路计数，复用加法与阈值比较。
     rhythm_control_debounce_bank #(.CLK_FREQ_HZ(CLOCK_HZ),.DEBOUNCE_MS(DEBOUNCE_MS)) controls(
-        .clk(clk),.rst(rst),.async_in({mode_key_n,pause_key_n,restart_key_n,run_switch,game_switch}),
+        .clk(clk),.rst(rst),.async_in({1'b1,pause_key_n,restart_key_n,run_switch,game_switch}),
         .stable_level(control_level),.fall_pulse(control_fall));
-    assign {k4_level,k3_level,k2_level,want_run,want_game}=control_level;
-    assign {k4,k3,k2}=control_fall[4:2];
+    assign {k3_level,k2_level,want_run,want_game}=control_level[3:0];
+    assign {k3,k2}=control_fall[3:2];
     reg keys_armed;
+    // 保留兼容端口，板级游戏固定为手动；旧模式键不参与消抖或会话重载。
+    assign auto_mode=1'b0;
     reg [4:0] flags_meta,flags_sync;
     reg [3:0] err_meta,err_sync,err_previous;
     reg [31:0] frames_meta,frames_sync,level_meta,level_sync;
@@ -66,7 +68,7 @@ module rhythm_session_controller #(
         if(rst)begin
             flags_meta<=0;flags_sync<=0;err_meta<=0;err_sync<=0;err_previous<=0;
             frames_meta<=0;frames_sync<=0;level_meta<=0;level_sync<=0;notes_meta<=0;notes_sync<=0;offset_meta<=0;offset_sync<=0;
-            state<=RETIRE;active_game<=0;auto_mode<=1;keys_armed<=0;guard<=0;phase<=0;pre_count<=0;tail_count<=0;
+            state<=RETIRE;active_game<=0;keys_armed<=0;guard<=0;phase<=0;pre_count<=0;tail_count<=0;
             song_time<=0;song_frames<=0;total_notes<=0;chart_offset<=0;error_code<=0;paused_state<=PLAY;
         end else begin
             flags_meta<={media_quiet_async,resources_ready_async,cancelled_async,audio_eof_async,chart_eof_async};flags_sync<=flags_meta;
@@ -75,12 +77,11 @@ module rhythm_session_controller #(
             offset_meta<=offset_async;offset_sync<=offset_meta;
             phase<=soft_tick ? phase_sum-CLOCK_RATE : phase_sum[PHASE_BITS-1:0];
             if(!want_game)keys_armed<=0;
-            else if(k2_level && k3_level && k4_level)keys_armed<=1;
+            else if(k2_level && k3_level)keys_armed<=1;
             // 输出确认脉冲优先校准歌曲时间，包含模式同步退场期间的最后一个采样。
             if(active_game && sample_emitted && (state==PLAY || state==BUFFER || state==PAUSE))song_time<=$signed({1'b0,sample_index});
-            if(want_game && keys_armed && k4)auto_mode<=~auto_mode;
             if(state!=RETIRE && state!=CLEAR && (want_game!=active_game ||
-                (!want_run && state!=STOP) || (active_game && keys_armed && (k2 || (k4 && state!=STOP)))))begin
+                (!want_run && state!=STOP) || (active_game && keys_armed && k2)))begin
                 state<=RETIRE;guard<=0;
             // 错误码保持型跨域，连续两次一致后消费，避免多位子原因更新时锁存中间值。
             end else if(active_game && state>=LOAD && state!=ERROR && ((err_sync!=0 && err_sync==err_previous) || queue_overflow))begin

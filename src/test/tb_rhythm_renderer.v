@@ -57,6 +57,7 @@ module tb_rhythm_renderer;
         input integer number;
         begin @(negedge clk);vs=1;@(negedge clk);vs=0;repeat(4000)@(negedge clk);
             if(capture || renderer.work!=0)$fatal(1,"snapshot missed vertical blank");
+            if({hud_written[48],hud_written[49],hud_written[50],hud_written[51],hud_written[52],hud_written[53]}!="MANUAL")$fatal(1,"manual HUD label");
             if(hud_written[0]!=8'h31 || hud_written[16]!=8'h30 || hud_written[18]!=8'h34 || hud_written[20]!=8'h33 || renderer.progress!=112 || hud_written[64]!=8'h42 || hud_written[96]!=8'h44)$fatal(1,"HUD conversion");
             file_id=$fopen(number==0 ? "prj/log/rhythm_stage4_regression/game.ppm" : (number==1 ? "prj/log/rhythm_stage4_regression/result.ppm" : "prj/log/rhythm_stage4_regression/fallback.ppm"),"wb");
             $fwrite(file_id,"P6\n640 480\n255\n");pixels=0;save=1;

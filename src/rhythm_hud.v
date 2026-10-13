@@ -29,7 +29,7 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         assign selected_value=values[field];
     end endgenerate
     reg [1:0] phase;reg [7:0] address;reg [4:0] left;
-    reg [19:0] shift_value;reg [27:0] bcd;reg [3:0] saved_state,saved_error;reg saved_auto;
+    reg [19:0] shift_value;reg [27:0] bcd;reg [3:0] saved_state,saved_error;
     reg [127:0] status_text;
     always @*begin
         case(saved_state)
@@ -52,31 +52,18 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
             text_rom[34]=8'h4d;
             text_rom[35]=8'h42;
             text_rom[36]=8'h4f;
-            text_rom[48]=8'h41;
-            text_rom[49]=8'h55;
-            text_rom[50]=8'h54;
-            text_rom[51]=8'h4f;
+            text_rom[48]=8'h4d;
+            text_rom[49]=8'h41;
+            text_rom[50]=8'h4e;
+            text_rom[51]=8'h55;
+            text_rom[52]=8'h41;
+            text_rom[53]=8'h4c;
             text_rom[128]=8'h45;
             text_rom[144]=8'h50;
             text_rom[160]=8'h47;
             text_rom[176]=8'h42;
             text_rom[192]=8'h4d;
             text_rom[208]=8'h43;
-            text_rom[288]=8'h43;
-            text_rom[289]=8'h4f;
-            text_rom[290]=8'h4d;
-            text_rom[291]=8'h42;
-            text_rom[292]=8'h4f;
-            text_rom[304]=8'h54;
-            text_rom[305]=8'h45;
-            text_rom[306]=8'h53;
-            text_rom[307]=8'h54;
-            text_rom[384]=8'h45;
-            text_rom[400]=8'h50;
-            text_rom[416]=8'h47;
-            text_rom[432]=8'h42;
-            text_rom[448]=8'h4d;
-            text_rom[464]=8'h43;
             text_rom[544]=8'h53;
             text_rom[545]=8'h54;
             text_rom[546]=8'h4f;
@@ -132,7 +119,7 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         end
         // 顺序填充时预取下一地址，状态文本占独立的 16x16 区域。
         wire [9:0] text_address=(next_address>=112 && next_address<128) ?
-            {2'b10,saved_state,next_address[3:0]} : {1'b0,!saved_auto,next_address};
+            {2'b10,saved_state,next_address[3:0]} : {2'b00,next_address};
         always @(posedge clk)text_data<=text_rom[text_address];
         assign static_char=address==0 ? 8'h20 : text_data;
     end else begin: logic_text
@@ -152,8 +139,8 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
         else if(!TEXT_ROM && address>=112 && address<128)initial_char=status_text[{~address[3:0],3'b111} -:8];
         else if(!TEXT_ROM)case(address)
             32:initial_char="C";33:initial_char="O";34:initial_char="M";35:initial_char="B";36:initial_char="O";
-            48:initial_char=saved_auto ? "A" : "T";49:initial_char=saved_auto ? "U" : "E";
-            50:initial_char=saved_auto ? "T" : "S";51:initial_char=saved_auto ? "O" : "T";
+            48:initial_char="M";49:initial_char="A";50:initial_char="N";
+            51:initial_char="U";52:initial_char="A";53:initial_char="L";
             128:initial_char="E";129:initial_char=saved_error<10 ? 8'h30+{4'd0,saved_error} : "A";
             144:initial_char="P";160:initial_char="G";176:initial_char="B";192:initial_char="M";208:initial_char="C";
             default:begin end
@@ -171,9 +158,9 @@ module rhythm_hud #(parameter integer STREAM_METADATA=0,parameter integer BLOCK_
             4:field_address=164;5:field_address=180;default:field_address=196;endcase end
     endfunction
     always @(posedge clk or posedge rst)begin
-        if(rst)begin phase<=0;address<=0;field<=0;left<=0;shift_value<=0;bcd<=0;saved_state<=2;saved_error<=0;saved_auto<=1;end
+        if(rst)begin phase<=0;address<=0;field<=0;left<=0;shift_value<=0;bcd<=0;saved_state<=2;saved_error<=0;end
         else if(frame_start)begin
-            saved_state<=state;saved_error<=error_code;saved_auto<=auto_mode;phase<=1;address<=0;field<=0;
+            saved_state<=state;saved_error<=error_code;phase<=1;address<=0;field<=0;
         end else case(phase)
             1:begin
                 if(address==255)begin phase<=2;field<=0;shift_value<=BLOCK_CHARACTERS ? score : selected_value;bcd<=0;left<=20;end

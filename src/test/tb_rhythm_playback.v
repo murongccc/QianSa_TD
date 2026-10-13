@@ -55,7 +55,7 @@ module tb_rhythm_playback;
         .judge_done(judge_done),.queue_overflow(overflow),.freeze_media(freeze),.active_game(active),.auto_mode(auto_mode),
         .resource_reset(clear),.resource_enable(enable),.resource_cancel(cancel),.engine_reset(engine_reset),.engine_run(engine_run),.engine_load(engine_load),
         .player_mode(mode),.song_time(time_now),.song_frames(total_frames),.total_notes(total_notes),.chart_offset(offset),.chart_eof(chart_eof),.state(state),.error_code(error_code));
-    rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) engine(.view_capture(capture),.input_mode(auto_mode ? 2'd0 : 2'd1),.clk(nclk),.rst_n(!engine_reset),.run(engine_run && !capture),.song_time(time_now),.chart_offset(offset),
+    rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) engine(.view_capture(capture),.input_mode(2'd2),.clk(nclk),.rst_n(!engine_reset),.run(engine_run && !capture),.song_time(time_now),.chart_offset(offset),
         .total_notes(total_notes),.chart_eof(chart_eof),.note_valid(nvalid && engine_load && !capture),.note_data(ndata),.note_ready(nready),
         .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
         .head_valid(),.head_time(),.holding_mask(holding),.view_index(view_index),.view_valid(view_valid),.view_start(view_start),.view_end(view_end),
@@ -187,12 +187,12 @@ module tb_rhythm_playback;
         repeat(100)@(negedge nclk);if(time_now!=frozen_time)$fatal(1,"pause clock");press(3);wait_state(6);
         stall_sd=1;wait_state(8);frozen_time=time_now;repeat(100)@(negedge nclk);
         if(time_now!=frozen_time)$fatal(1,"starvation clock");stall_sd=0;wait_state(6);wait_state(10);
-        if(audible!=10000 || p!=16 || g || b || m || score!=1000000 || combo!=16)$fatal(1,"AUTO integrated result %0d P%0d score%0d",audible,p,score);
-        press(4);wait_state(6);while(audible<100)@(negedge nclk);press(2);wait_state(6);wait_state(10);
+        if(audible!=10000 || m!=16 || p || g || b || score || combo || auto_mode)$fatal(1,"manual idle generated automatic hits");
+        press(4);if(state!=10 || auto_mode)$fatal(1,"KEY4 reloaded result");press(2);wait_state(6);while(audible<100)@(negedge nclk);press(2);wait_state(6);wait_state(10);
         if(audible!=10000 || m!=16 || p || g || b || score || combo)$fatal(1,"TEST integrated result");
         sw1=0;wait_state(2);game=0;wait_state(0);wait_state(2);
         if(active || !fifo_empty)$fatal(1,"exit did not clear game");
-        $display("PASS integrated SD/PCM/frame sequence, pause, starvation, AUTO/TEST, restart, EOF/result, exit");$finish;
+        $display("PASS integrated SD/PCM/frame sequence, pause, starvation, manual default, ignored KEY4, restart, EOF/result, exit");$finish;
     end
     initial begin #100000000;$fatal(1,"integrated timeout state %0d time %0d PCM %0d",state,time_now,audible);end
 endmodule

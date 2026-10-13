@@ -730,7 +730,7 @@ sdram U3(
 
 rhythm_session_controller u_game_session(
     .clk(video_clk),.rst(rst_video),.game_switch(swkey3 && swkey4),.run_switch(swkey1),
-    .restart_key_n(key2),.pause_key_n(key3),.mode_key_n(key4),
+    .restart_key_n(key2),.pause_key_n(key3),.mode_key_n(1'b1),
     .media_quiet_async(media_quiet),.resources_ready_async(game_ready),.cancelled_async(game_cancelled),
     .audio_eof_async(game_audio_eof),.chart_eof_async(game_chart_eof),.error_async(game_error),
     .frames_async(resource_frames),.fifo_level_async(game_fifo_level),.notes_async(resource_notes),.offset_async(resource_offset),
@@ -746,7 +746,8 @@ assign audio_reader_reset_sd=1'b0;
 
 rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) u_game_engine(
     .view_capture(game_capture),
-    .input_mode(game_auto ? 2'd0 : 2'd2),.clk(video_clk),.rst_n(!engine_reset),.run(engine_run && !game_capture),
+    // 游戏固定为外部四轨手动输入，综合时移除 AUTO 事件发生器。
+    .input_mode(2'd2),.clk(video_clk),.rst_n(!engine_reset),.run(engine_run && !game_capture),
     .song_time(game_time),.chart_offset(chart_offset),.total_notes(total_notes),.chart_eof(session_chart_eof),
     .note_valid(game_note_valid && engine_load && !game_capture),.note_data(game_note_data),.note_ready(game_note_ready),
     .event_valid(touch_game_valid),.event_ready(touch_game_ready),.event_time(touch_game_time),

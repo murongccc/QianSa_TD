@@ -38,7 +38,7 @@ module tb_rhythm_session;
     initial begin
         repeat(4)@(negedge clk);rst=0;repeat(100)@(negedge clk);
         if(clear || state!=0)$fatal(1,"reset before picture transaction retired");quiet=1;
-        wait_state(5);if(time_now!=-8 || mode!=2 || !active)$fatal(1,"pre-roll setup");
+        wait_state(5);if(time_now!=-8 || mode!=2 || !active || auto_mode)$fatal(1,"manual pre-roll setup");
         wait_state(6);frame(0);repeat(5)@(negedge clk);if(time_now!=0)$fatal(1,"first sample time");
         repeat(10)@(negedge clk);if(time_now!=0)$fatal(1,"time moved without PCM");
         level=0;prefetch=0;missing=1;@(negedge clk);missing=0;wait_state(8);
@@ -48,7 +48,11 @@ module tb_rhythm_session;
         press(3);wait_state(6);for(i=2;i<20;i=i+1)frame(i);eof=1;ceof=1;wait_state(9);
         repeat(20)@(negedge clk);if(state!=9 || time_now!=27)$fatal(1,"tail/result synchronization");
         judge_done=1;wait_state(10);repeat(20)@(negedge clk);if(state!=10)$fatal(1,"result restarted");
-        count=0;judge_done=0;press(4);wait_state(6);if(auto_mode || time_now!=0)$fatal(1,"AUTO/TEST restart");
+        // 旧模式键在结果页及运行、暂停期间都必须无效，不得清空或重载。
+        press(4);if(auto_mode || state!=10)$fatal(1,"mode key changed result");
+        count=0;judge_done=0;press(2);wait_state(6);if(auto_mode || time_now!=0)$fatal(1,"manual restart");
+        paused_time=time_now;press(4);if(auto_mode || state!=6 || time_now!=paused_time)$fatal(1,"mode key changed play");
+        press(3);wait_state(7);press(4);if(state!=7 || auto_mode)$fatal(1,"mode key changed pause");press(3);wait_state(6);
         frame(0);count=0;press(2);wait_state(6);if(time_now!=0)$fatal(1,"KEY2 stale time");
         // 多位错误码只消费稳定值，短暂中间值不应锁死为错误页。
         error=3;@(negedge clk);error=0;repeat(6)@(negedge clk);if(state==11)$fatal(1,"transient error latched");
@@ -58,7 +62,7 @@ module tb_rhythm_session;
         count=0;press(2);wait_state(6);sw1=0;wait_state(2);if(enable || mode!=0)$fatal(1,"stop");
         sw1=1;wait_state(6);game=0;count=0;wait_state(0);wait_state(6);
         if(active || freeze || time_now!=0)$fatal(1,"exit media");press(3);if(state!=6)$fatal(1,"media key paused audio");
-        $display("PASS session retire/clear/pre-roll/PCM/buffer/pause/tail/result/restart/mode/exit");$finish;
+        $display("PASS manual session retire/clear/pre-roll/PCM/buffer/pause/tail/result/restart/ignored-mode-key/exit");$finish;
     end
     initial begin #10000000;$fatal(1,"session timeout");end
 endmodule
