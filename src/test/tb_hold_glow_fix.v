@@ -33,8 +33,8 @@ end
 reg inspect_geometry=1;
 always @(posedge clk)if(inspect_geometry && renderer.geo_we && (index==8 || index==16))begin
     if(renderer.geo_data[18:10]!=384)$fatal(1,"held head moved");
-    if(index==8 && time_now==48000 && renderer.geo_data[8:0]!=273)$fatal(1,"0.5s body not80px");
-    if(index==16 && time_now==48000 && renderer.geo_data[8:0]!=193)$fatal(1,"1s body not160px");
+    if(index==8 && time_now==48000 && renderer.geo_data[8:0]!=253)$fatal(1,"0.5s body not100px");
+    if(index==16 && time_now==48000 && renderer.geo_data[8:0]!=153)$fatal(1,"1s body not200px");
     if(index==8 && time_now==72000 && renderer.geo_data[8:0]!=353)$fatal(1,"Hold body vanished before end");
 end
 task frame;begin @(negedge clk);vs=1;@(negedge clk);vs=0;repeat(4000)@(negedge clk);if(capture)$fatal(1,"capture overrun");end endtask
@@ -60,7 +60,7 @@ initial begin
     end
     repeat(3)@(negedge clk);save=0;$fclose(f);if(pixels!=307200)$fatal(1,"frame pixel count");
     time_now=72000;frame;
-    $display("PASS actual Hold/glow: 80/160px bodies, end alignment, no center stripe, background-safe glow, opaque glyph/line, 307200 rendered pixels");$finish;
+    $display("PASS actual Hold/glow: 100/200px bodies, end alignment, no center stripe, background-safe glow, opaque glyph/line, 307200 rendered pixels");$finish;
 end
 initial begin #100000000;$fatal(1,"timeout");end
 endmodule

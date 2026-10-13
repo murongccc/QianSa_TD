@@ -18,7 +18,7 @@ module tb_rhythm_note_style;
 
     integer bottom[0:31],tail[0:31];reg valid[0:31],is_hold[0:31];
     always @*begin
-        vv=valid[vi];start=48000+(384-bottom[vi])*300;finish=48000+(384-tail[vi])*300;
+        vv=valid[vi];start=48000+(384-bottom[vi])*240;finish=48000+(384-tail[vi])*240;
     end
     function [23:0] bright;
         input integer lane;

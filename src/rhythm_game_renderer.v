@@ -53,7 +53,10 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
     reg [8:0] head_y;
     reg [16:0] dividend;reg [8:0] quotient,remainder;
     reg [4:0] left;wire [9:0] trial={remainder,dividend[16]};
-    wire subtract_ok=trial>=10'd300;
+    // 48 kHz PCM 时间：240 帧/像素，即 200 像素/秒，为原 160 像素/秒的 1.25 倍。
+    // 仅调整现有串行除法常量，头尾共用；音频时间和判定窗口不变。
+    localparam [9:0] SCROLL_SAMPLES_PER_PIXEL=10'd240;
+    wire subtract_ok=trial>=SCROLL_SAMPLES_PER_PIXEL;
     wire [8:0] quotient_next={quotient[7:0],subtract_ok};
     reg [40:0] progress_remaining;
     wire [40:0] progress_numerator;
@@ -278,7 +281,7 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                     SETUP:begin dividend<=!difference_fits || magnitude>18'd96000 ? 17'd96000 : magnitude[16:0];quotient<=0;remainder<=0;left<=5'd17;negative<=difference[33];work<=DIVIDE;end
                     DIVIDE:begin
                         dividend<=dividend<<1;quotient<=quotient_next;left<=left-5'd1;
-                        remainder<=subtract_ok ? trial-10'd300 : trial[8:0];
+                        remainder<=subtract_ok ? trial-SCROLL_SAMPLES_PER_PIXEL : trial[8:0];
                         if(left==1)work<=STORE;
                     end
                     STORE:if(!which_end)begin head_y<=(index[2:0]==0 && hold_snapshot[index[4:3]]) ? 10'd384 : converted_y;which_end<=1;work<=SETUP;end

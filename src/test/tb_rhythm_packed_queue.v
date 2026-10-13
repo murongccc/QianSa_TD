@@ -39,7 +39,7 @@ module tb_rhythm_packed_queue;
     // 快照使用真实窄队列，而非组合式视图假数据；首帧特意与最后一条写入重叠。
     always @(negedge clk)if(check_geometry)view_index=rendered_index;
     always @(posedge clk)if(check_geometry && geometry_write)begin
-        expected_head=384-(starts[rendered_index]-32'h12340000)/300;
+        expected_head=384-(starts[rendered_index]-32'h12340000)/240;
         if(geometry_word!=={1'b1,1'b1,expected_head,10'd64})$fatal(1,"packed snapshot geometry at %0d got %h",rendered_index,geometry_word);
         geometry_count=geometry_count+1;
     end
