@@ -35,6 +35,8 @@ always @(negedge clk)if(save && d1)begin
     if(y1==370 && x1==56 && color!==24'h3f330a)$fatal(1,"middle glow tier");
     if(y1==360 && x1==56 && color!==24'h3f330a)$fatal(1,"upper glow tier");
     if(y1==352 && x1==56 && color!==24'h1f1905)$fatal(1,"expanded area glow tier");
+    if(y1==256 && x1==56 && (!on || color!==24'h1f1905))$fatal(1,"finger-distance upper glow boundary");
+    if(y1==255 && x1==56 && on)$fatal(1,"glow above touch area");
 end
 initial begin
     repeat(4)@(negedge clk);rst=0;repeat(3)@(negedge clk);frame;levels(0);

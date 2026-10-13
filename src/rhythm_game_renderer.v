@@ -247,7 +247,8 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
         overlay=0;light_overlay=0;color=24'hffffff;
         // 光晕先绘制，音符、判定线及HUD随后覆盖，保持判定画面清楚。
         if(in_track && glow_level!=2'd0 && y>=9'd64)begin
-            if(y[8:5]>=4'd11 && local_x>=7'd4 && local_x<GLOW_RIGHT)begin
+            // 触摸有效区域上移至y=256，弱光晕同步覆盖新增的一指操作距离。
+            if(y[8] && local_x>=7'd4 && local_x<GLOW_RIGHT)begin
                 overlay=1;light_overlay=1;color=glow_color;
                 if(y[8:2]==7'd97 && glow_level==2'd3)color=note_color;
             end else if(local_x<7'd4 || local_x>=GLOW_RIGHT)begin

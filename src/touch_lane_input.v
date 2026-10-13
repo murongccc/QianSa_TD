@@ -7,8 +7,8 @@ module touch_lane_input #(
     parameter [15:0] X1=COMPACT_LAYOUT ? 16'd2494 : 16'd5307,
     parameter [15:0] X2=COMPACT_LAYOUT ? 16'd4503 : 16'd8119,
     parameter [15:0] X3=COMPACT_LAYOUT ? 16'd6512 : 16'd10931,
-    parameter [15:0] X4=COMPACT_LAYOUT ? 16'd8521 : 16'd13744, Y0=16'd6962,
-    parameter [8:0] PIXEL_Y_MIN=9'd352 // 验证脚本使用的像素边界；硬件仅比较 Y0
+    parameter [15:0] X4=COMPACT_LAYOUT ? 16'd8521 : 16'd13744, Y0=16'd5096,
+    parameter [8:0] PIXEL_Y_MIN=9'd256 // 线上方128像素可触摸；硬件仅比较原始Y0
 )(
     input wire clk, input wire rst, input wire enable,
     input wire update_valid,
