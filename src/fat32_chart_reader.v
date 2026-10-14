@@ -42,6 +42,21 @@ module fat32_chart_reader #(
     reg [8:0] byte_pos,fat_offset;
     reg [31:0] next_cluster,entry_cluster,entry_size;
     reg [7:0] entry_first,entry_attr;
+    // 三个簇来源互斥，先共享写使能再并行选择，避免取消条件进入逐位优先反馈链。
+    wire cluster_run = !cancel && !cancel_pending;
+    wire cluster_from_volume = cluster_run && state==IDLE && enable && volume_valid;
+    wire cluster_from_entry = cluster_run && state==DIR_DATA && sd_valid && byte_pos[4:0]==5'd31 &&
+        !found && !dir_end && entry_match && entry_first!=8'he5 &&
+        entry_attr!=8'h0f && (entry_attr & 8'h18)==0;
+    wire cluster_from_fat = cluster_run && state==FAT_CHECK &&
+        (next_cluster & 32'h0fffffff)>=32'd2 && (next_cluster & 32'h0fffffff)<32'h0ffffff0;
+    always @(posedge clk or posedge rst)begin
+        if(rst)cluster<=0;
+        else if(cluster_from_volume || cluster_from_entry || cluster_from_fat)
+            cluster<=({32{cluster_from_volume}} & volume_root_cluster) |
+                     ({32{cluster_from_entry}} & entry_cluster & 32'h0fffffff) |
+                     ({32{cluster_from_fat}} & next_cluster & 32'h0fffffff);
+    end
     function integer directory_count_width;
         input integer maximum;
         integer remaining;
@@ -122,7 +137,7 @@ module fat32_chart_reader #(
             state<=IDLE;sd_req<=0;sd_addr<=0;note_we<=0;
             header_valid<=0;song_frames<=0;note_count<=0;hold_count<=0;offset_samples<=0;
             title<=0;difficulty<=0;busy<=0;eof<=0;cancelled<=0;error_code<=0;
-            fat_start<=0;data_start<=0;cluster<=0;sector<=0;file_size<=0;file_pos<=0;
+            fat_start<=0;data_start<=0;sector<=0;file_size<=0;file_pos<=0;
             file_last_byte<=0;oversized_file<=0;
             spc<=0;sector_in_cluster<=0;product<=0;multiply_spc<=0;
             directory<=1;entry_match<=0;found<=0;dir_end<=0;cancel_pending<=0;
@@ -140,7 +155,7 @@ module fat32_chart_reader #(
             end else case(state)
                 IDLE:if(enable && volume_valid)begin
                     busy<=1;fat_start<=volume_fat_start;data_start<=volume_data_start;
-                    spc<=volume_sectors_per_cluster;cluster<=volume_root_cluster;
+                    spc<=volume_sectors_per_cluster;
                     state<=START_CHECK;
                 end
                 START_CHECK:begin
@@ -178,7 +193,7 @@ module fat32_chart_reader #(
                             30:entry_size[23:16]<=sd_data;
                             31:if(!found && !dir_end && entry_match && entry_first!=8'he5 &&
                                   entry_attr!=8'h0f && (entry_attr & 8'h18)==0)begin
-                                found<=1;cluster<=entry_cluster & 32'h0fffffff;
+                                found<=1;
                                 file_size<=entry_size[19:0];oversized_file<=sd_data!=0 || entry_size[23:20]!=0;
                             end
                             default:;
@@ -282,7 +297,7 @@ module fat32_chart_reader #(
                 FAT_CHECK:begin
                     if((next_cluster&32'h0fffffff)<2 || (next_cluster&32'h0fffffff)>=32'h0ffffff0)begin
                         busy<=0;error_code<=directory?4'd1:4'd5;state<=FINISHED;
-                    end else begin cluster<=next_cluster & 32'h0fffffff;sector_in_cluster<=0;state<=CALC;end
+                    end else begin sector_in_cluster<=0;state<=CALC;end
                 end
                 FINISHED:begin end
                 VERIFY_EOF:if(!note_we)begin
