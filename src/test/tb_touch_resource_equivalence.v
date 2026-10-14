@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-// 与修改前保存的RTL逐拍对照，检查非法协议输入、双点分配、串口波形及映射抢占。
+// 解析器/坐标映射对照既有RTL；已改变的监视协议由独立UART位流回归覆盖。
 module tb_touch_resource_equivalence;
 reg clk=0;always #10 clk=~clk;
 reg parser_rst=1,byte_valid=0,byte_error=0;
@@ -17,25 +17,6 @@ ch9350_touch_parser #(.CLK_HZ(1000),.FRAME_TIMEOUT_MS(20)) parser_dut(`PARSER_PO
 baseline_ch9350_touch_parser #(.CLK_HZ(1000),.FRAME_TIMEOUT_MS(20)) parser_ref(`PARSER_PORTS(parser_expected));
 `undef PARSER_PORTS
 
-reg monitor_rst=1,update_valid=0,echo_valid=0;
-reg [85:0] event_packet=0;
-reg [7:0] echo_data=0;
-reg [15:0] counters=0;
-wire [32:0] monitor_actual,monitor_expected;
-`define MONITOR_PORTS(bus) \
-    .clk(clk),.rst(monitor_rst),.update_valid(update_valid), \
-    .frame_seq(event_packet[85:78]),.a_id(event_packet[77:74]),.a_down(event_packet[73]), \
-    .a_x(event_packet[72:57]),.a_y(event_packet[56:41]),.b_id(event_packet[40:37]), \
-    .b_down(event_packet[36]),.b_x(event_packet[35:20]),.b_y(event_packet[19:4]), \
-    .press_mask(event_packet[3:2]),.release_mask(event_packet[1:0]), \
-    .good_count(counters),.checksum_error_count(counters^16'ha55a),.format_error_count(counters+16'd17), \
-    .sequence_gap_count(counters-16'd31),.timeout_count(counters^16'hff00),.uart_error_count(~counters), \
-    .ack_count(counters+16'd257),.echo_valid(echo_valid),.echo_data(echo_data), \
-    .uart_txd(bus[32]),.monitor_drop_count(bus[31:16]),.echo_drop_count(bus[15:0])
-touch_serial_monitor #(.CLK_HZ(100000),.BAUD(10000),.SNAPSHOT_MS(7)) monitor_dut(.lane_valid(1'b0),.lane_down(4'd0),.lane_press(4'd0),.lane_release(4'd0),.lane_fault(1'b0),.lane_monitor_overflow(),`MONITOR_PORTS(monitor_actual));
-baseline_touch_serial_monitor #(.CLK_HZ(100000),.BAUD(10000),.SNAPSHOT_MS(7)) monitor_ref(`MONITOR_PORTS(monitor_expected));
-`undef MONITOR_PORTS
-
 reg mapper_rst=1,mapper_update=0;
 reg [65:0] mapper_inputs=0;
 wire [41:0] mapper_actual0,mapper_expected0,mapper_actual1,mapper_expected1;
@@ -50,12 +31,11 @@ baseline_touch_pixel_mapper #(.ATOMIC_OUTPUT(1)) mapper_ref1(`MAPPER_PORTS(mappe
 `undef MAPPER_PORTS
 
 integer cycles=0,frames=0;
-reg parser_done=0,monitor_done=0,mapper_done=0;
+reg parser_done=0,mapper_done=0;
 always @(posedge clk) begin
     #1;
     cycles=cycles+1;
     if(parser_actual!==parser_expected)begin $display("FAIL parser equivalence cycle=%0d frame=%0d actual=%h expected=%h",cycles,frames,parser_actual,parser_expected);$stop;end
-    if(monitor_actual!==monitor_expected)begin $display("FAIL monitor waveform/count equivalence cycle=%0d",cycles);$stop;end
     if(mapper_actual0!==mapper_expected0 || mapper_actual1!==mapper_expected1)begin $display("FAIL mapper equivalence cycle=%0d",cycles);$stop;end
 end
 
@@ -105,18 +85,6 @@ initial begin
     end
     @(negedge clk);byte_valid=0;byte_error=0;parser_rst=0;parser_done=1;
 end
-integer monitor_seed=32'h12345678,m,random_monitor;
-initial begin
-    repeat(5)@(negedge clk);monitor_rst=0;
-    for(m=0;m<220000;m=m+1)begin
-        @(negedge clk);random_monitor=$random(monitor_seed);
-        counters=counters+16'h1237;
-        update_valid=(m%300==0 || (m>2000 && m<2040));
-        echo_valid=(m%1301==0 || (m>3000 && m<3040));echo_data=random_monitor[7:0];
-        if(update_valid)event_packet={random_monitor[21:0],$random(monitor_seed),$random(monitor_seed)};
-    end
-    @(negedge clk);update_valid=0;echo_valid=0;monitor_done=1;
-end
 integer mapper_seed=32'h87654321,n,random_mapper;
 initial begin
     repeat(5)@(negedge clk);mapper_rst=0;
@@ -129,9 +97,9 @@ initial begin
     @(negedge clk);mapper_update=0;mapper_rst=0;mapper_done=1;
 end
 initial begin
-    wait(parser_done && monitor_done && mapper_done);
+    wait(parser_done && mapper_done);
     repeat(30)@(negedge clk);
-    $display("PASS touch resource equivalence: %0d cycles, %0d reports, UART waveforms/counters and both mapper modes",cycles,frames);$finish;
+    $display("PASS touch resource equivalence: %0d cycles, %0d reports, parser counters and both mapper modes",cycles,frames);$finish;
 end
 initial begin #100000000;$display("FAIL resource equivalence timeout");$stop;end
 endmodule

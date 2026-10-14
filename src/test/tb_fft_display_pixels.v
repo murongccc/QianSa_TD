@@ -36,18 +36,19 @@ baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1)) golden(
     .pixel_on(on_old),.pixel_rgb(ring_old));
 video_presentation #(.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.INITIAL_WARMUP_FRAMES(0)) video(
         .game_pixel_light(1'b0),
-    .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(display_new),.brightness_level_async(3'd4),
+    .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+    .display_slot_applied_toggle(),.display_active(display_new),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd0),
-    .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+    .image_selected_async(2'd0),
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(radius),
     .spectrum_read_address(video_address),.spectrum_read_data(video_data),.spectrum_read_valid(video_valid),.spectrum_active(nonzero),
     .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),.de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_new));
 baseline_video_presentation #(.REFERENCE_SPECTRUM(1),.INITIAL_WARMUP_FRAMES(0)) old_video(
+    .brightness_level_async(3'd4),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(display_old),.brightness_level_async(3'd4),
+    .display_slot_applied_toggle(),.display_active(display_old),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd0),
-    .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+    .image_selected_async(2'd0),
     .spectrum_bands(256'd0),.spectrum_bars(bars),.spectrum_radius(radius),
     .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),.de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_old));
 always @(posedge clk)begin

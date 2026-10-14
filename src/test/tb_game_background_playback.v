@@ -45,7 +45,7 @@ module tb_game_background_playback;
         .offset_samples(),.title(),.difficulty(),.resources_ready(ready),.cancelled(cancelled),.wav_busy(),.wav_done(),.wav_found(),.wav_format_ok(),.wav_format_error(),
         .audio_eof(aeof),.chart_eof(ceof),.error_code(error));
     pcm_audio_player #(.PIXEL_CLOCK_HZ(480000),.PREFETCH_PAUSED(1)) player(
-        .clk(nclk),.rst(rst || clear),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.volume_level_async(3'd4),.playback_mode_async(mode),
+        .clk(nclk),.rst(rst || clear),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.playback_mode_async(mode),
         .fifo_re(re),.audio_valid(audio_valid),.left_pcm(left_pcm),.right_pcm(right_pcm),.underrun(),
         .sample_emitted(emit),.sample_missing(missing),.sample_index(sample_index),.emitted_count(emitted_count),.prefetch_ready(prefetch));
     rhythm_session_controller #(.CLOCK_HZ(480000),.DEBOUNCE_MS(1),.PREROLL_SAMPLES(100),.TAIL_SAMPLES(7200)) session(
@@ -76,17 +76,17 @@ module tb_game_background_playback;
     wire bg_load,bg_inflight,bg_valid,bg_request,bg_applied;
     wire [2:0] bg_write,bg_slot;
     media_session_controller #(.CLK_FREQ_HZ(10000),.AUTO_PERIOD_SECONDS(3),.ENABLE_FREEZE(1),.ENABLE_GAME_CAROUSEL(1)) background(
-        .clk(clk),.rst(rst),.key_next(1'b1),.key_auto(1'b1),.uart_command_async(3'd0),.uart_command_toggle_async(1'b0),
+        .clk(clk),.rst(rst),.key_next(1'b1),.key_auto(1'b1),
         .scan_done(1'b1),.candidate_valid(bg_candidate),.media_count(bg_count),.loader_ready(1'b1),.frame_commit(bg_commit),.load_abort(1'b0),
         .freeze(freeze),.game_auto_enable(active && enable && !cancel),.session_ready(background_ready),
         .display_switch_applied_toggle_async(bg_applied),.load_start(bg_load),.load_media_index(),.write_slot(bg_write),.display_slot(bg_slot),
         .display_switch_toggle(bg_request),.display_valid(bg_valid),.auto_play_enabled(),.load_inflight(bg_inflight));
     wire [23:0] bg_rgb;
     video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) background_video(
-        .clk(nclk),.rst(rst),.display_valid(bg_valid),.display_slot_async(bg_slot),.display_switch_toggle_async(bg_request),
-        .display_slot_applied_toggle(bg_applied),.display_active(),.brightness_level_async(3'd4),
+        .clk(nclk),.rst(rst),.display_valid(bg_valid),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(bg_slot),.display_switch_toggle_async(bg_request),
+        .display_slot_applied_toggle(bg_applied),.display_active(),
         .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
-        .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+        .image_selected_async(2'd0),
         .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd100),
         .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
         .game_active(active),.game_pixel_on(1'b0),.game_pixel_light(1'b0),.game_pixel_rgb(24'd0),.touch_frame_packet(40'd0),

@@ -9,7 +9,7 @@ def run(label,cmd,passed=False):
  print(label+': '+'; '.join(l for l in text.splitlines() if 'PASS' in l or 'Errors:' in l),flush=True)
 lib=str(OUT/'work')
 if not Path(lib).exists():run('library',[shutil.which('vlib'),lib])
-modules=['ch9350_touch_parser','ch9350_touch_input','touch_counter_increment','touch_lane_input','touch_game_event_bridge','rhythm_game_engine','rhythm_judge_core','rhythm_auto_input','rhythm_block_ram','rhythm_session_controller','touch_serial_monitor','uart_byte_tx','uart_byte_rx','uart_command_control','frame_read_monitor','touch_pixel_mapper','touch_frame_snapshot','touch_marker']
+modules=['ch9350_touch_parser','ch9350_touch_input','touch_counter_increment','touch_lane_input','touch_game_event_bridge','rhythm_game_engine','rhythm_judge_core','rhythm_auto_input','rhythm_block_ram','rhythm_session_controller','touch_serial_monitor','uart_byte_tx','uart_byte_rx','frame_read_monitor','touch_pixel_mapper','touch_frame_snapshot','touch_marker']
 cases=['tb_touch_three_rearm','tb_touch_three_engine','tb_touch_three_replay','tb_ch9350_touch_parser','tb_touch_lane_input','tb_touch_lane_parser','tb_touch_game_event_bridge','tb_touch_rhythm_integration','tb_touch_lane_serial','tb_touch_uart_integration','tb_touch_serial_monitor','tb_touch_pixel_mapper','tb_touch_frame_snapshot','tb_touch_marker','tb_rhythm_session']
 run('compile',[shutil.which('vlog'),'-work',lib,'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','E:/AnLuTD/sim_release/eg4/eg_logic_dram.v','src/test/eg_logic_mult_model.v',*[str(ROOT/'src'/(m+'.v')) for m in modules],*[str(ROOT/'src/test'/(m+'.v')) for m in cases]])
 for e in json.loads((ROOT/'src/test/data/touch_three_manifest.json').read_text(encoding='utf-8')):

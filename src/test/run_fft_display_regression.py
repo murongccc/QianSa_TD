@@ -42,7 +42,7 @@ def main():
         run('library', 'vlib', [library])
     run('compile', 'vlog', ['-work', library, 'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v',
         'src/test/eg_logic_mult_model.v', 'src/rhythm_block_ram.v', 'src/audio_fft_spectrum.v',
-        baseline.as_posix(), 'src/ring_spectrum_renderer.v', 'src/video_presentation.v', *baseline_display,
+        baseline.as_posix(), 'src/ring_spectrum_renderer.v', 'src/image_info_metadata.v','src/image_info_osd.v','src/image_osd_font.v','src/video_presentation.v', *baseline_display,
         'src/test/tb_fft_display_cache.v', 'src/test/tb_fft_display_equivalence.v', 'src/test/tb_fft_display_pixels.v'])
     if args.only in (None, 'cache'):
         run('cache_boundaries', 'vsim', ['-c', '-lib', library, 'tb_fft_display_cache',

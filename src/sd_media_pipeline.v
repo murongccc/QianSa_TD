@@ -19,10 +19,11 @@ module sd_media_pipeline #(
     output wire [3:0] game_error,output wire [31:0] game_frames,game_audio_level,
     output wire [15:0] game_notes,output wire signed [31:0] game_offset,
     output wire [191:0] game_title,output wire [127:0] game_difficulty,
-    input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     output wire [3:0] state_code, input wire [15:0] bmp_width, input wire [15:0] bmp_height,
     output wire [15:0] parsed_width, output wire [15:0] parsed_height,
     output wire parsed_top_down,
+    output wire [88:0] display_info,
+    input wire info_clk,info_rst,info_frame_start,input wire [2:0] info_slot,
     output wire display_valid, input wire write_finish_toggle,
     input wire display_switch_applied_toggle_async,
     output wire display_switch_toggle,
@@ -105,7 +106,8 @@ wire [23:0] scaler_dst_pixel;
 wire [9:0] scaler_dst_x, scaler_dst_y;
 wire scaler_busy, scaler_done;
 reg scaler_started;
-wire scaler_start = write_req_ack_sync && !scaler_started;
+wire image_info_ready;
+wire scaler_start = write_req_ack_sync && !scaler_started && image_info_ready;
 wire source_fifo_re = scaler_src_ready && source_fifo_valid;
 wire scaler_dst_ready = write_ready;
 // A 512-byte sector can contribute at most 171 RGB pixels.  Reserve that
@@ -280,13 +282,21 @@ always @(posedge clk or posedge rst_local) begin
     end
 end
 
+// 与图片槽同生命周期保存元数据；原始解析尺寸不会直接作为当前画面信息。
+image_info_metadata #(.OUT_WIDTH(SCALER_OUT_WIDTH),.OUT_HEIGHT(SCALER_OUT_HEIGHT)) u_image_info (
+    .clk(clk),.rst(rst_local || !sd_init_qualified),.start(scaler_start),.abort(load_abort),.commit(frame_commit),
+    .write_slot(write_buf_idx),.ready(image_info_ready),
+    .video_clk(info_clk),.video_rst(info_rst),.frame_start(info_frame_start),.display_slot(info_slot),
+    .source_width(parsed_width),.source_height(parsed_height),.display_info(display_info)
+);
+
 media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3),.ENABLE_FREEZE(ENABLE_RHYTHM),
     .ENABLE_GAME_CAROUSEL(ENABLE_RHYTHM)) u_session (
     .freeze(game_control_sync[3]),.session_ready(session_ready),
     // 只切预载SDRAM槽；退出/取消期间关闭轮播，让切换应答排空后再清会话。
     .game_auto_enable(game_control_sync[2] && game_control_sync[0] && !game_control_sync[1]),
     .clk(clk),.rst(rst_local),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
-    .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
+
     .candidate_valid(catalog_candidate_valid),
     .media_count(media_count),.loader_ready(bmp_ready),.frame_commit(frame_commit),.load_abort(load_abort),.load_start(load_start),
     .display_switch_applied_toggle_async(display_switch_applied_toggle_async),

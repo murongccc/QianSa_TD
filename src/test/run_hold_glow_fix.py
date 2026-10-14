@@ -11,7 +11,7 @@ def run(name,command,passed=False):
     print('\n'.join(l for l in s.splitlines() if 'PASS' in l or 'Errors:' in l),flush=True)
 lib=str(out/'work')
 if not Path(lib).exists():run('library',[shutil.which('vlib'),lib])
-names=['rhythm_game_renderer','rhythm_block_ram','rhythm_font','rhythm_hud','video_presentation','ring_spectrum_renderer']
+names=['rhythm_game_renderer','rhythm_block_ram','rhythm_font','rhythm_hud','image_info_metadata','image_info_osd','image_osd_font','video_presentation','ring_spectrum_renderer']
 cases=['tb_video_glow_blend','tb_hold_glow_fix']
 run('compile',[shutil.which('vlog'),'-work',lib,'E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','src/test/eg_logic_mult_model.v',
     *[str(root/'src'/(n+'.v')) for n in names],*[str(root/'src/test'/(n+'.v')) for n in cases]])

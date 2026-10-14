@@ -6,8 +6,6 @@ reg rst = 1'b1;
 reg key_next = 1'b1;
 // SW2 is an active-high level enable in the board constraints.
 reg key_auto = 1'b0;reg freeze=0;reg game_auto_enable=0;
-reg [2:0] uart_command_async = 3'd0;
-reg uart_command_toggle_async = 1'b0;
 reg scan_done = 1'b1;
 reg candidate_valid = 1'b1;
 reg [2:0] media_count = 3'd0;
@@ -32,8 +30,8 @@ media_session_controller #(
 ) dut (
     .freeze(freeze),.session_ready(),.game_auto_enable(game_auto_enable),
     .clk(clk), .rst(rst), .key_next(key_next), .key_auto(key_auto),
-    .uart_command_async(uart_command_async),
-    .uart_command_toggle_async(uart_command_toggle_async),
+
+
     .scan_done(scan_done), .candidate_valid(candidate_valid), .media_count(media_count), .loader_ready(loader_ready),
       .frame_commit(frame_commit), .load_abort(load_abort),
     .display_switch_applied_toggle_async(display_switch_applied_toggle_async),
@@ -43,13 +41,10 @@ media_session_controller #(
     .auto_play_enabled(auto_play_enabled), .load_inflight(load_inflight)
 );
 
-task uart_command;
-    input [2:0] command;
+task press_next;
     begin
-        @(negedge clk);
-        uart_command_async = command;
-        uart_command_toggle_async = ~uart_command_toggle_async;
-        repeat (4) @(posedge clk);
+        @(negedge clk);key_next=0;repeat(30)@(negedge clk);
+        key_next=1;repeat(30)@(negedge clk);
     end
 endtask
 
@@ -102,13 +97,13 @@ initial begin
     if (!display_valid) $fatal(1, "first picture was not committed after preload");
 
     // 冻结前一个切换在途，并保留待处理命令；在途必须完成，排队应被清空。
-    uart_command(3'd1);uart_command(3'd1);wait(dut.display_switch_inflight);
+    press_next;press_next;wait(dut.display_switch_inflight);
     @(negedge clk);freeze=1;key_auto=1;key_next=0;
     apply_display;repeat(20)@(negedge clk);
     if(display_slot!=1 || !dut.session_ready || dut.manual_next_pending || dut.auto_next_pending || auto_play_enabled)
         $fatal(1,"freeze did not drain displayed/pending selection");
-    uart_command(3'd1);uart_command(3'd2);uart_command(3'd3);repeat(4000)@(negedge clk);
-    if(display_slot!=1 || dut.display_switch_inflight || dut.auto_period_cycles!=3000)$fatal(1,"game accepted picture UART/auto");
+    press_next;repeat(4000)@(negedge clk);
+    if(display_slot!=1 || dut.display_switch_inflight || dut.AUTO_PERIOD_CYCLES!=3000)$fatal(1,"game accepted picture KEY2/auto");
     @(negedge clk);freeze=0;key_auto=0;repeat(20)@(negedge clk);
     if(display_slot!=1 || dut.display_switch_inflight)$fatal(1,"held KEY2 replayed on exit");
     key_next=1;repeat(30)@(negedge clk);key_next=0;repeat(30)@(negedge clk);key_next=1;
@@ -127,9 +122,9 @@ initial begin
         apply_display;
     end
     if(loads!=before_loads)$fatal(1,"carousel reloaded BMP from SD");
-    // 冻结时KEY2与串口不能产生手动切图；停SW2后不能残留排队切换。
+    // 冻结时KEY2不能产生手动切图；停SW2后不能残留排队切换。
     key_auto=0;repeat(10)@(negedge clk);expected_slot=display_slot;
-    uart_command(3'd1);uart_command(3'd3);repeat(4000)@(negedge clk);
+    press_next;repeat(4000)@(negedge clk);
     if(display_slot!==expected_slot || dut.display_switch_inflight || dut.auto_next_pending || auto_play_enabled)
         $fatal(1,"game manual request or disabled SW2 switched background");
     key_auto=1;wait(dut.display_switch_inflight);game_auto_enable=0;

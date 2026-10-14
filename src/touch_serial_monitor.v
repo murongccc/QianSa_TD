@@ -1,4 +1,4 @@
-// 串口监视与原快捷键回显共用 CH340 TX。逐行发送，行内不插入回显字符。
+// CH340串口只输出触摸诊断，逐行发送，不接收控制命令或回显。
 // 普通坐标20 Hz取样；队列五项含正在发送一项，与原四项等待队列容量一致。
 // 队列溢出仅影响监视文本，分别计数；统计每秒输出一次，所有数值为十六进制。
 // 数值逐字段装入16位移位器，避免整行宽寄存器及宽数据逐字符选择。
@@ -17,8 +17,7 @@ module touch_serial_monitor #(
     input wire [15:0] timeout_count, input wire [15:0] uart_error_count, input wire [15:0] ack_count,
     input wire lane_valid, input wire [3:0] lane_down,lane_press,lane_release,
     input wire lane_fault, output reg lane_monitor_overflow,
-    input wire echo_valid, input wire [7:0] echo_data,
-    output wire uart_txd, output reg [15:0] monitor_drop_count, output reg [15:0] echo_drop_count
+    output wire uart_txd, output reg [15:0] monitor_drop_count
 );
 function integer counter_width;
     input integer value;
@@ -40,9 +39,6 @@ reg snapshot_due, stats_due;
 reg [2:0] event_wr, event_rd;
 reg [2:0] event_count;
 reg event_read_ready;
-reg [7:0] echo_mem [0:15];
-reg [3:0] echo_wr, echo_rd;
-reg [4:0] echo_count;
 reg line_busy, stats_line, lane_line, lane_pending;
 reg [11:0] lane_record;
 reg lane_fault_seen;
@@ -62,14 +58,12 @@ wire [85:0] queued_event;
 wire tx_ready;
 wire ms_tick = ms_ticks==MS_LIMIT;
 wire push_event = update_valid && (snapshot_due || press_mask!=2'd0 || release_mask!=2'd0);
-wire start_event = !line_busy && echo_count==5'd0 && !stats_due && !lane_pending && event_count!=3'd0 && event_read_ready;
+wire start_event = !line_busy && !stats_due && !lane_pending && event_count!=3'd0 && event_read_ready;
 wire pop_event = line_busy && !stats_line && !lane_line && line_index==6'd45 && tx_ready;
 wire lane_pop = line_busy && lane_line && line_index==6'd22 && tx_ready;
 wire accept_event = push_event && (event_count<3'd5 || pop_event);
-wire pop_echo = !line_busy && echo_count!=5'd0 && tx_ready;
-wire accept_echo = echo_valid && (echo_count<5'd16 || pop_echo);
-wire tx_valid = line_busy || echo_count!=5'd0;
-wire [7:0] tx_data = line_busy ? line_char : echo_mem[echo_rd];
+wire tx_valid = line_busy;
+wire [7:0] tx_data = line_char;
 // A/B字段间隔16个字符，共用低4位索引及一次触点数据选择。
 wire point_field=line_index>=6'd4 && line_index<6'd36;
 wire [36:0] point_data=line_index[4] ? queued_event[40:4] : queued_event[77:41];
@@ -114,7 +108,7 @@ function [19:0] counter_name;
             4'd5:counter_name={5'd20,5'd15,5'd0,5'd0};
             4'd6:counter_name={5'd1,5'd3,5'd11,5'd0};
             4'd7:counter_name={5'd4,5'd18,5'd15,5'd16};
-            default:counter_name={5'd5,5'd3,5'd8,5'd15};
+            default:counter_name=20'd0;
         endcase
     end
 endfunction
@@ -192,7 +186,7 @@ always @* begin
             4'd5:field_value=timeout_count;
             4'd6:field_value=ack_count;
             4'd7:field_value=monitor_drop_count;
-            default:field_value=echo_drop_count;
+            default:field_value=16'd0;
         endcase
     end
 end
@@ -205,12 +199,11 @@ always @(posedge clk or posedge rst) begin
         snapshot_due<=1'b1; stats_due<=1'b0;
         event_wr<=3'd0; event_rd<=3'd0; event_count<=3'd0;
         event_read_ready<=1'b0;
-        echo_wr<=4'd0; echo_rd<=4'd0; echo_count<=5'd0;
         lane_line<=0;lane_pending<=0;lane_record<=0;lane_fault_seen<=0;lane_monitor_overflow<=0;
         line_busy<=1'b0;stats_line<=1'b0;line_index<=6'd0;
         stats_state<=S_HEAD;stats_field<=4'd0;stats_digit<=2'd0;stats_name<=20'd0;
         digit_word<=16'd0;
-        monitor_drop_count<=16'd0; echo_drop_count<=16'd0;
+        monitor_drop_count<=16'd0;
     end else begin
         if(lane_fault)lane_fault_seen<=1;
         if(lane_pop)lane_pending<=0;
@@ -244,16 +237,7 @@ always @(posedge clk or posedge rst) begin
             default: ;
         endcase
 
-        if (echo_valid && !accept_echo) echo_drop_count<=echo_drop_count+16'd1;
-        if (accept_echo) begin echo_mem[echo_wr]<=echo_data; echo_wr<=echo_wr+4'd1; end
-        if (pop_echo) echo_rd<=echo_rd+4'd1;
-        case ({accept_echo,pop_echo})
-            2'b10: echo_count<=echo_count+5'd1;
-            2'b01: echo_count<=echo_count-5'd1;
-            default: ;
-        endcase
-
-        if (!line_busy && echo_count==5'd0) begin
+        if (!line_busy) begin
             if (stats_due) begin
                 lane_line<=0;line_busy<=1'b1;stats_line<=1'b1;line_index<=6'd0;
                 stats_state<=S_HEAD;stats_field<=4'd0;stats_name<=counter_name(4'd0);
@@ -282,7 +266,7 @@ always @(posedge clk or posedge rst) begin
                 end
                 S_EQUAL:begin stats_digit<=2'd0;stats_state<=S_DIGIT;end
                 S_DIGIT:begin
-                    if(stats_digit==2'd3)stats_state<=stats_field==4'd8 ? S_CR : S_SPACE;
+                    if(stats_digit==2'd3)stats_state<=stats_field==4'd7 ? S_CR : S_SPACE;
                     else stats_digit<=stats_digit+2'd1;
                 end
                 S_SPACE:begin

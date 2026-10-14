@@ -1,9 +1,8 @@
-// 视频呈现：图像参数处理、环形音频频谱及左上角参数 OSD。
+// 视频呈现：图像参数处理、环形音频频谱及右侧中文图片信息栏。
 module video_presentation #(
     parameter integer ACTIVE_WIDTH = 640,
     parameter integer REFERENCE_SPECTRUM = 0,
     parameter integer ACTIVE_HEIGHT = 480,
-    parameter integer OSD_DISPLAY_CYCLES = 50_000_000,
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
     parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0,
     parameter integer BLOCK_BARS = 0,
@@ -11,16 +10,15 @@ module video_presentation #(
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
+    input wire [88:0] display_info,
+    output wire info_frame_start,output wire [2:0] info_slot,
     input wire display_switch_toggle_async,
     output reg display_slot_applied_toggle,
     output reg display_active,
-    input wire [2:0] brightness_level_async,
     input wire [6:0] image_brightness_async,
     input wire [6:0] image_contrast_async,
     input wire [6:0] image_sharpness_async,
     input wire [1:0] image_selected_async,
-    input wire image_select_toggle_async,
-    input wire image_adjust_toggle_async,
     input wire [255:0] spectrum_bands,
     input wire [639:0] spectrum_bars,
     input wire [7:0] spectrum_radius,
@@ -33,6 +31,8 @@ module video_presentation #(
     output reg [23:0] rgb_out
 );
 reg [2:0] slot_sync0, slot_sync1, active_slot;
+// 元数据由双时钟BRAM在本域消隐期间组包，不再逐位同步宽总线。
+wire [88:0] active_info=display_info;
 reg display_switch_toggle_meta, display_switch_toggle_sync;
 reg display_switch_toggle_seen;
 reg vs_d, de_d;
@@ -40,54 +40,21 @@ reg display_valid_meta, display_valid_sync;
 reg [3:0] initial_warmup_frames;
 reg [9:0] pixel_x, pixel_y, reveal_x;
 reg [6:0] fade_level;
-reg [2:0] brightness_meta, brightness_sync;
 reg [6:0] image_brightness_meta, image_brightness_sync;
 reg [6:0] image_contrast_meta, image_contrast_sync;
 reg [1:0] image_selected_meta, image_selected_sync;
-reg image_select_toggle_meta, image_select_toggle_sync, image_select_toggle_seen;
-reg image_adjust_toggle_meta, image_adjust_toggle_sync, image_adjust_toggle_seen;
-reg [6:0] image_value_seen;
-reg [1:0] image_selected_seen;
-reg [26:0] osd_count;
-reg osd_mode_adjust;
 wire frame_start = vs & ~vs_d;
+assign info_frame_start=frame_start;
+assign info_slot=(display_switch_toggle_sync!=display_switch_toggle_seen) ? slot_sync1 : active_slot;
 wire line_start = de & ~de_d;
 // 消隐开始时已把横坐标清零，下一行首个有效像素直接使用寄存值 0。
 // 避免 de 经首像素选择器进入频谱环的深层几何组合路径。
 wire [9:0] render_x = pixel_x;
 
-localparam [26:0] OSD_DISPLAY_CYCLES_VALUE = OSD_DISPLAY_CYCLES;
 localparam [3:0] INITIAL_WARMUP_FRAMES_VALUE = INITIAL_WARMUP_FRAMES;
 
-function [6:0] brightness_gain;
-    input [2:0] level;
-    begin
-        // 50%..137.5%; level 4 retains the former 1.0x default.
-        brightness_gain = 7'd32 + {level, 3'b000};
-    end
-endfunction
-function [7:0] scale_component;
-    input [7:0] component;
-    input [6:0] level;
-    reg [14:0] product;
-    begin
-        // The legacy UART brightness gain is expressed in 1/64 units.
-        // Saturation preserves the expected neutral value at gain=64 and
-        // prevents bright scenes from wrapping around.
-        product = component * level;
-        if (product > 15'd16320) scale_component = 8'hff;
-        else scale_component = product >> 6;
-    end
-endfunction
-
-// Avoid a variable multiplier in the critical video path.  The fade effect
-// is represented by the existing reveal mask; brightness remains adjustable.
-wire [6:0] gain = brightness_gain(brightness_sync);
-wire [23:0] faded_rgb = {
-    scale_component(rgb_in[23:16], gain),
-    scale_component(rgb_in[15:8], gain),
-    scale_component(rgb_in[7:0], gain)
-};
+// 移除串口亮度倍率后，原始RGB以1.0倍直接进入亮度/对比度处理。
+wire [23:0] faded_rgb=rgb_in;
 function [7:0] clamp8s;
     input signed [17:0] value;
     begin
@@ -161,108 +128,6 @@ wire [23:0] adjusted_rgb = {
     image_adjust_component(faded_rgb[15:8],  image_brightness_sync, image_contrast_sync),
     image_adjust_component(faded_rgb[7:0],   image_brightness_sync, image_contrast_sync)
 };
-wire show_osd = (osd_count != 27'd0);
-wire [6:0] selected_value = (image_selected_sync == 2'd0) ? image_brightness_sync :
-                             image_contrast_sync;
-
-// 左上角 5x7 参数 OSD：选择时显示参数名称，调整时显示数值。
-function [4:0] param_font_row;
-    input [7:0] ch; input [2:0] row;
-    begin
-        case (ch)
-            "A": case(row) 0:param_font_row=5'b01110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b11111;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b10001; endcase
-            "B": case(row) 0:param_font_row=5'b11110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b11110;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b11110; endcase
-            "C": case(row) 0:param_font_row=5'b01111;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b10000;4:param_font_row=5'b10000;5:param_font_row=5'b10000;default:param_font_row=5'b01111; endcase
-            "D": case(row) 0:param_font_row=5'b11110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b10001;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b11110; endcase
-            "E": case(row) 0:param_font_row=5'b11111;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b11110;4:param_font_row=5'b10000;5:param_font_row=5'b10000;default:param_font_row=5'b11111; endcase
-            "G": case(row) 0:param_font_row=5'b01111;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b10111;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b01110; endcase
-            "H": case(row) 0:param_font_row=5'b10001;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b11111;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b10001; endcase
-            "I": case(row) 0:param_font_row=5'b11111;1:param_font_row=5'b00100;2:param_font_row=5'b00100;3:param_font_row=5'b00100;4:param_font_row=5'b00100;5:param_font_row=5'b00100;default:param_font_row=5'b11111; endcase
-            "J": case(row) 0:param_font_row=5'b00111;1:param_font_row=5'b00010;2:param_font_row=5'b00010;3:param_font_row=5'b00010;4:param_font_row=5'b00010;5:param_font_row=5'b10010;default:param_font_row=5'b01100; endcase
-            "L": case(row) 0:param_font_row=5'b10000;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b10000;4:param_font_row=5'b10000;5:param_font_row=5'b10000;default:param_font_row=5'b11111; endcase
-            "N": case(row) 0:param_font_row=5'b10001;1:param_font_row=5'b11001;2:param_font_row=5'b10101;3:param_font_row=5'b10011;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b10001; endcase
-            "O": case(row) 0:param_font_row=5'b01110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b10001;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b01110; endcase
-            "P": case(row) 0:param_font_row=5'b11110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b11110;4:param_font_row=5'b10000;5:param_font_row=5'b10000;default:param_font_row=5'b10000; endcase
-            "R": case(row) 0:param_font_row=5'b11110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b11110;4:param_font_row=5'b10100;5:param_font_row=5'b10010;default:param_font_row=5'b10001; endcase
-            "S": case(row) 0:param_font_row=5'b01111;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b01110;4:param_font_row=5'b00001;5:param_font_row=5'b00001;default:param_font_row=5'b11110; endcase
-            "T": case(row) 0:param_font_row=5'b11111;1:param_font_row=5'b00100;2:param_font_row=5'b00100;3:param_font_row=5'b00100;4:param_font_row=5'b00100;5:param_font_row=5'b00100;default:param_font_row=5'b00100; endcase
-            "U": case(row) 0:param_font_row=5'b10001;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b10001;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b01110; endcase
-            8'h30: param_font_row = (row==0 || row==6) ? 5'b01110 : 5'b10001;
-            8'h31: param_font_row = (row==0) ? 5'b00100 : 5'b01100;
-            8'h32: case(row) 0:param_font_row=5'b01110;1:param_font_row=5'b10001;2:param_font_row=5'b00001;3:param_font_row=5'b00110;4:param_font_row=5'b01000;5:param_font_row=5'b10000;default:param_font_row=5'b11111; endcase
-            8'h33: case(row) 0:param_font_row=5'b11110;1:param_font_row=5'b00001;2:param_font_row=5'b00001;3:param_font_row=5'b01110;4:param_font_row=5'b00001;5:param_font_row=5'b00001;default:param_font_row=5'b11110; endcase
-            8'h34: case(row) 0:param_font_row=5'b00010;1:param_font_row=5'b00110;2:param_font_row=5'b01010;3:param_font_row=5'b10010;4:param_font_row=5'b11111;5:param_font_row=5'b00010;default:param_font_row=5'b00010; endcase
-            8'h35: case(row) 0:param_font_row=5'b11111;1:param_font_row=5'b10000;2:param_font_row=5'b10000;3:param_font_row=5'b11110;4:param_font_row=5'b00001;5:param_font_row=5'b00001;default:param_font_row=5'b11110; endcase
-            8'h36: case(row) 0:param_font_row=5'b00110;1:param_font_row=5'b01000;2:param_font_row=5'b10000;3:param_font_row=5'b11110;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b01110; endcase
-            8'h37: case(row) 0:param_font_row=5'b11111;1:param_font_row=5'b00001;2:param_font_row=5'b00010;3:param_font_row=5'b00100;4:param_font_row=5'b01000;5:param_font_row=5'b01000;default:param_font_row=5'b01000; endcase
-            8'h38: case(row) 0:param_font_row=5'b01110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b01110;4:param_font_row=5'b10001;5:param_font_row=5'b10001;default:param_font_row=5'b01110; endcase
-            8'h39: case(row) 0:param_font_row=5'b01110;1:param_font_row=5'b10001;2:param_font_row=5'b10001;3:param_font_row=5'b01111;4:param_font_row=5'b00001;5:param_font_row=5'b00010;default:param_font_row=5'b11100; endcase
-            default: param_font_row = 5'b00000;
-        endcase
-    end
-endfunction
-function [7:0] parameter_char;
-    input [1:0] which; input [3:0] index;
-    begin
-        if (which==2'd0) begin case(index) 0:parameter_char="B";1:parameter_char="R";2:parameter_char="I";3:parameter_char="G";4:parameter_char="H";5:parameter_char="T";6:parameter_char="N";7:parameter_char="E";8:parameter_char="S";9:parameter_char="S";default:parameter_char=" "; endcase end
-        else if (which==2'd1) begin case(index) 0:parameter_char="C";1:parameter_char="O";2:parameter_char="N";3:parameter_char="T";4:parameter_char="R";5:parameter_char="A";6:parameter_char="S";7:parameter_char="T";default:parameter_char=" "; endcase end
-        else parameter_char=" ";
-    end
-endfunction
-wire [3:0] osd_hundreds = image_value_seen / 7'd100;
-wire [3:0] osd_tens = (image_value_seen / 7'd10) % 7'd10;
-wire [3:0] osd_ones = image_value_seen % 7'd10;
-function [4:0] parameter_name_length;
-    input [1:0] which;
-    begin
-        case (which)
-            2'd0: parameter_name_length = 5'd10; // BRIGHTNESS
-            2'd1: parameter_name_length = 5'd8;  // CONTRAST
-            default: parameter_name_length = 5'd0; // 保留组合不显示参数名称
-        endcase
-    end
-endfunction
-wire [4:0] parameter_value_length = (image_value_seen >= 7'd100) ? 5'd3 :
-                                    (image_value_seen >= 7'd10)  ? 5'd2 : 5'd1;
-wire [4:0] parameter_osd_length = osd_mode_adjust ? parameter_value_length :
-                                  parameter_name_length(image_selected_seen);
-function [7:0] parameter_osd_char;
-    input [4:0] idx;
-    begin
-        if (!osd_mode_adjust) begin
-            if (idx < parameter_name_length(image_selected_seen))
-                parameter_osd_char = parameter_char(image_selected_seen, idx[3:0]);
-            else
-                parameter_osd_char = " ";
-        end else if (image_value_seen >= 7'd100) begin
-            case (idx)
-                0: parameter_osd_char = 8'h30 + osd_hundreds;
-                1: parameter_osd_char = 8'h30 + osd_tens;
-                2: parameter_osd_char = 8'h30 + osd_ones;
-                default: parameter_osd_char = " ";
-            endcase
-        end else if (image_value_seen >= 7'd10) begin
-            case (idx)
-                0: parameter_osd_char = 8'h30 + osd_tens;
-                1: parameter_osd_char = 8'h30 + osd_ones;
-                default: parameter_osd_char = " ";
-            endcase
-        end else begin
-            parameter_osd_char = (idx == 0) ? (8'h30 + osd_ones) : " ";
-        end
-    end
-endfunction
-wire param_osd_area = show_osd && (pixel_y >= 10'd2) && (pixel_y < 10'd10) &&
-                      (render_x >= 10'd8) &&
-                      (render_x < (10'd8 + {2'd0, parameter_osd_length, 3'd0}));
-wire [9:0] param_osd_rel_x = (render_x >= 10'd8) ? render_x - 10'd8 : 10'd0;
-wire [4:0] param_osd_index = param_osd_rel_x[9:3];
-wire [2:0] param_osd_col = param_osd_rel_x[2:0];
-wire [2:0] param_osd_row = pixel_y - 10'd2;
-wire [4:0] param_osd_glyph_row = param_font_row(parameter_osd_char(param_osd_index), param_osd_row);
-wire param_osd_pixel = param_osd_area && (param_osd_col < 3'd5) &&
-                       param_osd_glyph_row[4-param_osd_col];
-
 wire spectrum_on;
 wire [23:0] spectrum_rgb;
 // 稳定会话状态仅在帧边界切换频谱位置和背景压暗。
@@ -288,7 +153,18 @@ ring_spectrum_renderer #(
 // 第二级锁存图像/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
 reg [23:0] adjusted_rgb_stage;
 reg base_valid_stage;
-reg param_osd_stage;
+wire info_panel_stage,info_ink_stage;
+wire [23:0] info_ink_rgb;
+generate if(ACTIVE_WIDTH>=240 && ACTIVE_HEIGHT>=176)begin : g_image_info
+    image_info_osd #(.ACTIVE_WIDTH(ACTIVE_WIDTH),.ACTIVE_HEIGHT(ACTIVE_HEIGHT)) u_osd(
+        .clk(clk),.rst(rst),.frame_start(frame_start),
+        .enable(display_active && active_info[88] && !game_frame_mode),.de(de),
+        .pixel_x(render_x),.pixel_y({1'b0,touch_y}),.image_info(active_info[87:0]),
+        .brightness(image_brightness_sync),.contrast(image_contrast_sync),.selected(image_selected_sync),
+        .panel_on(info_panel_stage),.ink_on(info_ink_stage),.ink_rgb(info_ink_rgb));
+end else begin : g_without_image_info
+    assign info_panel_stage=1'b0;assign info_ink_stage=1'b0;assign info_ink_rgb=24'd0;
+end endgenerate
 reg game_stage;
 reg touch_a_stage,touch_b_stage;
 wire touch_a_hit,touch_b_hit;
@@ -319,6 +195,9 @@ wire game_background_enable=!game_pixel_on || game_pixel_light;
 wire [23:0] game_layer_rgb=(game_pixel_rgb & {24{game_pixel_on}}) |
     (game_backdrop_rgb & {24{game_background_enable}});
 
+// 底板在最终图片/频谱上压暗一半，文字不经过图片参数调节。
+wire [23:0] info_underlay=(spectrum_on ? spectrum_rgb : adjusted_rgb_stage) & {24{base_valid_stage}};
+wire [23:0] info_background_rgb={1'b0,info_underlay[23:17],1'b0,info_underlay[15:9],1'b0,info_underlay[7:1]};
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         slot_sync0 <= 2'd0; slot_sync1 <= 2'd0; active_slot <= 2'd0;
@@ -330,18 +209,12 @@ always @(posedge clk or posedge rst) begin
         display_slot_applied_toggle <= 1'b0;
         vs_d <= 1'b0; de_d <= 1'b0; pixel_x <= 10'd0; pixel_y <= 10'd0;
         reveal_x <= ACTIVE_WIDTH; fade_level <= 7'd64;
-        brightness_meta <= 3'd4; brightness_sync <= 3'd4;
         image_brightness_meta<=7'd50; image_brightness_sync<=7'd50;
         image_contrast_meta<=7'd50; image_contrast_sync<=7'd50;
         image_selected_meta<=2'd0; image_selected_sync<=2'd0;
-        image_select_toggle_meta<=0; image_select_toggle_sync<=0; image_select_toggle_seen<=0;
-        image_adjust_toggle_meta<=0; image_adjust_toggle_sync<=0; image_adjust_toggle_seen<=0;
-        image_value_seen<=7'd50; image_selected_seen<=2'd0;
-        osd_mode_adjust<=1'b0;
-        osd_count <= 27'd0;
         adjusted_rgb_stage <= 24'd0;
         base_valid_stage <= 1'b0;
-        param_osd_stage <= 1'b0;game_stage<=0;game_frame_mode<=0;
+        game_stage<=0;game_frame_mode<=0;
         touch_a_stage<=1'b0;touch_b_stage<=1'b0;touch_y<=9'd0;
         rgb_out <= 24'd0;
     end else begin
@@ -349,27 +222,9 @@ always @(posedge clk or posedge rst) begin
         display_switch_toggle_meta <= display_switch_toggle_async;
         display_switch_toggle_sync <= display_switch_toggle_meta;
         display_valid_meta <= display_valid; display_valid_sync <= display_valid_meta;
-        brightness_meta <= brightness_level_async; brightness_sync <= brightness_meta;
         image_brightness_meta <= image_brightness_async; image_brightness_sync <= image_brightness_meta;
         image_contrast_meta <= image_contrast_async; image_contrast_sync <= image_contrast_meta;
         image_selected_meta <= image_selected_async; image_selected_sync <= image_selected_meta;
-        image_select_toggle_meta <= image_select_toggle_async; image_select_toggle_sync <= image_select_toggle_meta;
-        image_adjust_toggle_meta <= image_adjust_toggle_async; image_adjust_toggle_sync <= image_adjust_toggle_meta;
-        if ((image_adjust_toggle_sync != image_adjust_toggle_seen) && (image_selected_sync < 2'd2)) begin
-            image_adjust_toggle_seen <= image_adjust_toggle_sync;
-            image_value_seen <= selected_value;
-            image_selected_seen <= image_selected_sync;
-            osd_mode_adjust <= 1'b1;
-            // 默认 25 MHz 视频时钟下显示 2 s；参数允许仿真缩短。
-            osd_count <= OSD_DISPLAY_CYCLES_VALUE;
-        end else if ((image_select_toggle_sync != image_select_toggle_seen) && (image_selected_sync < 2'd2)) begin
-            image_select_toggle_seen <= image_select_toggle_sync;
-            image_selected_seen <= image_selected_sync;
-            osd_mode_adjust <= 1'b0;
-            osd_count <= OSD_DISPLAY_CYCLES_VALUE;
-        end else if (osd_count != 27'd0) begin
-            osd_count <= osd_count - 27'd1;
-        end
         vs_d <= vs; de_d <= de;
         // 十字使用准确的当前行号：行结束再递增，首行/末行均与 DE 对齐。
         if(frame_start)touch_y<=9'd0;
@@ -411,15 +266,15 @@ always @(posedge clk or posedge rst) begin
         // 第一级：将当前输入像素及所有叠加判定锁存。
         adjusted_rgb_stage <= adjusted_rgb;
         base_valid_stage <= display_active && de && (render_x < reveal_x);
-        param_osd_stage <= param_osd_pixel;game_stage<=game_frame_mode;
+        game_stage<=game_frame_mode;
         touch_a_stage<=touch_a_hit;touch_b_stage<=touch_b_hit;
 
         // 第二级：游戏HUD/音符覆盖频谱，光晕提亮频谱或压暗底图。
         // A青色、B品红色、重合白色；同样经过两拍，优先于 OSD/频谱/游戏。
         if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
         else if(game_stage)rgb_out<=game_layer_rgb;
+        else if(info_panel_stage)rgb_out<=info_ink_stage ? info_ink_rgb : info_background_rgb;
         else if (!base_valid_stage) rgb_out <= 24'd0;
-        else if (param_osd_stage) rgb_out <= 24'h000000;
         else if (spectrum_on) rgb_out <= spectrum_rgb;
         else rgb_out <= adjusted_rgb_stage;
     end

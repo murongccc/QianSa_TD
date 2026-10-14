@@ -37,7 +37,7 @@ def main():
     tops = {'mapper': 'tb_touch_pixel_mapper', 'snapshot': 'tb_touch_frame_snapshot',
             'marker': 'tb_touch_marker', 'video': 'tb_touch_video_overlay', 'stream': 'tb_touch_stream_snapshot'}
     sources = ['src/test/eg_logic_mult_model.v', 'src/touch_pixel_mapper.v', 'src/touch_frame_snapshot.v',
-               'src/touch_marker.v', 'src/ring_spectrum_renderer.v', 'src/video_presentation.v', str(baseline_path)]
+               'src/touch_marker.v', 'src/ring_spectrum_renderer.v', 'src/image_info_metadata.v','src/image_info_osd.v','src/image_osd_font.v','src/video_presentation.v', str(baseline_path)]
     run('compile', [tools['vlog'], '-work', str(library), *sources,
                     *['src/test/' + tops[case] + '.v' for case in cases],
                     'src/test/tb_video_presentation.v', 'src/test/tb_video_presentation_startup.v'])

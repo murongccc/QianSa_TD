@@ -39,7 +39,7 @@ def main():
     lib=(output/'work').as_posix()
     if not Path(lib).exists():run('library',[tools['vlib'],lib])
     sources=['E:/AnLuTD/sim_release/eg4/eg_logic_bram.v','src/test/eg_logic_mult_model.v','src/rhythm_block_ram.v',
-        'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/video_presentation.v',*map(str,baseline),
+        'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/image_info_metadata.v','src/image_info_osd.v','src/image_osd_font.v','src/video_presentation.v',*map(str,baseline),
         *['src/test/'+n+'.v' for n in ['tb_fft_priority_arithmetic','tb_fft_display_equivalence','tb_fft_display_pixels',
             'tb_fft_display_cache','tb_reference_dynamics','tb_reference_ring','tb_reference_fft_spectrum','tb_fft_bank_32k','tb_audio_fft_spectrum']]]
     run('compile',[tools['vlog'],'-work',lib,*sources])

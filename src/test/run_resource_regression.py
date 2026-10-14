@@ -47,7 +47,7 @@ def main():
         'src/test/eg_logic_mult_model.v',
         args.td_root/'sim_release/eg4/eg_logic_bram.v',
         'src/rhythm_block_ram.v',
-        'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/video_presentation.v',
+        'src/audio_fft_spectrum.v','src/ring_spectrum_renderer.v','src/image_info_metadata.v','src/image_info_osd.v','src/image_osd_font.v','src/video_presentation.v',
         'src/image_controls.v','src/media_session_controller.v',output/'baseline_fft.v',
         *[f'src/test/{name}.v' for name in ['tb_fft_bank_32k','tb_fft_resource_equivalence','tb_reference_fft_spectrum',
           'tb_reference_dynamics','tb_reference_ring','tb_video_presentation',
@@ -88,7 +88,7 @@ def main():
         'prj/al_ip/source_pixel_fifo_ip/source_pixel_fifo_ip.v',
         'src/test/eg_logic_mult_model.v','src/SD/bmp_bilinear_scaler.v','src/SD/bmp_read.v',
         'src/domain_reset_sync.v','src/fat32_bmp_catalog.v','src/fat32_wav_reader.v',
-        'src/sd_sector_arbiter.v','src/media_session_controller.v','src/sd_media_pipeline.v',
+        'src/sd_sector_arbiter.v','src/media_session_controller.v','src/image_info_metadata.v','src/sd_media_pipeline.v',
         'src/fat32_chart_reader.v','src/rhythm_chart_buffer.v','src/rhythm_sd_resources.v','src/rhythm_block_ram.v',
         'src/test/tb_sd_media_scaler_commit.v'],['+define+MEDIA_STARTUP_MODEL'])
     simulate('media_scaler_commit',integration,'tb_sd_media_scaler_commit')

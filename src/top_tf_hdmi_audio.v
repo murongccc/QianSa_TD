@@ -12,7 +12,7 @@ module top(
     output [5:0]                seg_sel,
     output [7:0]                seg_data,
 
-    // Board USB-UART bridge: FPGA RX=F12, FPGA TX=D12.
+    // 板载USB串口：RX=F12保留但不接收命令；TX=D12只输出触摸诊断。
     input                       uart_rxd,
     output                      uart_txd,
 
@@ -82,6 +82,8 @@ wire        video_display_active;
 
 wire [3:0]  state_code;
 wire [15:0] bmp_source_width, bmp_source_height;
+wire [88:0] display_image_info;
+wire image_info_frame_start;wire [2:0] image_info_slot;
 wire        bmp_source_top_down;
 reg  [3:0]  state_code_display;
 reg  [3:0]  state_code_meta, state_code_sync, state_code_previous;
@@ -234,26 +236,13 @@ wire [15:0] game_combo,game_max_combo,game_p,game_g,game_b,game_m;
 wire [4:0] game_view_index;wire game_view_valid;wire [31:0] game_view_start,game_view_end;
 wire [3:0] game_holding;wire game_frame_active,game_pixel_on,game_pixel_light;wire [23:0] game_pixel_rgb;
 wire        rst_audio_fifo;
-wire [2:0]  uart_brightness_level;
-wire [2:0]  uart_volume_level;
 wire [6:0]  image_brightness, image_contrast, image_sharpness;
 wire [1:0]  image_selected;
-wire        image_select_toggle, image_adjust_toggle;
-wire [2:0]  uart_playback_command;
-wire        uart_playback_command_toggle;
-wire        uart_echo_valid;
-wire [7:0]  uart_echo_data;
 // 统一复位：TF 图像链路 + SDRAM + HDMI 音视频链路。
 assign rst_all = ~rst_n;
 assign rst_audio_fifo = rst_sd | rst_video | game_clear;
 
-uart_command_control #(.CLK_HZ(50_000_000), .BAUD(115_200)) u_uart_command_control (
-    .clk(clk), .rst(rst_clk), .uart_rxd(uart_rxd),
-    .brightness_level(uart_brightness_level), .volume_level(uart_volume_level),
-    .playback_command(uart_playback_command),
-    .playback_command_toggle(uart_playback_command_toggle),
-    .echo_valid(uart_echo_valid), .echo_data(uart_echo_data)
-);
+// PC串口仅保留触摸诊断输出，不接收控制命令。
 
 // 三指游戏使用原始坐标绑定四轨；A/B 坐标仅供既有串口诊断。
 wire touch_update;
@@ -305,9 +294,8 @@ touch_serial_monitor u_touch_monitor (
     .press_mask(touch_press),.release_mask(touch_release),.frame_seq(touch_sequence),
     .good_count(touch_good),.checksum_error_count(touch_checksum_error),.format_error_count(touch_format_error),
     .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack),
-    .echo_valid(uart_echo_valid),.echo_data(uart_echo_data),.uart_txd(uart_txd),
-    .monitor_drop_count(),.echo_drop_count()
-);
+    .uart_txd(uart_txd),
+    .monitor_drop_count());
 
 // 不再实例化触摸坐标映射和视频帧快照；游戏输入仍直接使用原始坐标。
 
@@ -383,14 +371,16 @@ sd_media_pipeline #(
     .rst               (rst_sd),
     .key_next          (key2),
     .key_auto          (swkey2),
-    .uart_command_async(uart_playback_command),
-    .uart_command_toggle_async(uart_playback_command_toggle),
+
+
     .state_code        (state_code),
     .bmp_width         (16'd0),
     .bmp_height        (16'd0),
     .parsed_width      (bmp_source_width),
     .parsed_height     (bmp_source_height),
     .parsed_top_down   (bmp_source_top_down),
+    .display_info      (display_image_info),
+    .info_clk(video_clk),.info_rst(rst_video),.info_frame_start(image_info_frame_start),.info_slot(image_info_slot),
     .display_valid     (display_valid),
     .auto_play_enabled (auto_play_enabled_sd),
 
@@ -771,7 +761,7 @@ pcm_audio_player #(.PIXEL_CLOCK_HZ(25_000_000), .SAMPLE_RATE_HZ(48_000),.PREFETC
     .sample_emitted(sample_emitted),.sample_missing(sample_missing),.sample_index(sample_index),.emitted_count(emitted_count),.prefetch_ready(prefetch_ready),
     .clk(video_clk), .rst(rst_video | game_clear), .fifo_dout(audio_fifo_dout), .fifo_empty(audio_fifo_empty),
     .fifo_re(audio_fifo_re), .audio_valid(audio_valid), .left_pcm(audio_left_data),
-    .volume_level_async(uart_volume_level),
+
     .playback_mode_async(session_player_mode),
     .right_pcm(audio_right_data), .underrun(audio_underrun)
 );
@@ -826,16 +816,18 @@ video_presentation #(
     .rst                (rst_video),
     .display_valid      (display_valid),
     .display_slot_async (disp_buf_idx),
+    .display_info       (display_image_info),
+    .info_frame_start(image_info_frame_start),.info_slot(image_info_slot),
     .display_switch_toggle_async(display_switch_toggle_sd),
     .display_slot_applied_toggle(display_slot_applied_toggle_video),
     .display_active      (video_display_active),
-    .brightness_level_async(uart_brightness_level),
+
     .image_brightness_async(image_brightness),
     .image_contrast_async(image_contrast),
     .image_sharpness_async(image_sharpness),
     .image_selected_async(image_selected),
-    .image_select_toggle_async(image_select_toggle),
-    .image_adjust_toggle_async(image_adjust_toggle),
+
+
     .spectrum_bars      (audio_spectrum_bars),
     .spectrum_read_address(audio_spectrum_read_address),.spectrum_read_data(audio_spectrum_read_data),
     .spectrum_read_valid(audio_spectrum_read_valid),.spectrum_active(audio_spectrum_active),
@@ -856,11 +848,11 @@ image_controls #(.ENABLE_GAME_GUARD(1)) u_image_controls (
     .freeze(game_freeze || (swkey3 && swkey4)),.clk(clk), .rst(rst_clk), .key_inc_n(key3), .key_dec_n(key4),
     .sw_sel_b(swkey3), .sw_sel_a(swkey4),
     .brightness(image_brightness), .contrast(image_contrast), .sharpness(image_sharpness),
-    .selected(image_selected), .select_toggle(image_select_toggle),
-    .adjust_toggle(image_adjust_toggle)
+    .selected(image_selected), .select_toggle(),
+    .adjust_toggle()
 );
 
-// 显示处理包含两级像素寄存：调节/标记与锐化/叠加。
+// 显示处理包含两级像素寄存：调节/中文OSD与最终叠加。
 // DE/VS 同样延迟两拍，避免行首像素与控制信号错位。
 always @(posedge video_clk or posedge rst_video) begin
     if (rst_video) begin

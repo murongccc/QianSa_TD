@@ -16,10 +16,10 @@ rhythm_game_renderer #(.BLOCK_GEOMETRY(1),.STREAM_METADATA(1),.BLOCK_HUD(1)) ren
     .input_down(4'b0110),.input_press(4'd0),.capture_busy(capture),.frame_enabled(),
     .pixel_on(on),.pixel_light(light),.pixel_rgb(color));
 video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) presentation(
-    .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
+    .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+    .display_slot_applied_toggle(),.display_active(),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
-    .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+    .image_selected_async(2'd0),
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd100),
     .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(1'b1),.game_pixel_on(on),.game_pixel_light(light),.game_pixel_rgb(color),

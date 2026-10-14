@@ -4,10 +4,8 @@
 module tb_video_presentation_startup;
 reg clk=0, rst=1, display_valid=0, display_switch_toggle_async=0;
 reg [2:0] display_slot_async=0;
-reg [2:0] brightness_level_async=3'd4;
 reg [6:0] image_brightness_async=7'd50, image_contrast_async=7'd50, image_sharpness_async=7'd50;
 reg [1:0] image_selected_async=0;
-reg image_select_toggle_async=0, image_adjust_toggle_async=0;
 reg [255:0] spectrum_bands=0;
 reg de=0, vs=0;
 reg [23:0] rgb_in=24'h406080;
@@ -17,21 +15,21 @@ wire [23:0] rgb_out;
 always #5 clk=~clk;
 
 video_presentation #(
-    .ACTIVE_WIDTH(4), .ACTIVE_HEIGHT(4), .OSD_DISPLAY_CYCLES(16),
+    .ACTIVE_WIDTH(4), .ACTIVE_HEIGHT(4),
     .INITIAL_WARMUP_FRAMES(3)
 ) dut (
         .game_pixel_light(1'b0),.spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(1'b0),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),
     .touch_frame_packet(40'd0),
     .clk(clk), .rst(rst), .display_valid(display_valid),
-    .display_slot_async(display_slot_async),
+    .info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(display_slot_async),
     .display_switch_toggle_async(display_switch_toggle_async),
     .display_slot_applied_toggle(display_slot_applied_toggle),
     .display_active(display_active),
-    .brightness_level_async(brightness_level_async),
+
     .image_brightness_async(image_brightness_async), .image_contrast_async(image_contrast_async),
     .image_sharpness_async(image_sharpness_async), .image_selected_async(image_selected_async),
-    .image_select_toggle_async(image_select_toggle_async), .image_adjust_toggle_async(image_adjust_toggle_async),
+
     .spectrum_bands(spectrum_bands), .spectrum_bars(640'd0), .spectrum_radius(8'd90),
     .de(de), .vs(vs), .rgb_in(rgb_in), .rgb_out(rgb_out)
 );

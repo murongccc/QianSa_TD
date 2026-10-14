@@ -5,9 +5,6 @@ module media_session_controller #(
     parameter integer ENABLE_GAME_CAROUSEL = 0
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
-    // uart_command_async and its toggle originate in the 50 MHz UART domain.
-    // The command value is held stable whenever its toggle changes.
-    input wire [2:0] uart_command_async, input wire uart_command_toggle_async,
     input wire scan_done, input wire candidate_valid, input wire [2:0] media_count, input wire loader_ready,
     input wire frame_commit, input wire load_abort,
     input wire freeze, output wire session_ready,
@@ -21,7 +18,7 @@ module media_session_controller #(
     input wire game_auto_enable
 );
 reg [31:0] auto_count;
-reg [31:0] auto_period_cycles;
+localparam [31:0] AUTO_PERIOD_CYCLES=CLK_FREQ_HZ*AUTO_PERIOD_SECONDS;
 // Manual presses are kept while a BMP is being fetched/written.  A single
 // flag used to overwrite a later press when the previous request was being
 // started, which made a valid press during a picture switch look lost.
@@ -33,29 +30,16 @@ reg display_switch_inflight;
 reg display_switch_applied_meta;
 reg display_switch_applied_sync;
 reg display_switch_applied_seen;
-reg [2:0] uart_command_meta;
-reg [2:0] uart_command_sync;
-reg uart_toggle_meta;
-reg uart_toggle_sync;
-reg uart_toggle_seen;
-localparam [2:0] UART_CMD_NEXT        = 3'd1;
-localparam [2:0] UART_CMD_AUTO_TOGGLE = 3'd2;
-localparam [2:0] UART_CMD_PERIOD_1S   = 3'd3;
-localparam [2:0] UART_CMD_PERIOD_2S   = 3'd4;
-localparam [2:0] UART_CMD_PERIOD_3S   = 3'd5;
-localparam [2:0] UART_CMD_PERIOD_4S   = 3'd6;
 wire key_next_press;
 reg key_auto_meta, key_auto_sync;
-wire uart_command_event = (uart_toggle_sync != uart_toggle_seen);
-wire [31:0] auto_limit = auto_period_cycles;
+wire [31:0] auto_limit = AUTO_PERIOD_CYCLES;
 wire auto_due = (auto_count >= auto_limit - 1);
 reg next_armed,next_meta,next_sync;
 wire frozen = ENABLE_FREEZE && freeze;
-// 冻结仍屏蔽游戏按键/串口切图；只允许已就绪游戏会话的SW2自动轮播。
+// 冻结仍屏蔽游戏按键切图；只允许已就绪游戏会话的SW2自动轮播。
 wire auto_frozen = frozen && !(ENABLE_GAME_CAROUSEL && game_auto_enable);
 assign session_ready=scan_done && !candidate_valid && !load_inflight && !display_switch_inflight;
-wire manual_request = !frozen && next_armed && (key_next_press ||
-                      (uart_command_event && uart_command_sync == UART_CMD_NEXT));
+wire manual_request = !frozen && next_armed && key_next_press;
 
 function [2:0] next_media;
     input [2:0] current; input [2:0] count;
@@ -110,25 +94,15 @@ always @(posedge clk or posedge rst) begin
         load_start<=1'b0; load_media_index<=3'd0; write_slot<=3'd0; display_slot<=3'd0;
         display_switch_toggle<=1'b0;
         display_valid<=1'b0; auto_play_enabled<=1'b0; load_inflight<=1'b0;
-        auto_count<=32'd0; auto_period_cycles<=CLK_FREQ_HZ * AUTO_PERIOD_SECONDS;
+        auto_count<=32'd0;
         manual_next_pending<=3'd0; auto_next_pending<=1'b0;
         slot_ready<=5'b00000; slot_failed<=5'b00000; display_switch_inflight<=1'b0;
         display_switch_applied_meta<=1'b0; display_switch_applied_sync<=1'b0;
         display_switch_applied_seen<=1'b0;
-        uart_command_meta<=3'd0; uart_command_sync<=3'd0;
-        uart_toggle_meta<=1'b0; uart_toggle_sync<=1'b0; uart_toggle_seen<=1'b0;
         key_auto_meta<=1'b0; key_auto_sync<=1'b0;
     end else begin
-        if(frozen)uart_toggle_seen<=uart_toggle_sync;
         if(frozen)next_armed<=0;else if(next_sync)next_armed<=1;
         next_meta<=key_next;next_sync<=next_meta;
-        // Two flip-flops for the held command bus and event toggle.  The UART
-        // source changes the bus before toggling the event and keeps it until
-        // the next command, giving the destination two full clocks to settle.
-        uart_command_meta <= uart_command_async;
-        uart_command_sync <= uart_command_meta;
-        uart_toggle_meta <= uart_command_toggle_async;
-        uart_toggle_sync <= uart_toggle_meta;
         // SW2 is an active-high level switch (the board constraint uses a
         // pulldown).  Synchronize the level directly; treating it as a
         // button pulse made automatic playback randomly disable or never
@@ -146,7 +120,6 @@ always @(posedge clk or posedge rst) begin
             slot_ready<=5'b00000; slot_failed<=5'b00000; display_switch_inflight<=1'b0;
             display_slot<=3'd0; display_switch_toggle<=1'b0;
             display_switch_applied_seen<=display_switch_applied_sync;
-            uart_toggle_seen<=uart_toggle_sync;
         end else begin
             // A manual press is valid as soon as scanning is complete.  This
             // also captures a press during the first-image load instead of
@@ -163,33 +136,10 @@ always @(posedge clk or posedge rst) begin
                 manual_next_pending <= manual_next_pending - 3'd1;
             end
 
-            if (uart_command_event && !frozen) begin
-                uart_toggle_seen <= uart_toggle_sync;
-                case (uart_command_sync)
-                    UART_CMD_AUTO_TOGGLE: if (media_count > 3'd1) begin
-                        auto_play_enabled <= ~auto_play_enabled;
-                        auto_count <= 32'd0;
-                        auto_next_pending <= 1'b0;
-                    end
-                    UART_CMD_PERIOD_1S: begin auto_period_cycles <= CLK_FREQ_HZ * 1; auto_count <= 32'd0; end
-                    UART_CMD_PERIOD_2S: begin auto_period_cycles <= CLK_FREQ_HZ * 2; auto_count <= 32'd0; end
-                    UART_CMD_PERIOD_3S: begin auto_period_cycles <= CLK_FREQ_HZ * 3; auto_count <= 32'd0; end
-                    UART_CMD_PERIOD_4S: begin auto_period_cycles <= CLK_FREQ_HZ * 4; auto_count <= 32'd0; end
-                    default: ;
-                endcase
-            end
-
-            // SW2 is a level input in the board design.  Latch its state for
-            // the carousel, but do not overwrite a UART toggle command in the
-            // same clock; the old unconditional assignment could cancel a
-            // just-accepted command and made the mode appear disabled.
-            if (!auto_frozen && !(uart_command_event && !frozen && uart_command_sync == UART_CMD_AUTO_TOGGLE))
-                auto_play_enabled <= key_auto_sync && (media_count > 3'd1);
-            if ((uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE) ||
-                         (uart_command_event && (uart_command_sync >= UART_CMD_PERIOD_1S))) begin
-                // The command handler above has already reset auto_count.
-            end else if (!auto_frozen && key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
-                if (auto_due) begin auto_count<=32'd0; auto_next_pending<=1'b1; end
+            // 轮播由SW2电平控制，间隔固定为AUTO_PERIOD_SECONDS。
+            if(!auto_frozen)auto_play_enabled<=key_auto_sync && (media_count>3'd1);
+            if(!auto_frozen && key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
+                if(auto_due)begin auto_count<=32'd0;auto_next_pending<=1'b1;end
                 else auto_count<=auto_count+32'd1;
             end else auto_count<=32'd0;
 
@@ -255,7 +205,7 @@ always @(posedge clk or posedge rst) begin
 end
 endmodule
 
-// Restored pre-UART playback-domain button filter: active-low press, 20 ms
+// 媒体域按键消抖：低有效，20 ms。
 // debounce.  This is deliberately the same counter/state behavior used by
 // the previously verified player path.
 module media_key_press_debounce #(

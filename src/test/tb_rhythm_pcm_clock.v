@@ -11,7 +11,7 @@ module tb_rhythm_pcm_clock;
     wire [23:0] left,right;
     always #20 clk=~clk;
     pcm_audio_player #(.PREFETCH_PAUSED(1)) dut(
-        .clk(clk),.rst(rst),.fifo_dout(data),.fifo_empty(empty),.volume_level_async(volume),
+        .clk(clk),.rst(rst),.fifo_dout(data),.fifo_empty(empty),
         .playback_mode_async(mode),.fifo_re(re),.audio_valid(av),.left_pcm(left),.right_pcm(right),
         .underrun(),.sample_emitted(ev),.sample_missing(mv),.sample_index(index),
         .emitted_count(count),.prefetch_ready(prefetched));

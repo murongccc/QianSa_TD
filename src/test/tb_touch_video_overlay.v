@@ -10,29 +10,30 @@ wire [23:0] rgb_marked,rgb_disabled,rgb_baseline;
 wire display_marked,display_baseline;
 video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(1)) marked(
         .game_pixel_light(1'b0),
-    .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(display_marked),.brightness_level_async(3'd4),
+    .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+    .display_slot_applied_toggle(),.display_active(display_marked),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),.image_selected_async(2'd0),
-    .image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd90),
     .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(game_active),.game_pixel_on(1'b1),.game_pixel_rgb(24'h123456),.touch_frame_packet(packet),
     .de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_marked));
 video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(0)) disabled(
         .game_pixel_light(1'b0),
-    .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
+    .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+    .display_slot_applied_toggle(),.display_active(),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),.image_selected_async(2'd0),
-    .image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd90),
     .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(game_active),.game_pixel_on(1'b1),.game_pixel_rgb(24'h123456),.touch_frame_packet(packet),
     .de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_disabled));
 baseline_video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1)) baseline(
+    .brightness_level_async(3'd4),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(display_baseline),.brightness_level_async(3'd4),
+    .display_slot_applied_toggle(),.display_active(display_baseline),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),.image_selected_async(2'd0),
-    .image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd90),
     .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(game_active),.game_pixel_on(1'b1),.game_pixel_rgb(24'h123456),

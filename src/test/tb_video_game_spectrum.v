@@ -16,10 +16,10 @@ always @(posedge clk)begin
     data<=8'd255;
 end
 video_presentation #(.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
-    .clk(clk),.rst(rst),.display_valid(display_valid),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-    .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
+    .clk(clk),.rst(rst),.display_valid(display_valid),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+    .display_slot_applied_toggle(),.display_active(),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
-    .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+    .image_selected_async(2'd0),
     .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd110),
     .spectrum_read_address(address),.spectrum_read_data(data),.spectrum_read_valid(1'b1),.spectrum_active(1'b1),
     .game_active(game),.game_pixel_on(source_on),.game_pixel_light(source_light),.game_pixel_rgb(source_rgb),
@@ -44,7 +44,7 @@ always @(posedge clk)begin
                 end
             end
             if(y1==240 && x1==608 && !dut.spectrum_on)$fatal(1,"rightmost spectrum endpoint");
-        end else expected=!dut.base_valid_stage ? 24'd0 : dut.param_osd_stage ? 24'd0 :
+        end else expected=!dut.base_valid_stage ? 24'd0 :
             dut.spectrum_on ? dut.spectrum_rgb : dut.adjusted_rgb_stage;
         #1;
         if(rgb!==expected)$fatal(1,"game spectrum composite misaligned at %d/%d got=%h expected=%h",x1,y1,rgb,expected);

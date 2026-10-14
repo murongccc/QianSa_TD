@@ -22,8 +22,8 @@ module tb_sd_media_scaler_commit;
     ) dut (
         .game_metadata_address(6'd0),.game_metadata_data(),.game_metadata_valid(),
     .game_clk(clk),.game_reset(1'b0),.game_enable(1'b0),.game_cancel(RHYTHM!=0),.game_mode(RHYTHM!=0),.freeze_media(RHYTHM!=0),.game_note_ready(1'b0),.game_note_valid(),.game_note_data(),.game_ready(),.game_cancelled(),.game_audio_eof(),.game_chart_eof(),.media_quiet(),.game_error(),.game_frames(),.game_audio_level(),.game_notes(),.game_offset(),.game_title(),.game_difficulty(),
-    .clk(clk), .rst(rst), .key_next(1'b1), .key_auto(1'b0),
-        .uart_command_async(3'd0), .uart_command_toggle_async(1'b0),
+    .info_clk(clk),.info_rst(rst),.info_frame_start(1'b0),.info_slot(3'd0),.clk(clk), .rst(rst), .key_next(1'b1), .key_auto(1'b0),
+
         .state_code(state_code), .bmp_width(16'd0), .bmp_height(16'd0),
         .parsed_width(), .parsed_height(), .parsed_top_down(),
         .display_valid(display_valid), .write_finish_toggle(write_finish_toggle),

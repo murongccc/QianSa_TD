@@ -33,7 +33,7 @@ def main():
         run('library', [binaries['vlib'], str(library)])
     cases = [args.case] if args.case else ['parser', 'integration', 'monitor', 'diagnostics', 'statistics', 'counter']
     sources = ['uart_byte_rx', 'uart_byte_tx', 'ch9350_touch_parser',
-               'ch9350_touch_input', 'touch_serial_monitor', 'uart_command_control', 'frame_read_monitor', 'touch_counter_increment']
+               'ch9350_touch_input', 'touch_serial_monitor',  'frame_read_monitor', 'touch_counter_increment']
     tops = {'parser': 'tb_ch9350_touch_parser', 'integration': 'tb_touch_uart_integration',
             'monitor': 'tb_touch_serial_monitor', 'diagnostics': 'tb_frame_signature_switch', 'statistics': 'tb_touch_stats_atomic', 'counter': 'tb_touch_counter_increment'}
     test_sources = [str(root / 'src/test' / (tops[case] + '.v')) for case in cases]

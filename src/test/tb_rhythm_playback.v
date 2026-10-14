@@ -44,7 +44,7 @@ module tb_rhythm_playback;
         .offset_samples(),.title(),.difficulty(),.resources_ready(ready),.cancelled(cancelled),.wav_busy(),.wav_done(),.wav_found(),.wav_format_ok(),.wav_format_error(),
         .audio_eof(aeof),.chart_eof(ceof),.error_code(error));
     pcm_audio_player #(.PIXEL_CLOCK_HZ(480000),.PREFETCH_PAUSED(1)) player(
-        .clk(nclk),.rst(rst || clear),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.volume_level_async(3'd4),.playback_mode_async(mode),
+        .clk(nclk),.rst(rst || clear),.fifo_dout(fifo_dout),.fifo_empty(fifo_empty),.playback_mode_async(mode),
         .fifo_re(re),.audio_valid(audio_valid),.left_pcm(left_pcm),.right_pcm(right_pcm),.underrun(),
         .sample_emitted(emit),.sample_missing(missing),.sample_index(sample_index),.emitted_count(emitted_count),.prefetch_ready(prefetch));
     rhythm_session_controller #(.CLOCK_HZ(480000),.DEBOUNCE_MS(1),.PREROLL_SAMPLES(100),.TAIL_SAMPLES(7200)) session(

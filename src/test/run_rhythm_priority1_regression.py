@@ -145,7 +145,7 @@ def main():
     sources=['rhythm_block_ram','fat32_chart_reader','rhythm_chart_buffer','fat32_wav_reader','sd_sector_arbiter',
              'rhythm_sd_resources','rhythm_judge_core','rhythm_auto_input','rhythm_game_engine','rhythm_game_renderer',
              'rhythm_font','rhythm_hud','rhythm_session_controller','pcm_audio_player','ring_spectrum_renderer',
-             'video_presentation','image_controls','media_session_controller','domain_reset_sync','fat32_bmp_catalog',
+             'image_info_metadata','image_info_osd','image_osd_font','video_presentation','image_controls','media_session_controller','domain_reset_sync','fat32_bmp_catalog',
              'sd_media_pipeline','touch_marker']
     tests=['tb_rhythm_priority1_arithmetic','tb_rhythm_priority1_directory','tb_chart_volume_validation',
            'tb_rhythm_priority1_constants','tb_rhythm_priority1_hud_coordinates']

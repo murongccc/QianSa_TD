@@ -468,14 +468,6 @@
                     <Attr Name="CompileOrder" Val="56"/>
                 </FileInfo>
             </File>
-            <File Path="../src/uart_command_control.v">
-                <FileInfo>
-                    <Attr Name="UsedInSyn" Val="true"/>
-                    <Attr Name="UsedInP&R" Val="true"/>
-                    <Attr Name="BelongTo" Val="design_1"/>
-                    <Attr Name="CompileOrder" Val="59"/>
-                </FileInfo>
-            </File>
             <File Path="../src/video_presentation.v">
                 <FileInfo>
                     <Attr Name="UsedInSyn" Val="true"/>
@@ -666,6 +658,30 @@
                     <Attr Name="UsedInP&R" Val="true"/>
                     <Attr Name="BelongTo" Val="design_1"/>
                     <Attr Name="CompileOrder" Val="102"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/image_info_metadata.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="120"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/image_info_osd.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="121"/>
+                </FileInfo>
+            </File>
+            <File Path="../src/image_osd_font.v">
+                <FileInfo>
+                    <Attr Name="UsedInSyn" Val="true"/>
+                    <Attr Name="UsedInP&R" Val="true"/>
+                    <Attr Name="BelongTo" Val="design_1"/>
+                    <Attr Name="CompileOrder" Val="122"/>
                 </FileInfo>
             </File>
         </Verilog>

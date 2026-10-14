@@ -4,11 +4,11 @@ module tb_rhythm_background_mode;
     reg clk=0,rst=1,de=0,vs=0,game=0;always #20 clk=~clk;
     wire [23:0] rgb;
     video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0),.ACTIVE_WIDTH(64),.ACTIVE_HEIGHT(32)) dut(
-        .game_pixel_light(1'b0),
-        .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
-        .display_slot_applied_toggle(),.display_active(),.brightness_level_async(3'd4),
+        .game_pixel_light(1'b0),.touch_frame_packet(40'd0),
+        .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
+        .display_slot_applied_toggle(),.display_active(),
         .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
-        .image_selected_async(2'd0),.image_select_toggle_async(1'b0),.image_adjust_toggle_async(1'b0),
+        .image_selected_async(2'd0),
         .spectrum_bands(256'd0),.spectrum_bars(640'd0),.spectrum_radius(8'd100),
         .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
         .game_active(game),.game_pixel_on(1'b0),.game_pixel_rgb(24'd0),.de(de),.vs(vs),.rgb_in(24'hc09060),.rgb_out(rgb));

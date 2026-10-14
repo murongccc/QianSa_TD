@@ -21,8 +21,8 @@ touch_serial_monitor #(.CLK_HZ(3686400)) dut(
     .clk(clk),.rst(rst),.update_valid(1'b0),.a_id(4'd0),.a_down(1'b0),.a_x(16'd0),.a_y(16'd0),
     .b_id(4'd0),.b_down(1'b0),.b_x(16'd0),.b_y(16'd0),.press_mask(2'd0),.release_mask(2'd0),.frame_seq(8'd0),
     .good_count(counter),.checksum_error_count(sum_count),.format_error_count(format_count),.sequence_gap_count(gap_count),
-    .timeout_count(timeout_count),.uart_error_count(rx_count),.ack_count(ack_count),.echo_valid(1'b0),.echo_data(8'd0),
-    .uart_txd(txd),.monitor_drop_count(),.echo_drop_count());
+    .timeout_count(timeout_count),.uart_error_count(rx_count),.ack_count(ack_count),
+    .uart_txd(txd),.monitor_drop_count());
 always @(posedge clk)begin
     if(rst)counter<=16'd0;
     else begin
@@ -46,7 +46,7 @@ always begin
     for(bit_index=0;bit_index<8;bit_index=bit_index+1)begin repeat(32)@(negedge clk);byte_value[bit_index]=txd;end
     repeat(32)@(negedge clk);
     if(txd!==1'b1)begin $display("FAIL statistics UART stop");$stop;end
-    if(count<83)bytes[count]=byte_value;
+    if(count<73)bytes[count]=byte_value;
     count=count+1;
 end
 function [3:0] decode_hex;
@@ -56,8 +56,8 @@ endfunction
 initial begin #100000000;$display("FAIL statistics timeout");$stop;end
 initial begin
     repeat(4)@(negedge clk);rst=0;
-    wait(count==83);
-    for(field_index=0;field_index<9;field_index=field_index+1)begin
+    wait(count==73);
+    for(field_index=0;field_index<8;field_index=field_index+1)begin
         case(field_index)
             0:n=5;1:n=14;2:n=23;3:n=32;4:n=40;5:n=48;6:n=57;7:n=67;default:n=77;
         endcase

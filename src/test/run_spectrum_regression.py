@@ -39,7 +39,7 @@ def main():
         run("library", [binaries["vlib"], library])
     sources = ["src/test/eg_logic_mult_model.v", "E:/AnLuTD/sim_release/eg4/eg_logic_bram.v", "src/rhythm_block_ram.v", "src/audio_fft_spectrum.v", "src/ring_spectrum_renderer.v",
                "src/pcm_audio_player.v", "src/test/tb_pcm_audio_player.v",
-               "src/video_presentation.v", "src/test/tb_audio_fft_spectrum.v",
+               "src/image_info_metadata.v","src/image_info_osd.v","src/image_osd_font.v","src/video_presentation.v", "src/test/tb_audio_fft_spectrum.v",
                "src/test/tb_ring_spectrum_renderer.v", "src/test/tb_video_presentation.v",
                "src/test/tb_video_presentation_startup.v", "src/test/tb_reference_fft_spectrum.v",
                "src/test/tb_reference_ring.v", "src/test/tb_reference_dynamics.v"]

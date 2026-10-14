@@ -84,7 +84,7 @@ def main():
             'prj/al_ip/source_pixel_fifo_ip/RTL/soft_fifo_f9a960ae4922.v','prj/al_ip/source_pixel_fifo_ip/source_pixel_fifo_ip.v',
             'src/test/eg_logic_mult_model.v','src/SD/bmp_bilinear_scaler.v','src/SD/bmp_read.v','src/domain_reset_sync.v',
             'src/fat32_bmp_catalog.v','src/fat32_wav_reader.v','src/sd_sector_arbiter.v','src/media_session_controller.v',
-            'src/sd_media_pipeline.v','src/fat32_chart_reader.v','src/rhythm_chart_buffer.v','src/rhythm_sd_resources.v',
+            'src/image_info_metadata.v','src/sd_media_pipeline.v','src/fat32_chart_reader.v','src/rhythm_chart_buffer.v','src/rhythm_sd_resources.v',
             'src/rhythm_block_ram.v','src/test/tb_sd_media_scaler_commit.v','src/test/tb_sd_media_audio_start.v'],
             ['+define+MEDIA_STARTUP_MODEL'])
         simulate('media_scaler_commit',library,'tb_sd_media_scaler_commit')
