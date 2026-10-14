@@ -26,10 +26,10 @@ module tb_rhythm_background_mode;
     initial begin
         repeat(4)@(negedge clk);rst=0;repeat(10)@(negedge clk);
         boundary;check_pixels(24'hc09060);
-        game=1;check_pixels(24'hc09060);boundary;check_pixels(24'h302418);
+        game=1;check_pixels(24'hc09060);boundary;check_pixels(24'h3c2d1e);
         // 清理渲染器时会话维持game=1；连续多次帧中检查不得亮起。
-        check_pixels(24'h302418);check_pixels(24'h302418);
-        game=0;check_pixels(24'h302418);boundary;check_pixels(24'hc09060);
+        check_pixels(24'h3c2d1e);check_pixels(24'h3c2d1e);
+        game=0;check_pixels(24'h3c2d1e);boundary;check_pixels(24'hc09060);
         $display("PASS background mode: frame-boundary enter/exit and stable dimming during clear");$finish;
     end
     initial begin #100000;$fatal(1,"background mode timeout");end

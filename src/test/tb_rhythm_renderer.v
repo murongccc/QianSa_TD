@@ -51,7 +51,7 @@ module tb_rhythm_renderer;
         if(x2==136 && y2==284 && rgb!==24'hffffff)$fatal(1,"Tap bottom timing/latency %h",rgb);
         if(x2==264 && y2==250 && rgb!==24'h994900 && state!=10)$fatal(1,"Hold body %h",rgb);
         if(x2==400 && y2==384 && rgb!==24'hffffff)$fatal(1,"judge line %h",rgb);
-        if(x2==500 && y2==300 && rgb!==(display ? 24'h302418 : 24'h000000))$fatal(1,"dim/fallback %h",rgb);
+        if(x2==500 && y2==300 && rgb!==(display ? 24'h3c2d1e : 24'h000000))$fatal(1,"dim/fallback %h",rgb);
     end
     task frame;
         input integer number;

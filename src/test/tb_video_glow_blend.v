@@ -17,7 +17,11 @@ video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
     .touch_frame_packet(40'd0),.de(de),.vs(vs),.rgb_in(backdrop),.rgb_out(rgb));
 reg [23:0] expected1=0,expected2=0,base1=0,base2=0;
 reg d1=0,d2=0,check=0,l1=0,l2=0;
-wire [23:0] dimmed={2'd0,backdrop[23:18],2'd0,backdrop[15:10],2'd0,backdrop[7:2]};
+function [7:0] expected_background;
+    input [7:0] value;
+    begin expected_background=(value*5)/16;end
+endfunction
+wire [23:0] dimmed={expected_background(backdrop[23:16]),expected_background(backdrop[15:8]),expected_background(backdrop[7:0])};
 always @(posedge clk)begin
     source_stage<=source;on_stage<=source_on;light_stage<=source_light;
     expected1<=source_on ? (source_light ? source | dimmed : source) : dimmed;
@@ -36,7 +40,7 @@ initial begin
     vs=1;@(negedge clk);vs=0;repeat(8)@(negedge clk);check=1;
     for(i=0;i<10000;i=i+1)begin
         @(negedge clk);de=1;
-        rng={rng[30:0],rng[31]^rng[21]^rng[1]^rng[0]};backdrop=rng[23:0];
+        rng={rng[30:0],rng[31]^rng[21]^rng[1]^rng[0]};backdrop=i<256 ? {3{i[7:0]}} : rng[23:0];
         source={rng[7:0],rng[15:8],rng[23:16]};source_on=rng[24];source_light=rng[25];
         if(i%128==127)begin @(negedge clk);de=0;repeat(3)@(negedge clk);end
     end

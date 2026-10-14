@@ -1,7 +1,8 @@
 module media_session_controller #(
     parameter integer CLK_FREQ_HZ = 100_000_000,
     parameter integer AUTO_PERIOD_SECONDS = 3,
-    parameter integer ENABLE_FREEZE = 0
+    parameter integer ENABLE_FREEZE = 0,
+    parameter integer ENABLE_GAME_CAROUSEL = 0
 )(
     input wire clk, input wire rst, input wire key_next, input wire key_auto,
     // uart_command_async and its toggle originate in the 50 MHz UART domain.
@@ -16,7 +17,8 @@ module media_session_controller #(
     output reg load_start, output reg [2:0] load_media_index,
     output reg [2:0] write_slot, output reg [2:0] display_slot,
     output reg display_switch_toggle,
-    output reg display_valid, output reg auto_play_enabled, output reg load_inflight
+    output reg display_valid, output reg auto_play_enabled, output reg load_inflight,
+    input wire game_auto_enable
 );
 reg [31:0] auto_count;
 reg [31:0] auto_period_cycles;
@@ -49,6 +51,8 @@ wire [31:0] auto_limit = auto_period_cycles;
 wire auto_due = (auto_count >= auto_limit - 1);
 reg next_armed,next_meta,next_sync;
 wire frozen = ENABLE_FREEZE && freeze;
+// 冻结仍屏蔽游戏按键/串口切图；只允许已就绪游戏会话的SW2自动轮播。
+wire auto_frozen = frozen && !(ENABLE_GAME_CAROUSEL && game_auto_enable);
 assign session_ready=scan_done && !candidate_valid && !load_inflight && !display_switch_inflight;
 wire manual_request = !frozen && next_armed && (key_next_press ||
                       (uart_command_event && uart_command_sync == UART_CMD_NEXT));
@@ -93,7 +97,7 @@ wire [2:0] requested_next_slot = next_ready_slot(display_slot, slot_ready);
 wire manual_switch_start = !frozen && display_valid && !display_switch_inflight &&
                            (manual_next_pending != 3'd0) &&
                            (requested_next_slot != display_slot);
-wire auto_switch_start = !frozen && display_valid && !display_switch_inflight &&
+wire auto_switch_start = !auto_frozen && key_auto_sync && media_count>3'd1 && display_valid && !display_switch_inflight &&
                          !manual_switch_start && auto_next_pending &&
                          (requested_next_slot != display_slot);
 
@@ -179,12 +183,12 @@ always @(posedge clk or posedge rst) begin
             // the carousel, but do not overwrite a UART toggle command in the
             // same clock; the old unconditional assignment could cancel a
             // just-accepted command and made the mode appear disabled.
-            if (!frozen && !(uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE))
+            if (!auto_frozen && !(uart_command_event && !frozen && uart_command_sync == UART_CMD_AUTO_TOGGLE))
                 auto_play_enabled <= key_auto_sync && (media_count > 3'd1);
             if ((uart_command_event && uart_command_sync == UART_CMD_AUTO_TOGGLE) ||
                          (uart_command_event && (uart_command_sync >= UART_CMD_PERIOD_1S))) begin
                 // The command handler above has already reset auto_count.
-            end else if (!frozen && key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
+            end else if (!auto_frozen && key_auto_sync && display_valid && !display_switch_inflight && media_count>3'd1) begin
                 if (auto_due) begin auto_count<=32'd0; auto_next_pending<=1'b1; end
                 else auto_count<=auto_count+32'd1;
             end else auto_count<=32'd0;
@@ -231,7 +235,9 @@ always @(posedge clk or posedge rst) begin
                     auto_next_pending <= 1'b0;
             end
 
-            if(frozen)begin manual_next_pending<=0;auto_next_pending<=0;auto_play_enabled<=0;auto_count<=0;end
+            if(frozen)manual_next_pending<=3'd0;
+            if(auto_frozen)begin auto_next_pending<=1'b0;auto_play_enabled<=1'b0;auto_count<=32'd0;end
+            else if(!key_auto_sync)auto_next_pending<=1'b0;
 
             // Keep each discovered source permanently assigned to its own
             // SDRAM frame slot.  A ready frame is therefore never re-read

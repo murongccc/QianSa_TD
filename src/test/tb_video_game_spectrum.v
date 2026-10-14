@@ -34,7 +34,7 @@ always @(posedge clk)begin
     if(check && d1)begin
         if(dut.game_stage!==expected_game)$fatal(1,"game stage switched mid-frame");
         if(expected_game)begin
-            expected=dut.spectrum_on ? dut.spectrum_rgb : (dut.base_valid_stage ? 24'h202020 : 24'd0);
+            expected=dut.spectrum_on ? dut.spectrum_rgb : (dut.base_valid_stage ? 24'h282828 : 24'd0);
             if(source_on)expected=source_light ? expected | source_rgb : source_rgb;
             if(dut.spectrum_on)begin
                 spectrum_pixels=spectrum_pixels+1;

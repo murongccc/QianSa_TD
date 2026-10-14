@@ -300,7 +300,17 @@ end else begin : g_without_touch_markers
     assign touch_b_hit=1'b0;
 end endgenerate
 // 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
-wire [23:0] dimmed_rgb={2'd0,adjusted_rgb_stage[23:18],2'd0,adjusted_rgb_stage[15:10],2'd0,adjusted_rgb_stage[7:2]};
+// 游戏底图增益5/16（31.25%），原为1/4；常量移位加法，不新增DSP或流水拍。
+function [7:0] game_background_component;
+    input [7:0] component;
+    reg [10:0] scaled;
+    begin
+        scaled={1'b0,component,2'b00}+{3'b000,component};
+        game_background_component={1'b0,scaled[10:4]};
+    end
+endfunction
+wire [23:0] dimmed_rgb={game_background_component(adjusted_rgb_stage[23:16]),
+    game_background_component(adjusted_rgb_stage[15:8]),game_background_component(adjusted_rgb_stage[7:0])};
 // 位或式提亮：各通道不低于原背景；无加法溢出或透明度乘法，避免深色矩形覆盖。
 // 共用三通道背景使能，避免每个颜色位重复展开on/light/base_valid选择。
 // 频谱和游戏像素均已锁存一级，合成保持既有两拍延迟。

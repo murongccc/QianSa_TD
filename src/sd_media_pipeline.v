@@ -280,8 +280,11 @@ always @(posedge clk or posedge rst_local) begin
     end
 end
 
-media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3),.ENABLE_FREEZE(ENABLE_RHYTHM)) u_session (
+media_session_controller #(.CLK_FREQ_HZ(CLK_FREQ_HZ),.AUTO_PERIOD_SECONDS(3),.ENABLE_FREEZE(ENABLE_RHYTHM),
+    .ENABLE_GAME_CAROUSEL(ENABLE_RHYTHM)) u_session (
     .freeze(game_control_sync[3]),.session_ready(session_ready),
+    // 只切预载SDRAM槽；退出/取消期间关闭轮播，让切换应答排空后再清会话。
+    .game_auto_enable(game_control_sync[2] && game_control_sync[0] && !game_control_sync[1]),
     .clk(clk),.rst(rst_local),.key_next(key_next),.key_auto(key_auto),.scan_done(catalog_done),
     .uart_command_async(uart_command_async),.uart_command_toggle_async(uart_command_toggle_async),
     .candidate_valid(catalog_candidate_valid),
