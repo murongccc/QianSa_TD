@@ -39,6 +39,14 @@ module top(
 
 // 恢复彩线排查用帧签名诊断；置 0 可裁剪签名逻辑并隐藏 D/F/C 页。
 parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 1;
+// 资源受限时分批定位：0=三点并行，1=FIFO(F)，2=SDRAM(C)，3=原始RGB(D)。
+parameter integer VIDEO_DIAGNOSTIC_POINT = 1;
+localparam DIAG_FIFO_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
+                               (VIDEO_DIAGNOSTIC_POINT == 0 || VIDEO_DIAGNOSTIC_POINT == 1);
+localparam DIAG_MEMORY_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
+                                 (VIDEO_DIAGNOSTIC_POINT == 0 || VIDEO_DIAGNOSTIC_POINT == 2);
+localparam DIAG_OUTPUT_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
+                                 (VIDEO_DIAGNOSTIC_POINT == 0 || VIDEO_DIAGNOSTIC_POINT == 3);
 parameter MEM_DATA_BITS = 32;
 parameter ADDR_BITS     = 21;
 parameter BUSRT_BITS    = 10;
@@ -94,21 +102,13 @@ wire [6:0]  seg_refresh_fault;
 wire [6:0]  seg_diag_0, seg_diag_1, seg_diag_2, seg_diag_3;
 wire [6:0]  seg_diag_underflow, seg_diag_mismatch, seg_diag_source, seg_diag_memory, seg_diag_axis_stall;
 reg  [2:0]  diag_page;
+wire [2:0] diag_next_page;
 reg  [26:0] diag_page_count;
 wire [15:0] diag_display_value;
-reg  [15:0] underflow_count_meta, underflow_count_sync, underflow_count_previous;
-reg  [15:0] underflow_count_display;
-reg  [15:0] mismatch_count_meta, mismatch_count_sync, mismatch_count_previous;
-reg  [15:0] mismatch_count_display;
-reg  [15:0] source_mismatch_meta, source_mismatch_sync, source_mismatch_previous;
-reg  [15:0] source_mismatch_display;
-reg  [15:0] memory_mismatch_meta, memory_mismatch_sync, memory_mismatch_previous;
-reg  [15:0] memory_mismatch_display;
+wire [15:0] diag_count_display;
 // HDMI 核的 AXIS ready 是其唯一能直接反映输入端接收状态的信号。
 // 帧 FIFO 的 b/d 正常但 HDMI 显示出现横线时，记录这里是否拒收过有效像素。
 reg  [15:0] axis_backpressure_count;
-reg  [15:0] axis_backpressure_meta, axis_backpressure_sync, axis_backpressure_previous;
-reg  [15:0] axis_backpressure_display;
 
 wire        video_read_req;
 wire        video_read_req_ack;
@@ -414,11 +414,16 @@ seg_decoder seg_decoder_m0(
 
 seg_decoder seg_decoder_refresh_fault(.bin_data(4'he), .seg_data(seg_refresh_fault));
 assign diag_display_value = (diag_page == 3'd0) ? {2'b00, refresh_gap_sync} :
-                            (diag_page == 3'd1) ? underflow_count_display :
-                            (diag_page == 3'd2) ? mismatch_count_display :
-                            (diag_page == 3'd3) ? source_mismatch_display :
-                            (diag_page == 3'd4) ? memory_mismatch_display :
-                                                  axis_backpressure_display;
+                                                  diag_count_display;
+// 页面选择后再做两级同步和稳定采样，避免为五页重复保存整组诊断计数。
+frame_diagnostic_sampler u_diagnostic_sampler (
+    .clk(clk),.rst(rst_clk),.page(diag_page),.count_b(video_underflow_count),
+    .count_d(video_output_mismatch_count),.count_f(video_mismatch_count),
+    .count_c(sdram_return_mismatch_count),.count_a(axis_backpressure_count),
+    .count_display(diag_count_display)
+);
+frame_diagnostic_pages #(.FIFO_ENABLED(DIAG_FIFO_ENABLED),.MEMORY_ENABLED(DIAG_MEMORY_ENABLED),
+    .OUTPUT_ENABLED(DIAG_OUTPUT_ENABLED)) u_diagnostic_pages(.page(diag_page),.next_page(diag_next_page));
 seg_decoder seg_decoder_diag_0(.bin_data(diag_display_value[3:0]), .seg_data(seg_diag_0));
 seg_decoder seg_decoder_diag_1(.bin_data(diag_display_value[7:4]), .seg_data(seg_diag_1));
 seg_decoder seg_decoder_diag_2(.bin_data(diag_display_value[11:8]), .seg_data(seg_diag_2));
@@ -442,26 +447,6 @@ always @(posedge clk or posedge rst_clk) begin
         refresh_gap_sync <= 14'd0;
         refresh_fault_meta <= 1'b0;
         refresh_fault_sync <= 1'b0;
-        underflow_count_meta <= 16'd0;
-        underflow_count_sync <= 16'd0;
-        underflow_count_previous <= 16'd0;
-        underflow_count_display <= 16'd0;
-        mismatch_count_meta <= 16'd0;
-        mismatch_count_sync <= 16'd0;
-        mismatch_count_previous <= 16'd0;
-        mismatch_count_display <= 16'd0;
-        source_mismatch_meta <= 16'd0;
-        source_mismatch_sync <= 16'd0;
-        source_mismatch_previous <= 16'd0;
-        source_mismatch_display <= 16'd0;
-        memory_mismatch_meta <= 16'd0;
-        memory_mismatch_sync <= 16'd0;
-        memory_mismatch_previous <= 16'd0;
-        memory_mismatch_display <= 16'd0;
-        axis_backpressure_meta <= 16'd0;
-        axis_backpressure_sync <= 16'd0;
-        axis_backpressure_previous <= 16'd0;
-        axis_backpressure_display <= 16'd0;
         diag_page <= 3'd0;
         diag_page_count <= 27'd0;
     end else begin
@@ -475,41 +460,10 @@ always @(posedge clk or posedge rst_clk) begin
         refresh_gap_sync <= refresh_gap_meta;
         refresh_fault_meta <= refresh_fault;
         refresh_fault_sync <= refresh_fault_meta;
-        // 视频域诊断计数只在连续两次同步采样一致时更新显示值。
-        underflow_count_meta <= video_underflow_count;
-        underflow_count_sync <= underflow_count_meta;
-        underflow_count_previous <= underflow_count_sync;
-        if (underflow_count_sync == underflow_count_previous)
-            underflow_count_display <= underflow_count_sync;
-        mismatch_count_meta <= video_output_mismatch_count;
-        mismatch_count_sync <= mismatch_count_meta;
-        mismatch_count_previous <= mismatch_count_sync;
-        if (mismatch_count_sync == mismatch_count_previous)
-            mismatch_count_display <= mismatch_count_sync;
-        source_mismatch_meta <= video_mismatch_count;
-        source_mismatch_sync <= source_mismatch_meta;
-        source_mismatch_previous <= source_mismatch_sync;
-        if (source_mismatch_sync == source_mismatch_previous)
-            source_mismatch_display <= source_mismatch_sync;
-        memory_mismatch_meta <= sdram_return_mismatch_count;
-        memory_mismatch_sync <= memory_mismatch_meta;
-        memory_mismatch_previous <= memory_mismatch_sync;
-        if (memory_mismatch_sync == memory_mismatch_previous)
-            memory_mismatch_display <= memory_mismatch_sync;
-        axis_backpressure_meta <= axis_backpressure_count;
-        axis_backpressure_sync <= axis_backpressure_meta;
-        axis_backpressure_previous <= axis_backpressure_sync;
-        if (axis_backpressure_sync == axis_backpressure_previous)
-            axis_backpressure_display <= axis_backpressure_sync;
 
         if (diag_page_count == 27'd99_999_999) begin
             diag_page_count <= 27'd0;
-            if (diag_page == 3'd5)
-                diag_page <= 3'd0;
-            else if (VIDEO_SIGNATURE_DIAGNOSTICS == 0 && diag_page == 3'd1)
-                diag_page <= 3'd5;
-            else
-                diag_page <= diag_page + 1'b1;
+            diag_page <= diag_next_page;
         end else begin
             diag_page_count <= diag_page_count + 1'b1;
         end
@@ -521,17 +475,12 @@ seg_scan seg_scan_m0(
     .rst_n             (~rst_clk),
     .seg_sel           (seg_sel),
     .seg_data          (seg_data),
-    // 每两秒轮换：刷新间隔、FIFO 空读计数(b)、最终 RGB 帧变化(d)、
-    // FIFO 输出帧变化(F)、SDRAM 返回帧变化(C)、HDMI AXIS 反压计数(A)。
+    // 每两秒轮换：刷新间隔、FIFO 空读(B)、已启用的 D/F/C 页、HDMI 反压(A)。
     .seg_data_0        ({1'b1,seg_diag_3}),
     .seg_data_1        ({1'b1,seg_diag_2}),
     .seg_data_2        ({1'b1,seg_diag_1}),
     .seg_data_3        ({1'b1,seg_diag_0}),
-    .seg_data_4        ({(diag_page == 3'd1) ? (underflow_count_display == 16'd0) :
-                         (diag_page == 3'd2) ? (mismatch_count_display == 16'd0) :
-                         (diag_page == 3'd3) ? (source_mismatch_display == 16'd0) :
-                         (diag_page == 3'd4) ? (memory_mismatch_display == 16'd0) :
-                         (diag_page == 3'd5) ? (axis_backpressure_display == 16'd0) : 1'b1,
+    .seg_data_4        ({(diag_page == 3'd0) ? 1'b1 : (diag_count_display == 16'd0),
                               (diag_page == 3'd0) ?
                                    (refresh_fault_sync ? seg_refresh_fault : 7'b1111_111) :
                                (diag_page == 3'd1) ? seg_diag_underflow :
@@ -639,7 +588,7 @@ frame_read_write #(
     .write_v_flip      (!bmp_source_top_down)
 );
 
-frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS),.SIGNATURE_CHECK(VIDEO_SIGNATURE_DIAGNOSTICS)) u_frame_read_monitor (
+frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS),.SIGNATURE_CHECK(DIAG_FIFO_ENABLED)) u_frame_read_monitor (
     .clk                (video_clk),
     .rst                (rst_video),
     // 只统计视频域启动保护已放行的帧，忽略 SDRAM/FIFO 预热阶段。
@@ -657,7 +606,7 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS),.SIGNATURE_CHECK(VIDEO_SIGNATUR
 );
 
 generate
-if (VIDEO_SIGNATURE_DIAGNOSTICS != 0) begin : g_video_signature_diagnostics
+if (DIAG_MEMORY_ENABLED) begin : g_memory_signature_diagnostics
 sdram_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_sdram_read_monitor (
     .clk                (ext_mem_clk),
     .rst                (rst_mem),
@@ -668,7 +617,11 @@ sdram_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_sdram_read_monitor (
     .mismatch_count     (sdram_return_mismatch_count),
     .mismatch_sticky    (sdram_return_mismatch_sticky)
 );
-
+end else begin : g_without_memory_signature
+    assign sdram_return_mismatch_count=16'd0;
+    assign sdram_return_mismatch_sticky=1'b0;
+end
+if (DIAG_OUTPUT_ENABLED) begin : g_output_signature_diagnostics
 // 直接校验 video_delay 送往 HDMI 的 RGB，而不是仅校验 FIFO 输出。
 // 此计数可区分内部像素链错误与 HDMI 物理输出错误。
 frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_video_output_monitor (
@@ -686,9 +639,7 @@ frame_read_monitor #(.FRAME_PIXELS(FRAME_PIXELS)) u_video_output_monitor (
     .mismatch_count     (video_output_mismatch_count),
     .mismatch_sticky    (video_output_mismatch_sticky)
 );
-end else begin : g_without_video_signatures
-    assign sdram_return_mismatch_count=16'd0;
-    assign sdram_return_mismatch_sticky=1'b0;
+end else begin : g_without_output_signature
     assign video_output_mismatch_count=16'd0;
     assign video_output_mismatch_sticky=1'b0;
 end

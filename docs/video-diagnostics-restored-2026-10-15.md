@@ -5,9 +5,13 @@
 将 `src/top_tf_hdmi_audio.v` 的 `VIDEO_SIGNATURE_DIAGNOSTICS` 默认值从 `0` 恢复为 `1`。
 原有模块、连接和轮换逻辑均保留，只重新启用既有诊断，不改变图片、音频、游戏处理流程。
 
+后续完整并行诊断导致 MSlice 超限，当前默认改为 F 点分批诊断。
+诊断点选择、资源优化和验证结果见 [资源优化记录](video-diagnostics-resource-2026-10-15.md)。
+下文六页轮换描述的是 `VIDEO_DIAGNOSTIC_POINT=0` 的完整模式。
+
 - `u_frame_read_monitor`：重新开启读 FIFO 输出的逐槽帧签名比较。
-- `g_video_signature_diagnostics/u_sdram_read_monitor`：恢复 SDRAM 返回口的帧签名及字数检查。
-- `g_video_signature_diagnostics/u_video_output_monitor`：恢复图像处理前原始 RGB 的逐槽帧签名比较。
+- `u_sdram_read_monitor`：恢复 SDRAM 返回口的帧签名及字数检查（当前由诊断点参数控制）。
+- `u_video_output_monitor`：恢复图像处理前原始 RGB 的逐槽帧签名比较（当前由诊断点参数控制）。
 - 数码管恢复完整的六页轮换，每页 2 秒：刷新间隔 → B → D → F → C → A。
 
 ## 板上读取
