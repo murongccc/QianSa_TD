@@ -71,17 +71,14 @@ rhythm_block_ram #(.IMPLEMENT("9K"),.WIDTH(16),.ADDRESS_BITS(5),.DEPTH(32)) desc
     .write_address({cache_write_slot,cache_write_word}),.write_data(cache_write_shift[15:0]),
     .read_clk(clk),.read_address({candidate_output_index,cache_read_next}),.read_data(cache_read_data));
 // 接受目录项最少相隔 32 个字节，四拍写入不会阻塞连续的 SD 字节流。
-// 四个字的描述符只在完整目录项装载后写 RAM；空闲时的数据不被消费。
-// 去掉 64 位移位暂存的复位和保持使能，写使能/写索引仍由原控制复位。
-always @(posedge clk)begin
-    if(state==ST_DIR && sd_sec_read_data_valid && pos[4:0]==5'd31)begin
+always @(posedge clk or posedge rst) begin
+    if(rst)begin cache_write_shift<=0;cache_write_slot<=0;cache_write_word<=0;cache_write_busy<=0;end
+    else begin
+      // 数据暂存只看字节位置，复杂的候选判断仅控制 RAM 写入有效位。
+      if(state==ST_DIR && sd_sec_read_data_valid && pos[4:0]==5'd31)begin
         cache_write_shift<={sd_sec_read_data,entry_size_low,entry_cluster};
         cache_write_slot<=candidate_count;
-    end else cache_write_shift<={16'd0,cache_write_shift[63:16]};
-end
-always @(posedge clk or posedge rst) begin
-    if(rst)begin cache_write_word<=0;cache_write_busy<=0;end
-    else begin
+      end else if(cache_write_busy)cache_write_shift<={16'd0,cache_write_shift[63:16]};
       if(cache_accept)begin cache_write_word<=0;cache_write_busy<=1;end
       else if(cache_write_busy)begin
         if(cache_write_word==2'd3)cache_write_busy<=0;
