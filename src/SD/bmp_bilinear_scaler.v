@@ -168,170 +168,143 @@ endfunction
 // before it has been interpolated.
 assign src_ready=(state==ST_FILL)&&(fill_col<sw);
 
+// 内部算术数据仅在既定状态消费；每次消费前均已完整写入。
+// 对外状态/输出仍由下方复位状态机控制，abort 后重新经过完整读取与计算序列。
+// p00/p01 在相邻两拍消费同一读端口，使用每拍捕获可合并为一组寄存器。
+always @(posedge clk) begin
+ p00_q<=top_dout;p01_q<=top_dout;
+ if(state==ST_READ1) p10_q<=bottom_dout;
+ if(state==ST_READ2) p11_q<=bottom_dout;
+ fx_inv_q<=9'd256-{1'b0,fx};fx_weight_q<={1'b0,fx};
+ fy_inv_q<=9'd256-{1'b0,fy};fy_weight_q<={1'b0,fy};
+ // 水平阶段乘积小于 2^16，与原来的高八位补零完全等价。
+ acc_r<=mul_p0[23:0];acc_g<=mul_p1[23:0];acc_b<=mul_p2[23:0];
+ if(state==ST_H0_ACC) begin h0_r<=sum_r[15:0];h0_g<=sum_g[15:0];h0_b<=sum_b[15:0];end
+ h1_r<=sum_r[15:0];h1_g<=sum_g[15:0];h1_b<=sum_b[15:0];
+ v_r<=sum_r;v_g<=sum_g;v_b<=sum_b;
+ // 操作数仅需在其下一拍消费，非计算状态写零，避免复位和保持使能。
+ case(state)
+  ST_READ2:begin
+   mul_a0<={10'd0,p00_q[23:16]};mul_a1<={10'd0,p00_q[15:8]};mul_a2<={10'd0,p00_q[7:0]};
+   mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
+  end
+  ST_H0_BASE:begin
+   mul_a0<={10'd0,p01_q[23:16]};mul_a1<={10'd0,p01_q[15:8]};mul_a2<={10'd0,p01_q[7:0]};
+   mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
+  end
+  ST_H0_ACC:begin
+   mul_a0<={10'd0,p10_q[23:16]};mul_a1<={10'd0,p10_q[15:8]};mul_a2<={10'd0,p10_q[7:0]};
+   mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
+  end
+  ST_H1_BASE:begin
+   mul_a0<={10'd0,p11_q[23:16]};mul_a1<={10'd0,p11_q[15:8]};mul_a2<={10'd0,p11_q[7:0]};
+   mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
+  end
+  ST_H1_ACC:begin
+   mul_a0<={2'b0,h0_r};mul_a1<={2'b0,h0_g};mul_a2<={2'b0,h0_b};
+   mul_b0<={9'd0,fy_inv_q};mul_b1<={9'd0,fy_inv_q};mul_b2<={9'd0,fy_inv_q};
+  end
+  ST_V_BASE:begin
+   mul_a0<={2'b0,h1_r};mul_a1<={2'b0,h1_g};mul_a2<={2'b0,h1_b};
+   mul_b0<={9'd0,fy_weight_q};mul_b1<={9'd0,fy_weight_q};mul_b2<={9'd0,fy_weight_q};
+  end
+  default:begin mul_a0<=18'd0;mul_a1<=18'd0;mul_a2<=18'd0;mul_b0<=18'd0;mul_b1<=18'd0;mul_b2<=18'd0;end
+ endcase
+end
+
+// 帧工作数据统一无复位：尺寸在 ST_IDLE 锁存，计数与相位在
+// ST_VALIDATE 初始化，除法器在各 INIT 状态初始化后才进入 RUN。
+// reset/abort 只需使控制状态回到 IDLE；下一帧会覆盖全部可消费数据。
+always @(posedge clk) begin
+ case(state)
+  ST_IDLE:if(start) begin sw<=src_width;sh<=src_height;end
+  ST_VALIDATE:begin
+   fill_col<=0;next_row<=0;out_x<=0;out_y<=0;x_fp<=0;y_fp<=0;
+   x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
+  end
+  ST_DIV_X_INIT:begin
+   div_integer<=sw-1'b1;div_divisor<=OUT_WIDTH-1;div_remainder<=0;
+   div_quotient<=0;div_bit<=DIV_LAST_BIT;
+  end
+  ST_DIV_X_RUN:begin
+   div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
+   if(div_bit==0)begin x_step<={div_quotient[X_FP_BITS-2:0],div_subtract};x_rem_step<=div_next_remainder[X_PHASE_BITS-1:0];end
+   else div_bit<=div_bit-1'b1;
+  end
+  ST_DIV_Y_INIT:begin
+   if(sh<=1)begin y_step<=0;y_rem_step<=0;end
+   else begin div_integer<=sh-1'b1;div_divisor<=OUT_HEIGHT-1;div_remainder<=0;div_quotient<=0;div_bit<=DIV_LAST_BIT;end
+  end
+  ST_DIV_Y_RUN:begin
+   div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
+   if(div_bit==0)begin y_step<={div_quotient[Y_FP_BITS-2:0],div_subtract};y_rem_step<=div_next_remainder[Y_PHASE_BITS-1:0];end
+   else div_bit<=div_bit-1'b1;
+  end
+  ST_FILL:if(linebuf_write)begin
+   if(src_last||fill_col+1'b1>=sw)begin fill_col<=0;next_row<=next_row+1'b1;end
+   else fill_col<=fill_col+1'b1;
+  end
+  ST_CHECK:required_row<=sy1;
+  ST_READ0:begin last_q<=(out_x==OUT_WIDTH-1);frame_last_q<=(out_x==OUT_WIDTH-1)&&(out_y==OUT_HEIGHT-1);end
+  ST_EMIT:if(dst_valid&&dst_ready&&!frame_last_q)begin
+   if(last_q)begin
+    out_x<=0;out_y<=out_y+1'b1;x_fp<=0;x_phase<=0;y_fp<=y_fp_next;
+    if(out_y==OUT_HEIGHT-2)y_phase<=0;
+    else if(y_phase_carry)y_phase<=y_phase_sum-Y_DENOM;
+    else y_phase<=y_phase_sum[Y_PHASE_BITS-1:0];
+   end else begin
+    out_x<=out_x+1'b1;
+    if(out_x==OUT_WIDTH-2)begin x_fp<={sw-1'b1,16'h0000};x_phase<=0;end
+    else begin
+     x_fp<=x_fp+x_step+x_phase_carry;
+     if(x_phase_carry)x_phase<=x_phase_sum-X_DENOM;
+     else x_phase<=x_phase_sum[X_PHASE_BITS-1:0];
+    end
+   end
+  end
+  default:begin end
+ endcase
+end
+
 always @(posedge clk or posedge rst) begin
- if(rst) begin
-  state<=ST_IDLE;sw<=1;sh<=1;fill_col<=0;next_row<=0;required_row<=0;out_x<=0;out_y<=0;
-  x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;
-  fx_inv_q<=0;fx_weight_q<=0;fy_inv_q<=0;fy_weight_q<=0;
-  p00_q<=0;p01_q<=0;p10_q<=0;p11_q<=0;
-  acc_r<=0;acc_g<=0;acc_b<=0;
-  h0_r<=0;h0_g<=0;h0_b<=0;h1_r<=0;h1_g<=0;h1_b<=0;
-  v_r<=0;v_g<=0;v_b<=0;
-  mul_a0<=0;mul_a1<=0;mul_a2<=0;mul_b0<=0;mul_b1<=0;mul_b2<=0;
-  last_q<=0;frame_last_q<=0;
-  dst_valid<=0;dst_pixel<=0;dst_last<=0;dst_frame_last<=0;dst_x<=0;dst_y<=0;
-  busy<=0;done<=0;div_integer<=0;div_quotient<=0;div_divisor<=0;div_remainder<=0;div_bit<=0;
+ if(rst)begin
+  state<=ST_IDLE;dst_valid<=0;dst_pixel<=0;dst_last<=0;dst_frame_last<=0;
+  dst_x<=0;dst_y<=0;busy<=0;done<=0;
  end else begin
   done<=0;
-  if(abort) begin
-   state<=ST_IDLE;busy<=0;dst_valid<=0;dst_last<=0;dst_frame_last<=0;
-  end else case(state)
-   ST_IDLE: begin
-    busy<=0;dst_valid<=0;
-    if(start) begin
-     // 先锁存解析尺寸，再在下一拍校验并初始化，切断尺寸总线到全部
-     // 步进寄存器写使能的长组合链。
-     sw<=src_width;sh<=src_height;state<=ST_VALIDATE;
-    end
+  if(abort)begin state<=ST_IDLE;busy<=0;dst_valid<=0;dst_last<=0;dst_frame_last<=0;end
+  else case(state)
+   ST_IDLE:begin busy<=0;dst_valid<=0;if(start)state<=ST_VALIDATE;end
+   ST_VALIDATE:begin
+    if(sw!=0&&sh!=0&&sw<=MAX_WIDTH&&sh<=MAX_HEIGHT)begin
+     busy<=1;if(sw<=1)state<=ST_DIV_Y_INIT;else state<=ST_DIV_X_INIT;
+    end else begin busy<=0;state<=ST_IDLE;end
    end
-   ST_VALIDATE: begin
-    if(sw!=0&&sh!=0&&sw<=MAX_WIDTH&&sh<=MAX_HEIGHT) begin
-     fill_col<=0;next_row<=0;out_x<=0;out_y<=0;x_fp<=0;y_fp<=0;x_step<=0;y_step<=0;x_rem_step<=0;y_rem_step<=0;x_phase<=0;y_phase<=0;busy<=1;
-     if(sw<=1) state<=ST_DIV_Y_INIT; else state<=ST_DIV_X_INIT;
-    end else begin
-     busy<=0;state<=ST_IDLE;
-    end
-   end
-   ST_DIV_X_INIT: begin
-    div_integer<=sw-1'b1;div_divisor<=OUT_WIDTH-1;div_remainder<=0;div_quotient<=0;div_bit<=DIV_LAST_BIT;state<=ST_DIV_X_RUN;
-   end
-   ST_DIV_X_RUN: begin
-    div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
-    if(div_bit==0) begin
-     x_step<={div_quotient[X_FP_BITS-2:0],div_subtract};x_rem_step<=div_next_remainder[X_PHASE_BITS-1:0];state<=ST_DIV_Y_INIT;
-    end else div_bit<=div_bit-1'b1;
-   end
-   ST_DIV_Y_INIT: begin
-    if(sh<=1) begin y_step<=0;y_rem_step<=0;state<=ST_CHECK;end
-    else begin div_integer<=sh-1'b1;div_divisor<=OUT_HEIGHT-1;div_remainder<=0;div_quotient<=0;div_bit<=DIV_LAST_BIT;state<=ST_DIV_Y_RUN;end
-   end
-   ST_DIV_Y_RUN: begin
-    div_remainder<=div_next_remainder;div_quotient<={div_quotient[DIV_FP_BITS-3:0],div_subtract};div_integer<=div_integer<<1;
-    if(div_bit==0) begin
-     y_step<={div_quotient[Y_FP_BITS-2:0],div_subtract};y_rem_step<=div_next_remainder[Y_PHASE_BITS-1:0];state<=ST_CHECK;
-    end else div_bit<=div_bit-1'b1;
-   end
-   ST_FILL: begin
-    busy<=1;
-    if(linebuf_write) begin
-     if(src_last||fill_col+1'b1>=sw) begin
-      fill_col<=0;next_row<=next_row+1'b1;
-      // 行尾先退出写入状态，再用已寄存的 required_row 判断是否可以读。
-      // 避免 sh -> sy1 -> 行尾比较 -> state 跨越一个 100 MHz 周期。
-      state<=ST_CHECK;
-     end else fill_col<=fill_col+1'b1;
-    end
-   end
-   // Check row availability in a state where the source cannot handshake.
-   // This removes the output-coordinate comparison from the line-buffer write
-   // enable path and prevents accepting a pixel from the row after sy1.
-   ST_CHECK:begin
-    busy<=1;required_row<=sy1;state<=ST_CHECK_ROWS;
-   end
-   ST_CHECK_ROWS:begin
-    busy<=1;
-    if(next_row>required_row)state<=ST_READ0;else state<=ST_FILL;
-   end
-   // B-port OUTREG: read x0, capture/request x1, then capture x1.
-   ST_READ0: begin
-    busy<=1;
-    fx_inv_q<=9'd256-{1'b0,fx}; fx_weight_q<={1'b0,fx};
-    fy_inv_q<=9'd256-{1'b0,fy}; fy_weight_q<={1'b0,fy};
-    last_q<=(out_x==OUT_WIDTH-1);frame_last_q<=(out_x==OUT_WIDTH-1)&&(out_y==OUT_HEIGHT-1);state<=ST_READ1;
-   end
-   ST_READ1: begin
-    busy<=1;p00_q<=top_dout;p10_q<=bottom_dout;state<=ST_READ2;
-   end
-   ST_READ2: begin
-    busy<=1;
-    p01_q<=top_dout;p11_q<=bottom_dout;
-    mul_a0<={10'd0,p00_q[23:16]};mul_a1<={10'd0,p00_q[15:8]};mul_a2<={10'd0,p00_q[7:0]};
-    mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
-    state<=ST_H0_BASE;
-   end
-   // The six interpolation terms are scheduled through the three shared
-   // multipliers.  Keep the registered DSP operands and the existing schedule.
-   // 权重互补，因此按实际最大值保留水平 16 位、垂直 24 位结果。
-   ST_H0_BASE: begin
-    busy<=1;
-    acc_r<={8'd0,mul_p0[15:0]};acc_g<={8'd0,mul_p1[15:0]};acc_b<={8'd0,mul_p2[15:0]};
-    mul_a0<={10'd0,p01_q[23:16]};mul_a1<={10'd0,p01_q[15:8]};mul_a2<={10'd0,p01_q[7:0]};
-    mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
-    state<=ST_H0_ACC;
-   end
-   ST_H0_ACC: begin
-    busy<=1;
-    h0_r<=sum_r[15:0];h0_g<=sum_g[15:0];h0_b<=sum_b[15:0];
-    mul_a0<={10'd0,p10_q[23:16]};mul_a1<={10'd0,p10_q[15:8]};mul_a2<={10'd0,p10_q[7:0]};
-    mul_b0<={9'd0,fx_inv_q};mul_b1<={9'd0,fx_inv_q};mul_b2<={9'd0,fx_inv_q};
-    state<=ST_H1_BASE;
-   end
-   ST_H1_BASE: begin
-    busy<=1;
-    acc_r<={8'd0,mul_p0[15:0]};acc_g<={8'd0,mul_p1[15:0]};acc_b<={8'd0,mul_p2[15:0]};
-    mul_a0<={10'd0,p11_q[23:16]};mul_a1<={10'd0,p11_q[15:8]};mul_a2<={10'd0,p11_q[7:0]};
-    mul_b0<={9'd0,fx_weight_q};mul_b1<={9'd0,fx_weight_q};mul_b2<={9'd0,fx_weight_q};
-    state<=ST_H1_ACC;
-   end
-   ST_H1_ACC: begin
-    busy<=1;
-    h1_r<=sum_r[15:0];h1_g<=sum_g[15:0];h1_b<=sum_b[15:0];
-    mul_a0<={2'b0,h0_r};mul_a1<={2'b0,h0_g};mul_a2<={2'b0,h0_b};
-    mul_b0<={9'd0,fy_inv_q};mul_b1<={9'd0,fy_inv_q};mul_b2<={9'd0,fy_inv_q};
-    state<=ST_V_BASE;
-   end
-   ST_V_BASE: begin
-    busy<=1;
-    acc_r<=mul_p0[23:0];acc_g<=mul_p1[23:0];acc_b<=mul_p2[23:0];
-    mul_a0<={2'b0,h1_r};mul_a1<={2'b0,h1_g};mul_a2<={2'b0,h1_b};
-    mul_b0<={9'd0,fy_weight_q};mul_b1<={9'd0,fy_weight_q};mul_b2<={9'd0,fy_weight_q};
-    state<=ST_V_ACC;
-   end
-   ST_V_ACC: begin
-    busy<=1;
-    v_r<=sum_r;
-    v_g<=sum_g;
-    v_b<=sum_b;
-    state<=ST_PACK;
-   end
-   ST_PACK: begin
-    busy<=1;
-    dst_pixel<={round_interp(v_r),round_interp(v_g),round_interp(v_b)};
+   ST_DIV_X_INIT:state<=ST_DIV_X_RUN;
+   ST_DIV_X_RUN:if(div_bit==0)state<=ST_DIV_Y_INIT;
+   ST_DIV_Y_INIT:if(sh<=1)state<=ST_CHECK;else state<=ST_DIV_Y_RUN;
+   ST_DIV_Y_RUN:if(div_bit==0)state<=ST_CHECK;
+   ST_FILL:begin busy<=1;if(linebuf_write && (src_last||fill_col+1'b1>=sw))state<=ST_CHECK;end
+   ST_CHECK:begin busy<=1;state<=ST_CHECK_ROWS;end
+   ST_CHECK_ROWS:begin busy<=1;if(next_row>required_row)state<=ST_READ0;else state<=ST_FILL;end
+   ST_READ0:begin busy<=1;state<=ST_READ1;end
+   ST_READ1:begin busy<=1;state<=ST_READ2;end
+   ST_READ2:begin busy<=1;state<=ST_H0_BASE;end
+   ST_H0_BASE:begin busy<=1;state<=ST_H0_ACC;end
+   ST_H0_ACC:begin busy<=1;state<=ST_H1_BASE;end
+   ST_H1_BASE:begin busy<=1;state<=ST_H1_ACC;end
+   ST_H1_ACC:begin busy<=1;state<=ST_V_BASE;end
+   ST_V_BASE:begin busy<=1;state<=ST_V_ACC;end
+   ST_V_ACC:begin busy<=1;state<=ST_PACK;end
+   ST_PACK:begin
+    busy<=1;dst_pixel<={round_interp(v_r),round_interp(v_g),round_interp(v_b)};
     dst_x<=out_x;dst_y<=out_y;dst_last<=last_q;dst_frame_last<=frame_last_q;dst_valid<=1;state<=ST_EMIT;
    end
-   ST_EMIT: if(dst_valid&&dst_ready) begin
+   ST_EMIT:if(dst_valid&&dst_ready)begin
     dst_valid<=0;dst_last<=0;dst_frame_last<=0;
-    if(frame_last_q) state<=ST_DONE;
-    else if(last_q) begin
-     out_x<=0;out_y<=out_y+1'b1;x_fp<=0;x_phase<=0;y_fp<=y_fp_next;
-     if(out_y==OUT_HEIGHT-2) y_phase<=0;
-     else if(y_phase_carry) y_phase<=y_phase_sum-Y_DENOM;
-     else y_phase<=y_phase_sum[Y_PHASE_BITS-1:0];
-     // Re-evaluate sy1 after out_y/y_fp advance.  ST_FILL immediately moves
-     // to ST_READ0 when both required rows are already resident.
-     state<=ST_CHECK;
-    end else begin
-     out_x<=out_x+1'b1;
-     if(out_x==OUT_WIDTH-2) begin x_fp<={sw-1'b1,16'h0000};x_phase<=0;end
-     else begin
-      x_fp<=x_fp+x_step+x_phase_carry;
-      if(x_phase_carry) x_phase<=x_phase_sum-X_DENOM;
-      else x_phase<=x_phase_sum[X_PHASE_BITS-1:0];
-     end
-     state<=ST_READ0;
-    end
+    if(frame_last_q)state<=ST_DONE;else if(last_q)state<=ST_CHECK;else state<=ST_READ0;
    end
-   ST_DONE: begin busy<=0;done<=1;dst_valid<=0;state<=ST_IDLE;end
+   ST_DONE:begin busy<=0;done<=1;dst_valid<=0;state<=ST_IDLE;end
    default:state<=ST_IDLE;
   endcase
  end

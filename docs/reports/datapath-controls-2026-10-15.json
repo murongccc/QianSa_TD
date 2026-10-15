@@ -1,0 +1,1138 @@
+{
+  "baseline_commit": "5080535521c161f3f25708bd6409315f53a2fb4b",
+  "selected": "candidate3",
+  "selected_sources": {
+    "scaler": "candidate2_scaler.v",
+    "catalog": "candidate3_catalog.v"
+  },
+  "limitation": "MSlice 5005 -> 4910, still 10 above 4900; all physical runs stop at packing with PHY-9009. No final routed timing.",
+  "baseline_syn": {
+    "directory": "prj\\log\\datapath_controls_baseline_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18678,
+      "reg": 10995,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 800,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 1121,
+        "seq": 648,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 564,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "baseline_phy": {
+    "directory": "prj\\log\\mslice_hfn_medium_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 5005, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 5005,
+      "lslice": 5004
+    },
+    "replication": [
+      {
+        "drivers": 21,
+        "copies": 302
+      }
+    ],
+    "single_lut": [
+      1502
+    ],
+    "single_seq": [
+      186
+    ],
+    "bitgen_started": false
+  },
+  "baseline_gate_sha256": "b1f3fd4fdeef85f1768ff5a7918f966fc0b597891333e651ed3c72a7510f2a98",
+  "candidate1_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate1_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18455,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 794,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 943,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 554,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate1_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate1_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 5011, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 5011,
+      "lslice": 5011
+    },
+    "replication": [
+      {
+        "drivers": 19,
+        "copies": 272
+      }
+    ],
+    "single_lut": [
+      1588
+    ],
+    "single_seq": [
+      426
+    ],
+    "bitgen_started": false
+  },
+  "candidate2_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate2_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18425,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 801,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 921,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 567,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate2_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate2_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4984, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4984,
+      "lslice": 4985
+    },
+    "replication": [
+      {
+        "drivers": 21,
+        "copies": 273
+      }
+    ],
+    "single_lut": [
+      1511
+    ],
+    "single_seq": [
+      388
+    ],
+    "bitgen_started": false
+  },
+  "candidate3_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate3_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18408,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 783,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 921,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 574,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate3_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate3_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4910, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4910,
+      "lslice": 4910
+    },
+    "replication": [
+      {
+        "drivers": 20,
+        "copies": 265
+      }
+    ],
+    "single_lut": [
+      1251
+    ],
+    "single_seq": [
+      138
+    ],
+    "bitgen_started": false
+  },
+  "candidate4_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate4_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18418,
+      "reg": 10944,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 783,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 924,
+        "seq": 597,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 581,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate4_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate4_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4974, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4974,
+      "lslice": 4973
+    },
+    "replication": [
+      {
+        "drivers": 21,
+        "copies": 285
+      }
+    ],
+    "single_lut": [
+      1519
+    ],
+    "single_seq": [
+      420
+    ],
+    "bitgen_started": false
+  },
+  "candidate5_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate5_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18468,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 783,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 919,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 564,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate5_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate5_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4955, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4955,
+      "lslice": 4955
+    },
+    "replication": [
+      {
+        "drivers": 20,
+        "copies": 271
+      }
+    ],
+    "single_lut": [
+      1462
+    ],
+    "single_seq": [
+      303
+    ],
+    "bitgen_started": false
+  },
+  "candidate6_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate6_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18433,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 781,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 919,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 565,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate6_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate6_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4983, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4983,
+      "lslice": 4983
+    },
+    "replication": [
+      {
+        "drivers": 20,
+        "copies": 275
+      }
+    ],
+    "single_lut": [
+      1502
+    ],
+    "single_seq": [
+      419
+    ],
+    "bitgen_started": false
+  },
+  "candidate7_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate7_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18392,
+      "reg": 10970,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 785,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 921,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 565,
+        "seq": 171,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate7_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate7_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4979, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4979,
+      "lslice": 4979
+    },
+    "replication": [
+      {
+        "drivers": 20,
+        "copies": 260
+      }
+    ],
+    "single_lut": [
+      1482
+    ],
+    "single_seq": [
+      390
+    ],
+    "bitgen_started": false
+  },
+  "candidate8_syn": {
+    "directory": "prj\\log\\datapath_controls_candidate8_syn_20261015",
+    "physical": false,
+    "area": {
+      "lut": 18404,
+      "reg": 10968,
+      "bram": 59,
+      "bram9k": 43,
+      "fifo9k": 16,
+      "bram32k": 15,
+      "dsp": 19
+    },
+    "modules": {
+      "u_bmp_catalog": {
+        "lut": 785,
+        "seq": 706,
+        "bram": 1,
+        "dsp": 2
+      },
+      "u_scaler": {
+        "lut": 921,
+        "seq": 621,
+        "bram": 4,
+        "dsp": 3
+      },
+      "hud": {
+        "lut": 571,
+        "seq": 169,
+        "bram": 2,
+        "dsp": 0
+      }
+    },
+    "timing": {
+      "SWNS": -0.213,
+      "STNS": -3.408,
+      "HWNS": 0.471,
+      "HTNS": 0.0
+    },
+    "flow_completed": true,
+    "errors": [],
+    "warnings": {
+      "HDL-5007": 10,
+      "HDL-5323": 1,
+      "HDL-5317": 3,
+      "HDL-5314": 8,
+      "HDL-5001": 4,
+      "HDL-5106": 10,
+      "SYN-5013": 3,
+      "SYN-5025": 3,
+      "SYN-5011": 20,
+      "SYN-6577": 1,
+      "SYN-6562": 10
+    },
+    "replication": [],
+    "single_lut": [],
+    "single_seq": [],
+    "bitgen_started": false
+  },
+  "candidate8_phy": {
+    "directory": "prj\\log\\datapath_controls_candidate8_phy_20261015",
+    "physical": true,
+    "flow_completed": false,
+    "errors": [
+      "PHY-9009 ERROR: Design's mslice number = 4984, exceeds the limit 4900. There are more MSlices exceeding the limit of the device. You can try using 'report_area' in console to check the resource utilization of the device and results of Optimize Gate stage. And you can try modifying the design or changing the strategy of syn and rerunning it."
+    ],
+    "warnings": {},
+    "packing": {
+      "mslice": 4984,
+      "lslice": 4984
+    },
+    "replication": [
+      {
+        "drivers": 19,
+        "copies": 265
+      }
+    ],
+    "single_lut": [
+      1466
+    ],
+    "single_seq": [
+      366
+    ],
+    "bitgen_started": false
+  },
+  "synthesis_projects_equal_except_runtime": true,
+  "synthesis_settings_identical": true,
+  "preservation": {
+    "checked_files": 226,
+    "our_changed_files": [
+      "src\\SD\\bmp_bilinear_scaler.v",
+      "src\\fat32_bmp_catalog.v"
+    ],
+    "external_changed_files": [
+      "src\\top_tf_hdmi_audio.v"
+    ],
+    "unchanged_files": 223
+  },
+  "external_top_change": {
+    "baseline_sha256": "aac850961a0cbd3e9b864d600560ac5b34ceb9480fca0e06f069bee56436cb78",
+    "current_sha256": "c1634e36af3ad6ec920778f47c315955984d242168d6c508514b4b77db4837af",
+    "note": "Top changed after all candidate netlists were synthesized: TOUCH_SERIAL_MONITOR_ENABLED defaults to 0. This task did not edit it; measurements retain full original functionality. Current worktree is not the measured full-board configuration.",
+    "latest_candidate_gate_mtime_ns": 1792069208215495100,
+    "external_top_mtime_ns": 1792069893615439700
+  },
+  "selected_file_sha256": {
+    "src\\SD\\bmp_bilinear_scaler.v": "849f5c23e7b5cb9ce637527686d58b6a5dc9ef0e24e7c32f39ce621e8431d89f",
+    "src\\fat32_bmp_catalog.v": "303dddd8438ecc40ab53cda17befbf730a3f7f301415612a713c5062344a705d"
+  },
+  "preserved_clock_and_constraint_sha256": {
+    "prj\\al_ip\\sys_pll.v": "1422f9370d14a2b2071e32ba62f07c9f646508f4f69bd319faf9d48b03f6060b",
+    "prj\\al_ip\\sys_pll.vhd": "446df2001884691161485c2add930279ec05cac781059e6d8921f7de418ac2eb",
+    "prj\\pin.adc": "3ad5e8e1be1f3a5cb3042710d1e1769f9d5262c854af64810f1f82b20f16e009",
+    "prj\\SD_to_Video.al": "84988dbe3bfcaa59640b9ae24abf209fdd513b05b27643f23a7432512b9534e4",
+    "prj\\timing.sdc": "376caf75db19540306c6950fe6e87d96f8ee34a5b038d194dec934d993c8b51d"
+  },
+  "test_groups": {
+    "candidate2_regression": {
+      "boundaries": [
+        "# PASS 1920x1080 -> 19x14 pattern=0",
+        "# PASS 1919x1079 -> 19x14 pattern=2",
+        "# PASS 1x1080 -> 19x14 pattern=0",
+        "# PASS 1920x1 -> 19x14 pattern=0",
+        "# PASS 2x2 -> 19x14 pattern=2",
+        "# PASS 640x480 -> 19x14 pattern=0",
+        "# PASS 17x13 -> 19x14 pattern=3",
+        "# PASS 17x13 -> 19x14 pattern=0",
+        "# PASS 1x1 -> 19x14 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "full_output": [
+        "# PASS 1920x1080 -> 640x480 pattern=0",
+        "# PASS 1919x1079 -> 640x480 pattern=2",
+        "# PASS 1x1080 -> 640x480 pattern=0",
+        "# PASS 1920x1 -> 640x480 pattern=0",
+        "# PASS 2x2 -> 640x480 pattern=2",
+        "# PASS 640x480 -> 640x480 pattern=0",
+        "# PASS 17x13 -> 640x480 pattern=3",
+        "# PASS 17x13 -> 640x480 pattern=0",
+        "# PASS 1x1 -> 640x480 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "reset_sweep": [
+        "# PASS cancel state=1 reset=0 and restart",
+        "# PASS cancel state=2 reset=0 and restart",
+        "# PASS cancel state=3 reset=0 and restart",
+        "# PASS cancel state=4 reset=0 and restart",
+        "# PASS cancel state=5 reset=0 and restart",
+        "# PASS cancel state=6 reset=0 and restart",
+        "# PASS cancel state=7 reset=0 and restart",
+        "# PASS cancel state=8 reset=0 and restart",
+        "# PASS cancel state=9 reset=0 and restart",
+        "# PASS cancel state=10 reset=0 and restart",
+        "# PASS cancel state=11 reset=0 and restart",
+        "# PASS cancel state=12 reset=0 and restart",
+        "# PASS cancel state=13 reset=0 and restart",
+        "# PASS cancel state=14 reset=0 and restart",
+        "# PASS cancel state=15 reset=0 and restart",
+        "# PASS cancel state=16 reset=0 and restart",
+        "# PASS cancel state=17 reset=0 and restart",
+        "# PASS cancel state=18 reset=0 and restart",
+        "# PASS cancel state=19 reset=0 and restart",
+        "# PASS cancel state=20 reset=0 and restart",
+        "# PASS cancel state=1 reset=1 and restart",
+        "# PASS cancel state=2 reset=1 and restart",
+        "# PASS cancel state=3 reset=1 and restart",
+        "# PASS cancel state=4 reset=1 and restart",
+        "# PASS cancel state=5 reset=1 and restart",
+        "# PASS cancel state=6 reset=1 and restart",
+        "# PASS cancel state=7 reset=1 and restart",
+        "# PASS cancel state=8 reset=1 and restart",
+        "# PASS cancel state=9 reset=1 and restart",
+        "# PASS cancel state=10 reset=1 and restart",
+        "# PASS cancel state=11 reset=1 and restart",
+        "# PASS cancel state=12 reset=1 and restart",
+        "# PASS cancel state=13 reset=1 and restart",
+        "# PASS cancel state=14 reset=1 and restart",
+        "# PASS cancel state=15 reset=1 and restart",
+        "# PASS cancel state=16 reset=1 and restart",
+        "# PASS cancel state=17 reset=1 and restart",
+        "# PASS cancel state=18 reset=1 and restart",
+        "# PASS cancel state=19 reset=1 and restart",
+        "# PASS cancel state=20 reset=1 and restart",
+        "# PASS all 20 active states reset/abort and restart, cycle equivalence",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_column": [
+        "# PASS 640x480 -> 1x5 pattern=0",
+        "# PASS 17x13 -> 1x5 pattern=3",
+        "# PASS 17x13 -> 1x5 pattern=0",
+        "# PASS 1x1 -> 1x5 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_output": [
+        "# PASS 640x480 -> 1x1 pattern=0",
+        "# PASS 17x13 -> 1x1 pattern=3",
+        "# PASS 17x13 -> 1x1 pattern=0",
+        "# PASS 1x1 -> 1x1 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_row": [
+        "# PASS 640x480 -> 7x1 pattern=0",
+        "# PASS 17x13 -> 7x1 pattern=3",
+        "# PASS 17x13 -> 7x1 pattern=0",
+        "# PASS 1x1 -> 7x1 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "small_output": [
+        "# PASS 640x480 -> 7x5 pattern=0",
+        "# PASS 17x13 -> 7x5 pattern=3",
+        "# PASS 17x13 -> 7x5 pattern=0",
+        "# PASS 1x1 -> 7x5 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ]
+    },
+    "candidate3_catalog_equivalence": {
+      "catalog_equivalence_0": [
+        "# PASS catalog stage1 equivalence MBR=0 cases=1792 compared_cycles=1701969",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_equivalence_1": [
+        "# PASS catalog stage1 equivalence MBR=1 cases=1792 compared_cycles=2683089",
+        "# Errors: 0, Warnings: 0"
+      ]
+    },
+    "final_catalog_regression": {
+      "catalog_count_0": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_count_1": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_count_2": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_count_3": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_count_4": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_count_5": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_fat_same_cycle": [
+        "# PASS FAT capture offset=0 entry=a1234567",
+        "# PASS FAT capture offset=8 entry=00000003",
+        "# PASS FAT capture offset=508 entry=ffffffff",
+        "# PASS FAT capture offset=508 entry=00000000",
+        "# PASS FAT capture offset=508 entry=00000003",
+        "# PASS shared-enable FAT capture",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "catalog_reset_write": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "tb_bmp_catalog_fat_capture": [
+        "# PASS FAT capture offset=0 entry=a1234567",
+        "# PASS FAT capture offset=8 entry=00000003",
+        "# PASS FAT capture offset=508 entry=ffffffff",
+        "# PASS FAT capture offset=508 entry=00000000",
+        "# PASS FAT capture offset=508 entry=00000003",
+        "# PASS shared-enable FAT capture",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "tb_fat32_bmp_catalog": [
+        "# PASS FAT32 BMP catalog: MBR/direct volumes and root FAT chain",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "tb_fat32_bmp_catalog_five": [
+        "# PASS FAT32 BMP catalog: five root entries emitted in physical order",
+        "# Errors: 0, Warnings: 0"
+      ]
+    },
+    "selected_official_regression": {
+      "boundaries": [
+        "# PASS 1920x1080 -> 19x14 pattern=0",
+        "# PASS 1919x1079 -> 19x14 pattern=2",
+        "# PASS 1x1080 -> 19x14 pattern=0",
+        "# PASS 1920x1 -> 19x14 pattern=0",
+        "# PASS 2x2 -> 19x14 pattern=2",
+        "# PASS 640x480 -> 19x14 pattern=0",
+        "# PASS 17x13 -> 19x14 pattern=3",
+        "# PASS 17x13 -> 19x14 pattern=0",
+        "# PASS 1x1 -> 19x14 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "reset_sweep": [
+        "# PASS cancel state=1 reset=0 and restart",
+        "# PASS cancel state=2 reset=0 and restart",
+        "# PASS cancel state=3 reset=0 and restart",
+        "# PASS cancel state=4 reset=0 and restart",
+        "# PASS cancel state=5 reset=0 and restart",
+        "# PASS cancel state=6 reset=0 and restart",
+        "# PASS cancel state=7 reset=0 and restart",
+        "# PASS cancel state=8 reset=0 and restart",
+        "# PASS cancel state=9 reset=0 and restart",
+        "# PASS cancel state=10 reset=0 and restart",
+        "# PASS cancel state=11 reset=0 and restart",
+        "# PASS cancel state=12 reset=0 and restart",
+        "# PASS cancel state=13 reset=0 and restart",
+        "# PASS cancel state=14 reset=0 and restart",
+        "# PASS cancel state=15 reset=0 and restart",
+        "# PASS cancel state=16 reset=0 and restart",
+        "# PASS cancel state=17 reset=0 and restart",
+        "# PASS cancel state=18 reset=0 and restart",
+        "# PASS cancel state=19 reset=0 and restart",
+        "# PASS cancel state=20 reset=0 and restart",
+        "# PASS cancel state=1 reset=1 and restart",
+        "# PASS cancel state=2 reset=1 and restart",
+        "# PASS cancel state=3 reset=1 and restart",
+        "# PASS cancel state=4 reset=1 and restart",
+        "# PASS cancel state=5 reset=1 and restart",
+        "# PASS cancel state=6 reset=1 and restart",
+        "# PASS cancel state=7 reset=1 and restart",
+        "# PASS cancel state=8 reset=1 and restart",
+        "# PASS cancel state=9 reset=1 and restart",
+        "# PASS cancel state=10 reset=1 and restart",
+        "# PASS cancel state=11 reset=1 and restart",
+        "# PASS cancel state=12 reset=1 and restart",
+        "# PASS cancel state=13 reset=1 and restart",
+        "# PASS cancel state=14 reset=1 and restart",
+        "# PASS cancel state=15 reset=1 and restart",
+        "# PASS cancel state=16 reset=1 and restart",
+        "# PASS cancel state=17 reset=1 and restart",
+        "# PASS cancel state=18 reset=1 and restart",
+        "# PASS cancel state=19 reset=1 and restart",
+        "# PASS cancel state=20 reset=1 and restart",
+        "# PASS all 20 active states reset/abort and restart, cycle equivalence",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_column": [
+        "# PASS 640x480 -> 1x5 pattern=0",
+        "# PASS 17x13 -> 1x5 pattern=3",
+        "# PASS 17x13 -> 1x5 pattern=0",
+        "# PASS 1x1 -> 1x5 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_output": [
+        "# PASS 640x480 -> 1x1 pattern=0",
+        "# PASS 17x13 -> 1x1 pattern=3",
+        "# PASS 17x13 -> 1x1 pattern=0",
+        "# PASS 1x1 -> 1x1 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "single_row": [
+        "# PASS 640x480 -> 7x1 pattern=0",
+        "# PASS 17x13 -> 7x1 pattern=3",
+        "# PASS 17x13 -> 7x1 pattern=0",
+        "# PASS 1x1 -> 7x1 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "small_output": [
+        "# PASS 640x480 -> 7x5 pattern=0",
+        "# PASS 17x13 -> 7x5 pattern=3",
+        "# PASS 17x13 -> 7x5 pattern=0",
+        "# PASS 1x1 -> 7x5 pattern=1",
+        "# PASS scaler arithmetic, source gaps, backpressure, abort and restart",
+        "# Errors: 0, Warnings: 0"
+      ]
+    },
+    "selected_integration": {
+      "media_audio_start": [
+        "# PASS deferred audio start",
+        "# Errors: 0, Warnings: 0"
+      ],
+      "media_rhythm_commit": [
+        "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit",
+        "# Errors: 0, Warnings: 14"
+      ],
+      "media_scaler_commit": [
+        "# PASS sd_media_pipeline: BMP/FIFO/scaler output reached frame commit",
+        "# Errors: 0, Warnings: 14"
+      ]
+    }
+  },
+  "prototype_hud_tests": {
+    "datapath_controls_hud_regression_20261015": 8,
+    "datapath_controls_candidate7_hud_regression_20261015": 8
+  },
+  "selected_source_pixel_validation": {
+    "full_resolution_frames": 10,
+    "full_frame_pixels": 3072000,
+    "simulation_ns": 390077820,
+    "source_boundaries": "1920x1080,1919x1079,single-row,single-column,1x1,2x2",
+    "models": "Full candidate2 suite: unsigned combinational EG_LOGIC_MULT model (INPUTREG/OUTPUTREG disabled in RTL). Selected official suite: Anlogic eg_logic_mult.v."
+  },
+  "prototype8_tests": {
+    "reset_sweep": [
+      "# PASS cancel state=1 reset=0 and restart",
+      "# PASS cancel state=2 reset=0 and restart",
+      "# PASS cancel state=3 reset=0 and restart",
+      "# PASS cancel state=4 reset=0 and restart",
+      "# PASS cancel state=5 reset=0 and restart",
+      "# PASS cancel state=6 reset=0 and restart",
+      "# PASS cancel state=7 reset=0 and restart",
+      "# PASS cancel state=8 reset=0 and restart",
+      "# PASS cancel state=9 reset=0 and restart",
+      "# PASS cancel state=10 reset=0 and restart",
+      "# PASS cancel state=11 reset=0 and restart",
+      "# PASS cancel state=12 reset=0 and restart",
+      "# PASS cancel state=13 reset=0 and restart",
+      "# PASS cancel state=14 reset=0 and restart",
+      "# PASS cancel state=15 reset=0 and restart",
+      "# PASS cancel state=16 reset=0 and restart",
+      "# PASS cancel state=17 reset=0 and restart",
+      "# PASS cancel state=18 reset=0 and restart",
+      "# PASS cancel state=19 reset=0 and restart",
+      "# PASS cancel state=20 reset=0 and restart",
+      "# PASS cancel state=1 reset=1 and restart",
+      "# PASS cancel state=2 reset=1 and restart",
+      "# PASS cancel state=3 reset=1 and restart",
+      "# PASS cancel state=4 reset=1 and restart",
+      "# PASS cancel state=5 reset=1 and restart",
+      "# PASS cancel state=6 reset=1 and restart",
+      "# PASS cancel state=7 reset=1 and restart",
+      "# PASS cancel state=8 reset=1 and restart",
+      "# PASS cancel state=9 reset=1 and restart",
+      "# PASS cancel state=10 reset=1 and restart",
+      "# PASS cancel state=11 reset=1 and restart",
+      "# PASS cancel state=12 reset=1 and restart",
+      "# PASS cancel state=13 reset=1 and restart",
+      "# PASS cancel state=14 reset=1 and restart",
+      "# PASS cancel state=15 reset=1 and restart",
+      "# PASS cancel state=16 reset=1 and restart",
+      "# PASS cancel state=17 reset=1 and restart",
+      "# PASS cancel state=18 reset=1 and restart",
+      "# PASS cancel state=19 reset=1 and restart",
+      "# PASS cancel state=20 reset=1 and restart",
+      "# PASS all 20 active states reset/abort and restart, cycle equivalence"
+    ],
+    "dsp_full_smoke": [
+      "# PASS 1920x1080 -> 640x480 pattern=2",
+      "# PASS 17x13 -> 640x480 pattern=0",
+      "# PASS 1x1 -> 640x480 pattern=1",
+      "# PASS 17x13 -> 640x480 pattern=3",
+      "# PASS official DSP full-resolution: four complete frames"
+    ]
+  },
+  "prototype8_note": "Explicit DSP input registers were rejected (4984 MSlice); candidate2 mapped DSPs already have INPUTREGA/B ENABLE with reset tied inactive."
+}
