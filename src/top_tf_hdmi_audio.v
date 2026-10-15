@@ -40,7 +40,7 @@ module top(
 // 恢复彩线排查用帧签名诊断；置 0 可裁剪签名逻辑并隐藏 D/F/C 页。
 parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 1;
 // 资源受限时分批定位：0=三点并行，1=FIFO(F)，2=SDRAM(C)，3=原始RGB(D)。
-parameter integer VIDEO_DIAGNOSTIC_POINT = 1;
+parameter integer VIDEO_DIAGNOSTIC_POINT = 0;
 localparam DIAG_FIFO_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
                                (VIDEO_DIAGNOSTIC_POINT == 0 || VIDEO_DIAGNOSTIC_POINT == 1);
 localparam DIAG_MEMORY_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&

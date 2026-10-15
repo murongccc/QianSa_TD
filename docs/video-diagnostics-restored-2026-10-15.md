@@ -5,7 +5,8 @@
 将 `src/top_tf_hdmi_audio.v` 的 `VIDEO_SIGNATURE_DIAGNOSTICS` 默认值从 `0` 恢复为 `1`。
 原有模块、连接和轮换逻辑均保留，只重新启用既有诊断，不改变图片、音频、游戏处理流程。
 
-后续完整并行诊断导致 MSlice 超限，当前默认改为 F 点分批诊断。
+后续完整并行诊断导致 MSlice 超限，已增加分批诊断选项并验证 F 点候选。
+用户要求先保持三个监视点同时运行，当前默认为 `VIDEO_DIAGNOSTIC_POINT=0`，保留资源优化。
 诊断点选择、资源优化和验证结果见 [资源优化记录](video-diagnostics-resource-2026-10-15.md)。
 下文六页轮换描述的是 `VIDEO_DIAGNOSTIC_POINT=0` 的完整模式。
 
