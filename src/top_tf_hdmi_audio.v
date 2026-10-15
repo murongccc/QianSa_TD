@@ -37,8 +37,8 @@ module top(
     input                       sd_miso
 );
 
-// 资源受限时关闭旧签名诊断，保留 FIFO 空读、刷新与反压诊断。
-parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 0;
+// 恢复彩线排查用帧签名诊断；置 0 可裁剪签名逻辑并隐藏 D/F/C 页。
+parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 1;
 parameter MEM_DATA_BITS = 32;
 parameter ADDR_BITS     = 21;
 parameter BUSRT_BITS    = 10;
