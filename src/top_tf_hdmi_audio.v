@@ -12,7 +12,7 @@ module top(
     output [5:0]                seg_sel,
     output [7:0]                seg_data,
 
-    // 板载USB串口：RX=F12保留但不接收命令；TX=D12只输出触摸诊断。
+    // 板载USB串口：RX=F12保留；TX=D12在触摸诊断关闭时保持空闲高电平。
     input                       uart_rxd,
     output                      uart_txd,
 
@@ -41,6 +41,8 @@ module top(
 parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 1;
 // 资源受限时分批定位：0=三点并行，1=FIFO(F)，2=SDRAM(C)，3=原始RGB(D)。
 parameter integer VIDEO_DIAGNOSTIC_POINT = 0;
+// 临时关闭电脑端触摸串口监视以节省资源；置 1 恢复，不影响触摸输入和游戏判定。
+parameter integer TOUCH_SERIAL_MONITOR_ENABLED = 0;
 localparam DIAG_FIFO_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
                                (VIDEO_DIAGNOSTIC_POINT == 0 || VIDEO_DIAGNOSTIC_POINT == 1);
 localparam DIAG_MEMORY_ENABLED = VIDEO_SIGNATURE_DIAGNOSTICS != 0 &&
@@ -285,6 +287,7 @@ ch9350_touch_input u_touch_input (
     .good_count(touch_good),.checksum_error_count(touch_checksum_error),.format_error_count(touch_format_error),
     .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack)
 );
+generate if (TOUCH_SERIAL_MONITOR_ENABLED != 0) begin : g_touch_serial_monitor
 touch_serial_monitor u_touch_monitor (
     .lane_valid(touch_lane_valid),.lane_down(touch_lane_down),.lane_press(touch_lane_press),.lane_release(touch_lane_release),
     .lane_fault(touch_game_overflow),.lane_monitor_overflow(touch_lane_monitor_overflow),
@@ -296,6 +299,10 @@ touch_serial_monitor u_touch_monitor (
     .sequence_gap_count(touch_sequence_gap),.timeout_count(touch_timeout),.uart_error_count(touch_uart_error),.ack_count(touch_ack),
     .uart_txd(uart_txd),
     .monitor_drop_count());
+end else begin : g_touch_serial_monitor_disabled
+    assign uart_txd = 1'b1;
+    assign touch_lane_monitor_overflow = 1'b0;
+end endgenerate
 
 // 不再实例化触摸坐标映射和视频帧快照；游戏输入仍直接使用原始坐标。
 
