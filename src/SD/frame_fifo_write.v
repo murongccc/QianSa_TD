@@ -299,7 +299,9 @@ begin
 					state <= S_ACK;
 				end
 				// FIFO 数据就绪且读侧空闲时才可发起写 burst；刷新或控制器忙时必须让出 SDRAM。
-			else if(into_burst_d && !Sdr_init_ref_vld && !Sdr_busy && !refresh_hold)
+			// into_burst_d 只代表上一拍的准入条件；读侧可能已在这一拍获准。
+			// 发起写 burst 前重新检查实时读忙，避免读写流水线同时发命令。
+			else if(into_burst_d && !App_rd_busy && !Sdr_init_ref_vld && !Sdr_busy && !refresh_hold)
 				begin
 					state <= S_WRITE_BURST;
 					//wr_burst_len <= BURST_SIZE[BURST_BITS - 1:0];
