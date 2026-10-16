@@ -9,6 +9,7 @@ module rhythm_chart_buffer (
 );
     reg [63:0] memory[0:127];
     reg [7:0] write_pointer,write_gray,read_pointer,read_gray;
+    reg [6:0] write_address;
     reg [7:0] read_gray_meta,read_gray_sync,write_gray_meta,write_gray_sync;
     reg [63:0] read_value;
     reg read_pending;
@@ -28,8 +29,14 @@ module rhythm_chart_buffer (
     wire empty=(read_gray==write_gray_sync);
     wire fetch=!note_valid && !read_pending && !empty;
 
+    // 地址先在下降沿锁存，保持随后上升沿写入的原地址及数据握手不变。
+    // 避免递增指针在写沿后立即改变 BRAM 地址，给地址端口留出半周期 hold 余量。
+    always @(negedge write_clk or posedge rst)begin
+        if(rst)write_address<=7'd0;
+        else write_address<=write_pointer[6:0];
+    end
     // RAM 的读写分别只有一个时钟；控制复位不清 RAM 内容。
-    always @(posedge write_clk)if(write_enable && write_used<128)memory[write_pointer[6:0]]<=write_data;
+    always @(posedge write_clk)if(write_enable && write_used<128)memory[write_address]<=write_data;
     always @(posedge read_clk)if(fetch)read_value<=memory[read_pointer[6:0]];
     always @(posedge write_clk or posedge rst)begin
         if(rst)begin write_pointer<=0;write_gray<=0;read_gray_meta<=0;read_gray_sync<=0;overflow<=0;end

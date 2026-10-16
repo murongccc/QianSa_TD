@@ -37,8 +37,8 @@ module top(
     input                       sd_miso
 );
 
-// 恢复彩线排查用帧签名诊断；置 0 可裁剪签名逻辑并隐藏 D/F/C 页。
-parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 1;
+// 暂时关闭帧签名诊断以释放时序与打包余量；置 1 恢复 D/F/C 三处诊断。
+parameter integer VIDEO_SIGNATURE_DIAGNOSTICS = 0;
 // 资源受限时分批定位：0=三点并行，1=FIFO(F)，2=SDRAM(C)，3=原始RGB(D)。
 parameter integer VIDEO_DIAGNOSTIC_POINT = 0;
 // 临时关闭电脑端触摸串口监视以节省资源；置 1 恢复，不影响触摸输入和游戏判定。

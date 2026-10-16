@@ -12,6 +12,7 @@ def main():
     parser.add_argument('--touch-markers', action='store_true', help='ensure new touch marker sources despite older GUI source cache')
     parser.add_argument('--route', action='store_true')
     parser.add_argument('--hfn-off', action='store_true', help='disable physical high-fanout register replication')
+    parser.add_argument('--clock-hold-fix', action='store_true', help='run explicit pre-bitgen hold fix inside opt_route; fail if final timing is negative')
     parser.add_argument('--parent')
     parser.add_argument('--td', default='E:/AnLuTD/bin/td_commands_prompt.exe')
     args = parser.parse_args()
@@ -24,6 +25,19 @@ def main():
     dest.mkdir(parents=True, exist_ok=True)
     for name in ['SD_to_Video.tcl', 'SD_to_Video.prj', 'settings.cfg']:
         shutil.copyfile(template/name, dest/name)
+    if args.clock_hold_fix:
+        if not args.route:
+            parser.error('--clock-hold-fix requires --route')
+        flow_path = dest/'SD_to_Video.tcl'
+        flow = flow_path.read_text()
+        anchor = '  route\n'
+        if flow.count(anchor) != 1:
+            raise RuntimeError('cannot locate the normal opt_route command for hold fix')
+        hook = root/'prj/scripts/fix_hold_before_bitgen.tcl'
+        # 与 GUI 控制台一致，在全局作用域加载脚本，隔离 opt_route_fun 的局部变量。
+        flow = flow.replace(anchor, anchor + '  uplevel #0 [list set startup_hold_run_dir [pwd]]\n' +
+                            f'  uplevel #0 [list source {{{hook.as_posix()}}}]\n', 1)
+        flow_path.write_text(flow)
     # GUI 运行目录可能仍含已删除旧文件；以当前工程的 Verilog 源集为准。
     project_path = dest/'SD_to_Video.prj'
     current_project = (root/'prj/SD_to_Video.al').read_text(encoding='utf-8')
