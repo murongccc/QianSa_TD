@@ -15,8 +15,8 @@ module rhythm_session_controller #(
     input wire [31:0] sample_index,emitted_count,
     input wire judge_done,queue_overflow,
     output wire freeze_media,output reg active_game,output wire auto_mode,
-    output wire resource_reset,resource_enable,resource_cancel,
-    output wire engine_reset,engine_run,engine_load,
+    output reg resource_reset,output wire resource_enable,resource_cancel,
+    output reg engine_reset,output wire engine_run,engine_load,
     output wire [1:0] player_mode,
     output reg signed [32:0] song_time,
     output reg [31:0] song_frames,output reg [15:0] total_notes,
@@ -57,10 +57,18 @@ module rhythm_session_controller #(
     wire soft_tick=phase_sum>=CLOCK_RATE;
     reg [3:0] paused_state;
     assign freeze_media=want_game || active_game;
-    assign resource_reset=state==CLEAR;
     assign resource_cancel=state==RETIRE || state==ERROR;
     assign resource_enable=state==LOAD || state==PREROLL || state==PLAY || state==PAUSE || state==BUFFER || state==TAIL || state==RESULT;
-    assign engine_reset=rst || state==RETIRE || state==CLEAR || state==STOP || state==SETTLE || state==LOAD;
+    // 状态在上升沿更新，复位在下降沿采样稳定译码，禁止组合毛刺进入异步复位端。
+    // 全局复位仍异步断言；会话复位释放后给上升沿消费者保留半周期恢复余量。
+    // 资源清理同样寄存，避免 PLAY/BUFFER/TAIL 多位切换误清 PCM、谱面和 HUD。
+    always @(negedge clk or posedge rst)begin
+        if(rst)begin engine_reset<=1'b1;resource_reset<=1'b0;end
+        else begin
+            engine_reset<=state==RETIRE || state==CLEAR || state==STOP || state==SETTLE || state==LOAD;
+            resource_reset<=state==CLEAR;
+        end
+    end
     assign engine_load=active_game && !engine_reset;
     assign engine_run=active_game && (state==PREROLL || state==PLAY || state==TAIL);
     assign player_mode=(state==PLAY) ? 2'd1 : ((state==STOP || state==RETIRE || state==CLEAR) ? 2'd0 : 2'd2);

@@ -1,6 +1,9 @@
 `timescale 1ns/1ps
 // 真实读取器 + 双时钟预取/FIFO + PCM + 会话 + 引擎的闭环，PCM 数据携带帧号。
 module tb_game_background_playback;
+    // 1=EOF 前断粮、2=EOF 后末尾断粮、3=无断粮收尾；0 保留原闭环回归。
+    parameter integer SCORE_END_CASE=0;
+    parameter integer PHYSICAL_AUDIO_FIFO=0;
     reg clk=0,nclk=0,rst=1,game=1,sw1=1,k2=1,k3=1,k4=1,stall_sd=0;
     always #5 clk=~clk;always #20 nclk=~nclk;
     reg [7:0] data=0;reg valid=0,done=0;
@@ -23,17 +26,33 @@ module tb_game_background_playback;
     wire emit,missing,prefetch,re,audio_valid;wire [31:0] sample_index,emitted_count;
     wire [23:0] left_pcm,right_pcm;reg read_toggle=0;
     wire [15:0] p,g,b,m,combo,max_combo;wire [19:0] score;
-    reg [31:0] memory[0:4095],fifo_dout=0;
+    reg score_event=0,watch_score=0;
+    reg signed [32:0] score_event_time=0;
+    wire score_event_ready;
+    always @(posedge engine_reset or posedge clear)if(watch_score)
+        $fatal(1,"unexpected session reset after scoring: state=%0d score=%0d",state,score);
+    reg [31:0] memory[0:4095],memory_dout=0;
+    wire [31:0] fifo_dout;
     reg [31:0] written=0,read_count=0;
-    wire fifo_empty=written==read_count;wire fifo_full=written-read_count>=4096;
+    reg block_pcm=0;
+    wire ip_empty,ip_full;
+    wire fifo_empty=(PHYSICAL_AUDIO_FIFO ? ip_empty : written==read_count) || block_pcm;
+    wire fifo_full=PHYSICAL_AUDIO_FIFO ? ip_full : written-read_count>=4096;
+    generate if(PHYSICAL_AUDIO_FIFO)begin: physical_audio_fifo
+        audio_fifo_32x4096 fifo(.rst(rst || clear),.clkw(clk),.di(adata),.we(awe),
+            .clkr(nclk),.re(re && !block_pcm),.do(fifo_dout),.empty_flag(ip_empty),.full_flag(ip_full));
+    end else begin: behavioral_audio_fifo
+        assign fifo_dout=memory_dout;
+        assign ip_empty=1'b0;assign ip_full=1'b0;
+    end endgenerate
     always @(posedge clk or posedge rst or posedge clear)begin
         if(rst || clear)written<=0;else if(awe)begin
             if(fifo_full)$fatal(1,"PCM FIFO overflow");memory[written[11:0]]<=adata;written<=written+1;
         end
     end
     always @(posedge nclk or posedge rst or posedge clear)begin
-        if(rst || clear)begin read_count<=0;read_toggle<=0;fifo_dout<=0;end
-        else if(re && !fifo_empty)begin fifo_dout<=memory[read_count[11:0]];read_count<=read_count+1;read_toggle<=!read_toggle;end
+        if(rst || clear)begin read_count<=0;read_toggle<=0;memory_dout<=0;end
+        else if(re && !fifo_empty)begin memory_dout<=memory[read_count[11:0]];read_count<=read_count+1;read_toggle<=!read_toggle;end
     end
     rhythm_sd_resources #(.REUSE_MEDIA(1)) resources(
         .metadata_address(metadata_address),.metadata_data(metadata_data),
@@ -58,7 +77,7 @@ module tb_game_background_playback;
         .player_mode(mode),.song_time(time_now),.song_frames(total_frames),.total_notes(total_notes),.chart_offset(offset),.chart_eof(chart_eof),.state(state),.error_code(error_code));
     rhythm_game_engine #(.SHARED_VIEW(1),.BLOCK_QUEUE(1),.SCORE_DSP(1)) engine(.view_capture(capture),.input_mode(2'd2),.clk(nclk),.rst_n(!engine_reset),.run(engine_run && !capture),.song_time(time_now),.chart_offset(offset),
         .total_notes(total_notes),.chart_eof(chart_eof),.note_valid(nvalid && engine_load && !capture),.note_data(ndata),.note_ready(nready),
-        .event_valid(1'b0),.event_ready(),.event_time(33'sd0),.press_mask(4'd0),.release_mask(4'd0),.down_mask(4'd0),
+        .event_valid(score_event),.event_ready(score_event_ready),.event_time(score_event_time),.press_mask(4'd2),.release_mask(4'd0),.down_mask(4'd0),
         .head_valid(),.head_time(),.holding_mask(holding),.view_index(view_index),.view_valid(view_valid),.view_start(view_start),.view_end(view_end),
         .result_valid(),.result_lane(),.result_grade(),.perfect_count(p),.good_count(g),.bad_count(b),.miss_count(m),
         .combo(combo),.max_combo(max_combo),.score(score),.done(judge_done),.queue_overflow(overflow));
@@ -222,7 +241,40 @@ module tb_game_background_playback;
             record=0;record[31:0]=i*600;record[55:32]=(i%8==0)?1000:0;record[63:56]=(i%4)|((i%8==0)?4:0);
             for(bytes=0;bytes<8;bytes=bytes+1)image[64+i*8+bytes]=record>>(bytes*8);
         end
-        repeat(5)@(negedge nclk);rst=0;wait_state(6);while(audible<100)@(negedge nclk);
+        repeat(5)@(negedge nclk);rst=0;wait_state(6);
+        if(SCORE_END_CASE!=0)begin
+            // 第二颗音符为 lane1 的 Tap；先获得非零总分，再核对复位/缺采样/收尾。
+            while(time_now<600)@(negedge nclk);
+            score_event_time=time_now;score_event=1;
+            while(!score_event_ready)@(negedge nclk);
+            @(posedge nclk);@(negedge nclk);score_event=0;
+            wait(score==20'd62500);watch_score=1;
+            if(SCORE_END_CASE==1)begin
+                while(audible<1000)@(negedge nclk);
+                stall_sd=1;wait_state(8);
+                if(aeof)$fatal(1,"expected starvation before EOF");
+                repeat(100)@(negedge nclk);
+                if(score!=62500 || engine_reset || clear)$fatal(1,"BUFFER lost score");
+                stall_sd=0;wait_state(6);
+            end else if(SCORE_END_CASE==2)begin
+                // 不丢弃数据，只暂时阻止播放器取到最后一段，覆盖 EOF 已发布的恢复分支。
+                while(audible<9500)@(negedge nclk);
+                block_pcm=1;wait_state(8);
+                if(!aeof)$fatal(1,"expected late starvation after EOF");
+                repeat(100)@(negedge nclk);
+                if(score!=62500 || engine_reset || clear)$fatal(1,"late BUFFER lost score");
+                block_pcm=0;wait_state(6);
+            end
+            wait_state(9);wait_state(10);repeat(100)@(negedge nclk);
+            if(audible!=10000 || score!=62500 || p!=1 || m!=15 || g || b || !judge_done || engine_reset || clear)
+                $fatal(1,"nonzero score RESULT mismatch PCM=%0d score=%0d P=%0d M=%0d",audible,score,p,m);
+            watch_score=0;
+            press(2);wait_state(6);
+            if(score || p || m || judge_done)$fatal(1,"intentional restart retained score");
+            $display("PASS nonzero score case=%0d: BUFFER/EOF/TAIL/RESULT preserve 62500, all 16 judgments, 10000 PCM frames, intentional restart clears",SCORE_END_CASE);
+            $finish;
+        end
+        while(audible<100)@(negedge nclk);
         press(3);wait_state(7);repeat(20)@(negedge nclk);frozen_time=time_now;
         repeat(100)@(negedge nclk);if(time_now!=frozen_time)$fatal(1,"pause clock");press(3);wait_state(6);
         stall_sd=1;wait_state(8);frozen_time=time_now;repeat(100)@(negedge nclk);
