@@ -31,7 +31,9 @@ module rhythm_game_engine #(parameter integer SHARED_VIEW=0,parameter integer BL
     wire [4:0] selected_view=(SHARED_VIEW && input_mode==2'd0 && !view_capture) ? {auto_lane,3'd0} : view_index;
     wire use_auto=input_mode==2'd0;
     wire use_external=input_mode==2'd2;
-    assign event_ready=use_external && core_ready;
+    // done 后只接收并丢弃在途事件，让触摸桥安全退场；判定器已停止消费，分数不变。
+    // 不依赖 run/capture，避免最后一帧快照恰好阻塞跨域停用前的握手尾部。
+    assign event_ready=use_external && (done || core_ready);
     rhythm_auto_input #(.SERIAL_HEAD(SHARED_VIEW),.SERIAL_LATENCY(BLOCK_QUEUE ? 8 : 0)) auto_input(
         .serial_valid(view_valid),.serial_time(view_start),.serial_lane(auto_lane),.clk(clk),.rst_n(rst_n),.run(run && (!BLOCK_QUEUE || auto_guard[1])),.enable(use_auto),
         .song_time(song_time),.head_valid(head_valid),.head_time(head_time),.holding_mask(holding_mask),

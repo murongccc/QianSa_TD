@@ -273,7 +273,8 @@ touch_lane_input u_touch_lane_input(
     .down_mask(touch_lane_down),.armed(touch_lane_armed));
 touch_game_event_bridge u_touch_game_bridge(
     .src_clk(clk),.src_rst(rst_clk),.dst_clk(video_clk),.dst_rst(rst_video),
-    .enable(engine_run && !engine_reset && !game_auto),.src_enable(touch_game_enable),
+    // 全部判定完成即停用输入，音频余段和结算等待期间不再产生游戏触摸事件。
+    .enable(engine_run && !engine_reset && !game_auto && !judge_done),.src_enable(touch_game_enable),
     .src_valid(touch_lane_valid),.src_press(touch_lane_press),.src_release(touch_lane_release),.src_down(touch_lane_down),
     .game_time(game_time),.event_valid(touch_game_valid),.event_ready(touch_game_ready),.event_time(touch_game_time),
     .press_mask(touch_game_press),.release_mask(touch_game_release),.down_mask(touch_game_down),
