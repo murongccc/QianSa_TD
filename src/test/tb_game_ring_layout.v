@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-// 小圆环逐半径/幅度验证；旧布局逐像素对照修改前渲染器。
+// 游戏圆环逐半径/幅度验证；图片模式对照旧渲染器的缩小半径。
 module tb_game_ring_layout;
 parameter integer BLOCK_BARS=1;
 reg clk=0,rst=1,game=0;
@@ -17,7 +17,7 @@ ring_spectrum_renderer #(.REFERENCE_MODE(1),.BLOCK_BARS(BLOCK_BARS),.ENABLE_GAME
     .bars_read_address(address),.bars_read_data(data),.bars_read_valid(1'b1),.bars_active(|bars),
     .game_layout(game),.pixel_on(on),.pixel_rgb(rgb));
 baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1)) golden(
-    .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bands(256'd0),.bars(bars),
+    .clk(clk),.rst(rst),.breath_radius(radius-8'd10),.pixel_x(x),.pixel_y(y),.bands(256'd0),.bars(bars),
     .bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
     .pixel_on(golden_on),.pixel_rgb(golden_rgb));
 integer px,py,i,r,l,d,inner,length,checks=0,hits=0;

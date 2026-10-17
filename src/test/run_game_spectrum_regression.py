@@ -33,7 +33,7 @@ if not Path(library).exists():
     run('library', [shutil.which('vlib'), library])
 modules = ['rhythm_game_renderer', 'rhythm_block_ram', 'rhythm_font', 'rhythm_hud',
            'ring_spectrum_renderer', 'image_info_metadata','image_info_osd','image_osd_font','video_presentation']
-tests = ['tb_game_ring_layout', 'tb_video_game_spectrum', 'tb_rhythm_note_style',
+tests = ['tb_ring_spectrum_renderer', 'tb_game_ring_layout', 'tb_video_game_spectrum', 'tb_rhythm_note_style',
          'tb_touch_lane_glow', 'tb_hold_glow_fix', 'tb_video_glow_blend', 'tb_reference_ring',
          'tb_video_presentation', 'tb_video_presentation_startup', 'tb_rhythm_scroll_speed',
          'tb_rhythm_renderer', 'tb_rhythm_renderer_session_reset', 'tb_compact_progress']

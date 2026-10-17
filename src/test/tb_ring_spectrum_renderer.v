@@ -61,7 +61,7 @@ initial begin
             if (pixel_on) begin
                 visible_pixels[dut.sector]=visible_pixels[dut.sector]+1;
                 total=total+1;
-                if (dut.distance_sq<8100 || dut.distance_sq>8464 || !dut.inside_side_stage)
+                if (dut.distance_sq<6400 || dut.distance_sq>6724 || !dut.inside_side_stage)
                     $fatal(1,"short bar bounds violated");
             end
         end

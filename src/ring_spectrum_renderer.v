@@ -41,12 +41,14 @@ wire y_down = pixel_y >= CENTER_Y;
 wire in_circle_bounds = small_layout ? ((abs_x <= 10'd120) && (abs_y <= 10'd120)) :
     ((abs_x <= 10'd176) && (abs_y <= 10'd176));
 // 半径已由 FFT 原始峰值按参考算法计算，与音柱在同一视频帧发布。
-wire [7:0] full_radius = REFERENCE_MODE ? breath_radius : 8'd90;
+wire [7:0] source_radius = REFERENCE_MODE ? breath_radius : 8'd90;
+// 图片模式内半径缩小10像素；柱宽、柱长及呼吸幅度保持不变。
+wire [7:0] full_radius = source_radius - 8'd10;
 reg [7:0] small_radius;
 reg [13:0] small_radius_square;
 // 内半径取原半径的2/3；半径及平方同时查表，避免串接缩放和平方运算。
 always @* begin
-    case(full_radius)
+    case(source_radius)
         8'd91:begin small_radius=8'd60;small_radius_square=14'd3600;end
         8'd92:begin small_radius=8'd61;small_radius_square=14'd3721;end
         8'd93,8'd94:begin small_radius=8'd62;small_radius_square=14'd3844;end
@@ -69,6 +71,16 @@ wire [16:0] base_radius_sq;
     reg [13:0] radius_square;
     always @* begin
         case(full_radius)
+            8'd80: radius_square=14'd6400;
+            8'd81: radius_square=14'd6561;
+            8'd82: radius_square=14'd6724;
+            8'd83: radius_square=14'd6889;
+            8'd84: radius_square=14'd7056;
+            8'd85: radius_square=14'd7225;
+            8'd86: radius_square=14'd7396;
+            8'd87: radius_square=14'd7569;
+            8'd88: radius_square=14'd7744;
+            8'd89: radius_square=14'd7921;
             8'd91: radius_square=17'd8281;
             8'd92: radius_square=17'd8464;
             8'd93: radius_square=17'd8649;
