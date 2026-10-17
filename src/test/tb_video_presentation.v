@@ -31,6 +31,8 @@ reg [7:0] previous_control_value;
 always #20 clk = ~clk;
 
 video_presentation #(
+    // 保留原频谱/参数链基线；Logo见tb_video_logo默认配置回归。
+    .ENABLE_LOGO(0),
     .REFERENCE_SPECTRUM(REFERENCE_SPECTRUM),
     .ACTIVE_WIDTH(64), .ACTIVE_HEIGHT(480),
     .INITIAL_WARMUP_FRAMES(0)

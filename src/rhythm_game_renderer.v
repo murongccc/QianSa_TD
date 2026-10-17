@@ -255,9 +255,9 @@ module rhythm_game_renderer #(parameter integer BLOCK_GEOMETRY=0,parameter integ
                 overlay=1;light_overlay=1;color={3'd0,note_color[23:19],3'd0,note_color[15:11],3'd0,note_color[7:3]};
             end
         end
-        // 顶部进度条、左上暂停标记，固定判定线与弱轨道边界。
+        // 顶部进度条、Logo右侧暂停标记，固定判定线与弱轨道边界。
         if(y<9'd3 && px>=TRACK_START && px<TRACK_START+{1'b0,progress})begin overlay=1;light_overlay=0;end
-        if(px>=24 && px<44 && y>=18 && y<38 && (px<30 || px>=38))begin overlay=1;light_overlay=0;end
+        if(px>=10'd80 && px<10'd100 && y>=9'd16 && y<9'd36 && (px<10'd86 || px>=10'd94))begin overlay=1;light_overlay=0;end
         if(in_track && y>=64 && y<409)begin
             if(local_x==0 && glow_level==0)begin overlay=1;light_overlay=0;color=24'h303a50;end
             if(line_bodies[track] && !line_heads[track] && body_fill)begin

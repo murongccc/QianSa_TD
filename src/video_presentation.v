@@ -6,7 +6,8 @@ module video_presentation #(
     // 首次显示前等待帧读通路稳定；运行中切图不增加这段等待。
     parameter integer INITIAL_WARMUP_FRAMES = 8, parameter integer ENABLE_RHYTHM = 0,
     parameter integer BLOCK_BARS = 0,
-    parameter integer ENABLE_TOUCH_MARKERS = 0
+    parameter integer ENABLE_TOUCH_MARKERS = 0,
+    parameter integer ENABLE_LOGO = 1
 )(
     input wire clk, input wire rst, input wire display_valid,
     input wire [2:0] display_slot_async,
@@ -153,6 +154,99 @@ ring_spectrum_renderer #(
 // 第二级锁存图像/叠加结果。顶层必须将 DE/VS 同样延迟两拍。
 reg [23:0] adjusted_rgb_stage;
 reg base_valid_stage;
+// BEGIN VIDEO LOGO ROM
+// 固定56x36；索引0透明。2048x4同步ROM，匹配呈现第一级，不增加视频延迟。
+// 由src/test/generate_video_logo.py生成；原图保存在src/assets/logo_source.png。
+reg [3:0] logo_pixels[0:2047];
+integer logo_i,logo_j;
+function [223:0] logo_row;
+    input integer row;
+    begin
+        case(row)
+            0:logo_row=224'h00000000000000000000588888888888888888888888888888888885;
+            1:logo_row=224'h000000000000000007a05deeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeed5;
+            2:logo_row=224'h00000000000000000ab0055555555555555555555555555555555550;
+            3:logo_row=224'h00000000000000007bca000000000000000000000000000000000000;
+            4:logo_row=224'h0000000000000000acca705888888888888888888888888888888500;
+            5:logo_row=224'h0000000000000007bccca05deeeeeeeeeeeeeeeeeeeeeeeeeeeed000;
+            6:logo_row=224'h000000000000000accccb70688888888888888888888888888885000;
+            7:logo_row=224'h000000000000007bccccca0000000000000000000000000000000000;
+            8:logo_row=224'h00000000000000accccccb7035555555555555555555555555500000;
+            9:logo_row=224'h00000000000007bccccccca06deeeeeeeeeeeeeeeeeeeeeeeed00000;
+            10:logo_row=224'h0000000000000accccccccb706888888888888888888888888600000;
+            11:logo_row=224'h0000000000007bccccccccca00000000000000000000000000000000;
+            12:logo_row=224'h000000000000accccccccccb70000000000000000000000000000000;
+            13:logo_row=224'h000000000007bccccccccccca05ddddddddddddddddddddd90000000;
+            14:logo_row=224'h00000000000accccccccccccb7069999999999999999999960000000;
+            15:logo_row=224'h00000000007bccccccccccccca000000000000000000000000000000;
+            16:logo_row=224'h0000000000accccccaaccccccb700000000000000000000000000000;
+            17:logo_row=224'h0000000007bcccccb77bcccccca059dddddddddddddddd8000000000;
+            18:logo_row=224'h000000000acccccca00accccccb708dddddddddddddddd6000000000;
+            19:logo_row=224'h000000007bcccccb7007acccccca0000000000000000000000000000;
+            20:logo_row=224'h00000000acccccca00007ccccccb7000000000000000000000000000;
+            21:logo_row=224'h00000007bcccccb700000acccccca058999999999999600000000000;
+            22:logo_row=224'h0000000acccccca0000007ccccccb709dddddddddddd600000000000;
+            23:logo_row=224'h0000007bcccccb70000000acccccca00000000000000000000000000;
+            24:logo_row=224'h000000acccccca000000007bcccccb70000000000000000000000000;
+            25:logo_row=224'h000007bcccccb7000000000acccccca0066666666650000000000000;
+            26:logo_row=224'h00000acccccca00000000007bcccccb709eeeeeeed60000000000000;
+            27:logo_row=224'h00007bcccccb700000000000acccccca005555555500000000000000;
+            28:logo_row=224'h0000acccccca0000000000007bcccccb700000000000000000000000;
+            29:logo_row=224'h0007bccccccaaaaaaaaa00000acccccca00666665000000000000000;
+            30:logo_row=224'h000acccccccccccccccc700007bcccccb709eeee6000000000000000;
+            31:logo_row=224'h007bcccccccccccccccca00000acccccca0588860000000000000000;
+            32:logo_row=224'h00acccccccccccccccccca00007acccccc7000000000000000000000;
+            33:logo_row=224'h07bccccccccccccccccccb70000acccccca003300000000000000000;
+            34:logo_row=224'h0acccccccccccccccccccca00000acccccc708500000000000000000;
+            35:logo_row=224'h77777777777777777777777400007777777703000000000000000000;
+            default:logo_row=224'd0;
+        endcase
+    end
+endfunction
+initial begin
+    for(logo_i=0;logo_i<2048;logo_i=logo_i+1)logo_pixels[logo_i]=4'd0;
+    for(logo_i=0;logo_i<36;logo_i=logo_i+1)
+        for(logo_j=0;logo_j<56;logo_j=logo_j+1)
+            logo_pixels[logo_i*56+logo_j]=logo_row(logo_i)>>((55-logo_j)*4);
+end
+function [23:0] logo_color;
+    input [3:0] index;
+    begin
+        case(index)
+            4'd0:logo_color=24'h000000;
+            4'd1:logo_color=24'hfff3f3;
+            4'd2:logo_color=24'hf1d1cf;
+            4'd3:logo_color=24'hf9aaad;
+            4'd4:logo_color=24'hafadb7;
+            4'd5:logo_color=24'hf7888b;
+            4'd6:logo_color=24'hf45f64;
+            4'd7:logo_color=24'h606b81;
+            4'd8:logo_color=24'hf35057;
+            4'd9:logo_color=24'hf13e45;
+            4'd10:logo_color=24'h2c3b5a;
+            4'd11:logo_color=24'h1c2e4f;
+            4'd12:logo_color=24'h1c2d4e;
+            4'd13:logo_color=24'hef262e;
+            4'd14:logo_color=24'hee1d25;
+            4'd15:logo_color=24'h000000;
+            default:logo_color=24'd0;
+        endcase
+    end
+endfunction
+// END VIDEO LOGO ROM
+wire logo_hit=ENABLE_LOGO && de && render_x>=10'd8 && render_x<10'd64 &&
+    touch_y>=9'd8 && touch_y<9'd44;
+wire [5:0] logo_x=render_x[5:0]-6'd8;
+wire [5:0] logo_y=touch_y[5:0]-6'd8;
+wire [10:0] logo_address=({5'd0,logo_y}<<6)-({5'd0,logo_y}<<3)+{5'd0,logo_x};
+reg [3:0] logo_index_stage;
+reg logo_hit_stage;
+// ROM与窗口判定在同一拍锁存；第二拍解码调色板并叠加，复用既有DE/VS延迟。
+always @(posedge clk)logo_index_stage<=logo_pixels[logo_hit ? logo_address : 11'd0];
+always @(posedge clk or posedge rst)begin
+    if(rst)logo_hit_stage<=1'b0;
+    else logo_hit_stage<=logo_hit;
+end
 wire info_panel_stage,info_ink_stage;
 wire [23:0] info_ink_rgb;
 generate if(ACTIVE_WIDTH>=240 && ACTIVE_HEIGHT>=176)begin : g_image_info
@@ -270,8 +364,9 @@ always @(posedge clk or posedge rst) begin
         touch_a_stage<=touch_a_hit;touch_b_stage<=touch_b_hit;
 
         // 第二级：游戏HUD/音符覆盖频谱，光晕提亮频谱或压暗底图。
-        // A青色、B品红色、重合白色；同样经过两拍，优先于 OSD/频谱/游戏。
-        if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
+        // Logo常驻最上层；触摸A青色、B品红色、重合白色，随后为OSD/频谱/游戏。
+        if(logo_hit_stage && logo_index_stage!=4'd0)rgb_out<=logo_color(logo_index_stage);
+        else if(touch_a_stage || touch_b_stage)rgb_out<={{8{touch_b_stage}},{8{touch_a_stage}},8'hff};
         else if(game_stage)rgb_out<=game_layer_rgb;
         else if(info_panel_stage)rgb_out<=info_ink_stage ? info_ink_rgb : info_background_rgb;
         else if (!base_valid_stage) rgb_out <= 24'd0;

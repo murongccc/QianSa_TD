@@ -8,7 +8,8 @@ reg [39:0] packet=0;
 reg [9:0] driver_x=0,driver_y=0;
 wire [23:0] rgb_marked,rgb_disabled,rgb_baseline;
 wire display_marked,display_baseline;
-video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(1)) marked(
+// 与历史无Logo输出核对触摸图层，默认Logo另有真实视频链回归。
+video_presentation #(.ENABLE_LOGO(0),.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(1)) marked(
         .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(display_marked),
@@ -18,7 +19,7 @@ video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_M
     .spectrum_read_address(),.spectrum_read_data(8'd0),.spectrum_read_valid(1'b0),.spectrum_active(1'b0),
     .game_active(game_active),.game_pixel_on(1'b1),.game_pixel_rgb(24'h123456),.touch_frame_packet(packet),
     .de(de),.vs(vs),.rgb_in(rgb_in),.rgb_out(rgb_marked));
-video_presentation #(.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(0)) disabled(
+video_presentation #(.ENABLE_LOGO(0),.INITIAL_WARMUP_FRAMES(0),.ENABLE_RHYTHM(1),.ENABLE_TOUCH_MARKERS(0)) disabled(
         .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(),

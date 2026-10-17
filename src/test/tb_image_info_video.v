@@ -20,7 +20,8 @@ wire [23:0] rgb;
 wire applied,active;
 integer x,y,f,ink_pixels,yellow_pixels,frames;
 reg [23:0] base;
-video_presentation #(.INITIAL_WARMUP_FRAMES(0)) dut(
+// 独立检查右侧信息栏；Logo默认叠加及透明区域由tb_video_logo逐像素覆盖。
+video_presentation #(.ENABLE_LOGO(0),.INITIAL_WARMUP_FRAMES(0)) dut(
     .clk(clk),.rst(rst),.display_valid(1'b1),.display_slot_async(slot),.info_frame_start(info_frame_start),.info_slot(info_slot),.display_info(info),
     .display_switch_toggle_async(toggle),.display_slot_applied_toggle(applied),.display_active(active),
     .image_brightness_async(brightness),.image_contrast_async(contrast),.image_sharpness_async(7'd50),.image_selected_async(selected),

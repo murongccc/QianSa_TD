@@ -34,7 +34,8 @@ ring_spectrum_renderer #(.REFERENCE_MODE(1),.BLOCK_BARS(1)) dut(.game_layout(1'b
 baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1)) golden(
     .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bars(bars),.bands(256'd0),
     .pixel_on(on_old),.pixel_rgb(ring_old));
-video_presentation #(.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.INITIAL_WARMUP_FRAMES(0)) video(
+// 与历史频谱逐像素对比时关闭新增Logo，默认Logo另有真实视频链回归。
+video_presentation #(.ENABLE_LOGO(0),.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.INITIAL_WARMUP_FRAMES(0)) video(
         .game_pixel_light(1'b0),
     .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(display_new),

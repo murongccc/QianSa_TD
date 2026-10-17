@@ -6,7 +6,8 @@ reg [23:0] backdrop=24'h808080,source=0;
 reg source_on=0,source_light=0;
 reg [23:0] source_stage=0;reg on_stage=0,light_stage=0;
 wire [23:0] rgb;
-video_presentation #(.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
+// 独立检查背景/光晕混合基线，Logo默认叠加由tb_video_logo覆盖。
+video_presentation #(.ENABLE_LOGO(0),.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
     .clk(clk),.rst(rst),.display_valid(1'b1),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),

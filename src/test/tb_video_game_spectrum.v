@@ -15,7 +15,8 @@ always @(posedge clk)begin
     source_on<=de && (opaque || light);source_light<=light;source_rgb<=24'h804020;
     data<=8'd255;
 end
-video_presentation #(.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
+// 本用例保留频谱合成基线；默认启用Logo的完整链由tb_video_logo覆盖。
+video_presentation #(.ENABLE_LOGO(0),.REFERENCE_SPECTRUM(1),.BLOCK_BARS(1),.ENABLE_RHYTHM(1),.INITIAL_WARMUP_FRAMES(0)) dut(
     .clk(clk),.rst(rst),.display_valid(display_valid),.info_frame_start(),.info_slot(),.display_info(89'd0),.display_slot_async(3'd0),.display_switch_toggle_async(1'b0),
     .display_slot_applied_toggle(),.display_active(),
     .image_brightness_async(7'd50),.image_contrast_async(7'd50),.image_sharpness_async(7'd50),
