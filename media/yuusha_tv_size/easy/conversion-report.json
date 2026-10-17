@@ -1,0 +1,43 @@
+{
+  "member": "YOASOBI - Yuusha (TV Size) (Kibitz) [Easy].osu",
+  "title": "Yuusha (TV Size)",
+  "artist": "YOASOBI",
+  "difficulty": "Easy",
+  "audio_member": "audio.ogg",
+  "notes": 353,
+  "taps": 302,
+  "holds": 51,
+  "lane_counts": [
+    90,
+    88,
+    89,
+    86
+  ],
+  "active_slot_peaks": [
+    4,
+    4,
+    4,
+    4
+  ],
+  "first_note_samples": 39456,
+  "last_tail_samples": 4262496,
+  "format": "R4B1",
+  "sample_rate": 48000,
+  "song_frames": 4391096,
+  "song_seconds": 91.48116666666667,
+  "offset_samples": 0,
+  "source_sha256": "7e4c1b664d8b8f89d7aeb1c7546c507a4080070272ad508325124319af8c2250",
+  "outputs_sha256": {
+    "GAME.BIN": "2ecd5d48f0cd85d984b6a6643a8dae258b3dacf234f333274dd0d7016d413d79",
+    "GAME.WAV": "216f686db0b81a51dd33df1ca9c3eb3540a0fddd5aa4b1d1747eece97fc3ccf3"
+  },
+  "binary_bytes": 2888,
+  "wav_bytes": 17564428,
+  "ignored_features": [
+    "scroll velocity",
+    "skin",
+    "storyboard",
+    "hitsounds"
+  ],
+  "notes_preserved": true
+}

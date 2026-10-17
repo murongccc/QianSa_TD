@@ -1,0 +1,43 @@
+{
+  "member": "YOASOBI - Yuusha (TV Size) (Kibitz) [anatha's Normal].osu",
+  "title": "Yuusha (TV Size)",
+  "artist": "YOASOBI",
+  "difficulty": "anatha's Normal",
+  "audio_member": "audio.ogg",
+  "notes": 577,
+  "taps": 446,
+  "holds": 131,
+  "lane_counts": [
+    138,
+    149,
+    155,
+    135
+  ],
+  "active_slot_peaks": [
+    6,
+    6,
+    7,
+    6
+  ],
+  "first_note_samples": 39456,
+  "last_tail_samples": 4262496,
+  "format": "R4B1",
+  "sample_rate": 48000,
+  "song_frames": 4391096,
+  "song_seconds": 91.48116666666667,
+  "offset_samples": 0,
+  "source_sha256": "7e4c1b664d8b8f89d7aeb1c7546c507a4080070272ad508325124319af8c2250",
+  "outputs_sha256": {
+    "GAME.BIN": "c51593a77c702c5eb1bfe72de49d69dcc719f47bd0c8581d1a7a2f2acfb8d668",
+    "GAME.WAV": "216f686db0b81a51dd33df1ca9c3eb3540a0fddd5aa4b1d1747eece97fc3ccf3"
+  },
+  "binary_bytes": 4680,
+  "wav_bytes": 17564428,
+  "ignored_features": [
+    "scroll velocity",
+    "skin",
+    "storyboard",
+    "hitsounds"
+  ],
+  "notes_preserved": true
+}
