@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-// 游戏圆环逐半径/幅度验证；图片模式对照旧渲染器的缩小半径。
+// 图片模式验证加宽后的像素边界；游戏模式逐像素对照修改前版本。
 module tb_game_ring_layout;
 parameter integer BLOCK_BARS=1;
 reg clk=0,rst=1,game=0;
@@ -16,11 +16,12 @@ ring_spectrum_renderer #(.REFERENCE_MODE(1),.BLOCK_BARS(BLOCK_BARS),.ENABLE_GAME
     .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bands(256'd0),.bars(bars),
     .bars_read_address(address),.bars_read_data(data),.bars_read_valid(1'b1),.bars_active(|bars),
     .game_layout(game),.pixel_on(on),.pixel_rgb(rgb));
-baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1)) golden(
-    .clk(clk),.rst(rst),.breath_radius(radius-8'd10),.pixel_x(x),.pixel_y(y),.bands(256'd0),.bars(bars),
+baseline_ring_spectrum_renderer #(.REFERENCE_MODE(1),.ENABLE_GAME_LAYOUT(1)) golden(
+    .game_layout(game),
+    .clk(clk),.rst(rst),.breath_radius(radius),.pixel_x(x),.pixel_y(y),.bands(256'd0),.bars(bars),
     .bars_read_address(),.bars_read_data(8'd0),.bars_read_valid(1'b0),.bars_active(1'b0),
     .pixel_on(golden_on),.pixel_rgb(golden_rgb));
-integer px,py,i,r,l,d,inner,length,checks=0,hits=0;
+integer px,py,i,r,l,d,inner,length,width_limit,checks=0,hits=0,added=0;
 reg expected;
 initial begin
     repeat(4)@(negedge clk);rst=0;
@@ -30,9 +31,21 @@ initial begin
     for(py=0;py<480;py=py+1)for(px=0;px<640;px=px+1)begin
         @(negedge clk);x=px;y=py;
         @(posedge clk);#1;
-        if(on!==golden_on || rgb!==golden_rgb)$fatal(1,"normal layout changed at %d/%d",px,py);
+        // 旧版几何、柱长和颜色作为基准，仅将横向误差边界扩大5/4。
+        width_limit=(golden.side_limit*5)/4;
+        expected=golden.active_stage && golden.cross_error<=width_limit &&
+            golden.distance_sq_stage>=golden.base_radius_sq_stage &&
+            golden.distance_sq_stage<=golden.outer_radius_sq &&
+            (golden.distance_sq_stage>=golden.inner_cap_radius_sq || golden.cross_error<=width_limit/2) &&
+            (golden.distance_sq_stage<=golden.cap_body_radius_sq || golden.cross_error<=width_limit/2);
+        if(on!==expected || rgb!==golden_rgb)$fatal(1,"picture width mismatch at %d/%d",px,py);
+        if(golden_on && !on)$fatal(1,"picture lost original pixel");
+        if(on && !golden_on)added=added+1;
+        if(dut.base_radius!==golden.base_radius || dut.bar_length!==golden.bar_length)
+            $fatal(1,"picture radius or length changed");
         checks=checks+1;
     end
+    if(added==0)$fatal(1,"picture bars did not widen");
     game=1;
     for(r=90;r<=110;r=r+1)for(l=0;l<256;l=l+1)begin
         radius=r;bars={80{l[7:0]}};
@@ -50,6 +63,7 @@ initial begin
     for(py=0;py<480;py=py+1)for(px=0;px<640;px=px+1)begin
         @(negedge clk);x=px;y=py;
         @(posedge clk);#1;
+        if(on!==golden_on || rgb!==golden_rgb)$fatal(1,"game pixels changed at %d/%d",px,py);
         if(on)begin
             hits=hits+1;
             if(px<368 || px>608 || py<120 || py>360 ||

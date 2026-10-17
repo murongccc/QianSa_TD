@@ -340,9 +340,13 @@ assign bars_read_address=display_index;
 wire spectrum_active = REFERENCE_MODE ? (BLOCK_BARS ? bars_active : (|bars)) : (|bands);
 wire [15:0] cross_error = (minor256 >= axis_product) ?
     minor256 - axis_product : axis_product - minor256;
-wire [8:0] side_limit = (octant_position >= 4'd8) ? 9'd480 :
-                       ((octant_position >= 4'd5) ? 9'd416 : 9'd384);
-wire [8:0] cap_limit = side_limit >> 1;
+// 图片模式柱宽增加25%；游戏模式保留原宽度。600需要十位，避免截断。
+wire [9:0] side_limit = small_layout ?
+    ((octant_position >= 4'd8) ? 10'd480 :
+     ((octant_position >= 4'd5) ? 10'd416 : 10'd384)) :
+    ((octant_position >= 4'd8) ? 10'd600 :
+     ((octant_position >= 4'd5) ? 10'd520 : 10'd480));
+wire [9:0] cap_limit = side_limit >> 1;
 wire [7:0] level_stage;
 generate if(REFERENCE_MODE && BLOCK_BARS)begin: block_level
     // BRAM 输出已是当前像素的第一级结果，不再追加寄存一级。
@@ -363,8 +367,8 @@ always @(posedge clk) begin
     distance_sq_stage <= distance_sq;
     base_radius_stage <= base_radius;
     base_radius_sq_stage <= base_radius_sq;
-    inside_side_stage <= cross_error <= {9'd0,side_limit};
-    narrow_center_stage <= cross_error <= {9'd0,cap_limit};
+    inside_side_stage <= cross_error <= {6'd0,side_limit};
+    narrow_center_stage <= cross_error <= {6'd0,cap_limit};
     color_stage <= rainbow(display_index);
     small_layout_stage <= small_layout;
 end

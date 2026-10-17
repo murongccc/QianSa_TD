@@ -30,7 +30,7 @@ initial begin
         #1;
         if(dut.base_radius!==inner || dut.base_radius_sq!==inner*inner)
             $fatal(1,"picture radius/square mismatch r=%0d",r);
-        if(dut.side_limit!==9'd384 || dut.cap_limit!==9'd192)
+        if(dut.side_limit!==10'd480 || dut.cap_limit!==10'd240)
             $fatal(1,"picture bar width changed");
         for(i=0;i<80;i=i+1) begin
             angle=6.283185307179586*i/80;

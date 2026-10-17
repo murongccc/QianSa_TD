@@ -24,7 +24,7 @@ def run(name, command, passed=False):
     print('\n'.join(line for line in text.splitlines() if 'PASS' in line or 'Errors:' in line), flush=True)
 
 # 固定修改前提交，避免后续提交后HEAD变成被测实现。
-baseline = subprocess.check_output(['git', 'show', '017df025:src/ring_spectrum_renderer.v'], cwd=root).decode('utf-8')
+baseline = subprocess.check_output(['git', 'show', '5717585:src/ring_spectrum_renderer.v'], cwd=root).decode('utf-8')
 baseline = re.sub(r'\bring_spectrum_renderer\b', 'baseline_ring_spectrum_renderer', baseline)
 reference = out/'baseline_ring_spectrum_renderer.v'
 reference.write_text(baseline, encoding='utf-8')
