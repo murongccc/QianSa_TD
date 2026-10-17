@@ -49,7 +49,7 @@ module tb_rhythm_renderer_session_reset;
         display_d1<=de;display_d2<=display_d1;display_x1<=ref_px;display_x2<=display_x1;display_y1<=ref_y;display_y2<=display_y1;
     end
     always @(negedge clk)if(!hard_reset && display_d2 && display_x2>=550 && display_y2>=100 && display_y2<409)
-        if(composed_rgb!==24'h3c2d1e)$fatal(1,"background brightness changed during session clear: %h",composed_rgb);
+        if(composed_rgb!==24'h543f2a)$fatal(1,"background brightness changed during session clear: %h",composed_rgb);
     reg check_wait=0,check_coordinates=0;integer released_frame=0,checked_pixels=0;
     // 解除清理后、下一次真实 VS 边界前，不允许发布游戏像素或启动假快照。
     always @(negedge clk)if(!hard_reset && !session_clear)begin

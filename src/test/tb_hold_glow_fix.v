@@ -47,7 +47,7 @@ always @(negedge clk)if(save && d2)begin
     if(y2==366 && x2==136 && rgb!==24'hffffff)$fatal(1,"Hold head glyph not opaque");
     if(y2==384 && x2==113 && rgb!==24'hffffff)$fatal(1,"judge line not opaque");
     if(y2==360 && (x2==96 || x2==107))begin
-        base=(x2[5]^y2[5]) ? 24'h28323c : 24'h3c281e;
+        base=(x2[5]^y2[5]) ? 24'h384654 : 24'h54382a;
         if(rgb[23:16]<base[23:16] || rgb[15:8]<base[15:8] || rgb[7:0]<base[7:0])$fatal(1,"dark glow frame remains");
     end
 end

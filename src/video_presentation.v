@@ -270,12 +270,12 @@ end else begin : g_without_touch_markers
     assign touch_b_hit=1'b0;
 end endgenerate
 // 背景压暗由稳定会话状态在帧边界选择，不随渲染器清理/等待快照而关闭。
-// 游戏底图增益5/16（31.25%），原为1/4；常量移位加法，不新增DSP或流水拍。
+// 游戏底图增益7/16（43.75%），较5/16提高40%；移位减法，不新增DSP或流水拍。
 function [7:0] game_background_component;
     input [7:0] component;
     reg [10:0] scaled;
     begin
-        scaled={1'b0,component,2'b00}+{3'b000,component};
+        scaled={component,3'b000}-{3'b000,component};
         game_background_component={1'b0,scaled[10:4]};
     end
 endfunction

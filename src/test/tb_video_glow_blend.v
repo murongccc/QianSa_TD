@@ -20,7 +20,7 @@ reg [23:0] expected1=0,expected2=0,base1=0,base2=0;
 reg d1=0,d2=0,check=0,l1=0,l2=0;
 function [7:0] expected_background;
     input [7:0] value;
-    begin expected_background=(value*5)/16;end
+    begin expected_background=(value*7)/16;end
 endfunction
 wire [23:0] dimmed={expected_background(backdrop[23:16]),expected_background(backdrop[15:8]),expected_background(backdrop[7:0])};
 always @(posedge clk)begin

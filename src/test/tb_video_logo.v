@@ -51,7 +51,7 @@ task check_pixel;
             if(px<86 || px>=94)begin
                 if(rgb!==24'hffffff)$fatal(1,"pause bars missing/misaligned at %0d,%0d",px,py);
                 pause_count=pause_count+1;
-            end else if(rgb!==24'h1e2d3c)$fatal(1,"pause gap filled at %0d,%0d",px,py);
+            end else if(rgb!==24'h2a3f54)$fatal(1,"pause gap filled at %0d,%0d",px,py);
         end
         // 旧暂停位置在Logo下面，用原始游戏渲染输出来确认旧双竖线已移除。
         if(game && px>=24 && px<44 && py>=18 && py<38 && renderer.base_pixel_on)
